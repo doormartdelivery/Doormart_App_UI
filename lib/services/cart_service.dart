@@ -1,3 +1,1 @@
-class CartService {
-  Future<void> syncCart(List<Map<String, dynamic>> items) async {}
-}
+export '../features/customer/services/cart_service.dart';

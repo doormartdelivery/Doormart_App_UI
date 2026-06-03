@@ -56,10 +56,7 @@ class ApiService {
     return _decode(response);
   }
 
-  Future<dynamic> delete(
-    String path, {
-    String? token,
-  }) async {
+  Future<dynamic> delete(String path, {String? token}) async {
     final response = await http.delete(
       Uri.parse('$baseUrl$path'),
       headers: _headers(token),

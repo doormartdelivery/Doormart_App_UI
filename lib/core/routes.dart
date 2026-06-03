@@ -1,87 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../features/routing/admin_routes.dart';
+import '../features/routing/customer_routes.dart';
+import '../features/routing/delivery_routes.dart';
+import '../features/routing/shared_routes.dart';
+import '../features/routing/super_admin_routes.dart';
 import '../providers/app_state.dart';
 import '../views/access_denied_screen.dart';
-import '../views/admin/admin_dashboard_screen.dart';
-import '../views/admin/admin_login_screen.dart';
-import '../views/admin/admin_notifications_screen.dart';
-import '../views/admin/admin_orders_screen.dart';
-import '../views/admin/audit_logs_screen.dart';
-import '../views/admin/manage_delivery_screen.dart';
-import '../views/admin/manage_products_screen.dart';
-import '../views/admin/manage_users_screen.dart';
-import '../views/admin/stock_screen.dart';
-import '../views/delivery/delivery_earnings_screen.dart';
-import '../views/delivery/delivery_home_screen.dart';
-import '../views/delivery/delivery_login_screen.dart';
-import '../views/delivery/delivery_order_screen.dart';
-import '../views/delivery/live_tracking_screen.dart';
-import '../views/super_admin/delivery_analytics_screen.dart';
-import '../views/super_admin/payout_tracking_screen.dart';
-import '../views/super_admin/reports_screen.dart';
-import '../views/super_admin/revenue_analytics_screen.dart';
-import '../views/super_admin/super_admin_dashboard_screen.dart';
-import '../views/super_admin/super_admin_heatmap_screen.dart';
-import '../views/super_admin/super_admin_login_screen.dart';
-import '../views/super_admin/super_admin_orders_screen.dart';
-import '../views/select_role_screen.dart';
-import '../views/user/address_screen.dart';
-import '../views/user/cart_screen.dart';
-import '../views/user/checkout_screen.dart';
-import '../views/user/my_orders_screen.dart';
-import '../views/user/notification_screen.dart';
-import '../views/user/order_success_screen.dart';
-import '../views/user/product_category_screen.dart';
-import '../views/user/product_list_screen.dart';
-import '../views/user/login_screen.dart';
-import '../views/user/profile_screen.dart';
-import '../views/user/signup_screen.dart';
-import '../views/user/splash_screen.dart';
-import '../views/user/scheduled_order_screen.dart';
-import '../views/user/user_home_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
-    SplashScreen.routeName: (_) => const SplashScreen(),
-    SelectRoleScreen.routeName: (_) => const SelectRoleScreen(),
-    AccessDeniedScreen.routeName: (_) => const AccessDeniedScreen(),
-    UserHomeScreen.routeName: (_) => const UserHomeScreen(),
-    LoginScreen.routeName: (_) => const LoginScreen(),
-    DeliveryLoginScreen.routeName: (_) => const DeliveryLoginScreen(),
-    AdminLoginScreen.routeName: (_) => const AdminLoginScreen(),
-    SuperAdminLoginScreen.routeName: (_) => const SuperAdminLoginScreen(),
-    SignupScreen.routeName: (_) => const SignupScreen(),
-    ProductListScreen.routeName: (_) => const ProductListScreen(),
-    ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
-    CartScreen.routeName: (_) => const CartScreen(),
-    CheckoutScreen.routeName: (_) => const CheckoutScreen(),
-    OrderSuccessScreen.routeName: (_) => const OrderSuccessScreen(),
-    ScheduledOrderScreen.routeName: (_) => const ScheduledOrderScreen(),
-    MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
-    AddressScreen.routeName: (_) => const AddressScreen(),
-    NotificationScreen.routeName: (_) => const NotificationScreen(),
-    ProfileScreen.routeName: (_) => const ProfileScreen(),
-    DeliveryHomeScreen.routeName: (_) => const DeliveryHomeScreen(),
-    DeliveryOrderScreen.routeName: (_) => const DeliveryOrderScreen(),
-    LiveTrackingScreen.routeName: (_) => const LiveTrackingScreen(),
-    DeliveryEarningsScreen.routeName: (_) => const DeliveryEarningsScreen(),
-    AdminDashboardScreen.routeName: (_) => const AdminDashboardScreen(),
-    AdminOrdersScreen.routeName: (_) => const AdminOrdersScreen(),
-    AdminNotificationsScreen.routeName: (_) => const AdminNotificationsScreen(),
-    ManageProductsScreen.routeName: (_) => const ManageProductsScreen(),
-    ManageUsersScreen.routeName: (_) => const ManageUsersScreen(),
-    ManageDeliveryScreen.routeName: (_) => const ManageDeliveryScreen(),
-    StockScreen.routeName: (_) => const StockScreen(),
-    AuditLogsScreen.routeName: (_) => const AuditLogsScreen(),
-    SuperAdminDashboardScreen.routeName: (_) =>
-        const SuperAdminDashboardScreen(),
-    RevenueAnalyticsScreen.routeName: (_) => const RevenueAnalyticsScreen(),
-    PayoutTrackingScreen.routeName: (_) => const PayoutTrackingScreen(),
-    ReportsScreen.routeName: (_) => const ReportsScreen(),
-    DeliveryAnalyticsScreen.routeName: (_) => const DeliveryAnalyticsScreen(),
-    SuperAdminOrdersScreen.routeName: (_) => const SuperAdminOrdersScreen(),
-    SuperAdminHeatmapScreen.routeName: (_) => const SuperAdminHeatmapScreen(),
+    ...SharedRoutes.routes,
+    ...CustomerRoutes.routes,
+    ...DeliveryRoutes.routes,
+    ...AdminRoutes.routes,
+    ...SuperAdminRoutes.routes,
   };
 
   static Route<dynamic> onGenerateRoute(

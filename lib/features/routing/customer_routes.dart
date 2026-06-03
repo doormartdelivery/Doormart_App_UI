@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+
+import '../../views/user/address_screen.dart';
+import '../../views/user/cart_screen.dart';
+import '../../views/user/checkout_screen.dart';
+import '../../views/user/login_screen.dart';
+import '../../views/user/my_orders_screen.dart';
+import '../../views/user/notification_screen.dart';
+import '../../views/user/order_success_screen.dart';
+import '../../views/user/product_category_screen.dart';
+import '../../views/user/product_list_screen.dart';
+import '../../views/user/profile_screen.dart';
+import '../../views/user/scheduled_order_screen.dart';
+import '../../views/user/signup_screen.dart';
+import '../../views/user/splash_screen.dart';
+import '../../views/user/user_home_screen.dart';
+
+class CustomerRoutes {
+  static Map<String, WidgetBuilder> get routes => {
+    SplashScreen.routeName: (_) => const SplashScreen(),
+    UserHomeScreen.routeName: (_) => const UserHomeScreen(),
+    LoginScreen.routeName: (_) => const LoginScreen(),
+    SignupScreen.routeName: (_) => const SignupScreen(),
+    ProductListScreen.routeName: (_) => const ProductListScreen(),
+    ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
+    CartScreen.routeName: (_) => const CartScreen(),
+    CheckoutScreen.routeName: (_) => const CheckoutScreen(),
+    OrderSuccessScreen.routeName: (_) => const OrderSuccessScreen(),
+    ScheduledOrderScreen.routeName: (_) => const ScheduledOrderScreen(),
+    MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
+    AddressScreen.routeName: (_) => const AddressScreen(),
+    NotificationScreen.routeName: (_) => const NotificationScreen(),
+    ProfileScreen.routeName: (_) => const ProfileScreen(),
+  };
+}

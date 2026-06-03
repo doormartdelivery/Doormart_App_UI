@@ -1,3 +1,1 @@
-import 'package:flutter/foundation.dart';
-
-class SuperAdminProvider extends ChangeNotifier {}
+export '../features/super_admin/providers/super_admin_provider.dart';

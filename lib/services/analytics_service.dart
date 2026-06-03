@@ -1,3 +1,1 @@
-class AnalyticsService {
-  void track(String event, [Map<String, dynamic>? properties]) {}
-}
+export '../features/operations/services/analytics_service.dart';

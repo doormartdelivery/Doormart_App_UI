@@ -1,3 +1,1 @@
-import 'package:flutter/foundation.dart';
-
-class UserProvider extends ChangeNotifier {}
+export '../features/customer/providers/user_provider.dart';

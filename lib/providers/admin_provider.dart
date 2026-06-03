@@ -1,3 +1,1 @@
-import 'package:flutter/foundation.dart';
-
-class AdminProvider extends ChangeNotifier {}
+export '../features/admin/providers/admin_provider.dart';
