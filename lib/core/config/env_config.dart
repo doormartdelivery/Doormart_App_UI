@@ -1,8 +1,5 @@
-import '../constants/api_constants.dart';
+import '../constants.dart';
 
 class EnvConfig {
-  static const apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: ApiConstants.baseUrl,
-  );
+  static String get apiBaseUrl => AppConstants.apiBaseUrl;
 }

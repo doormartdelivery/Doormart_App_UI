@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../core/constants.dart';
 
 class ApiService {
-  const ApiService({this.baseUrl = AppConstants.apiBaseUrl});
+  ApiService({String? baseUrl}) : baseUrl = baseUrl ?? AppConstants.apiBaseUrl;
 
   final String baseUrl;
 

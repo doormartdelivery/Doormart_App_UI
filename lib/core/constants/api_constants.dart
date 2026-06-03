@@ -1,10 +1,22 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
-  static const baseUrl = String.fromEnvironment(
+  static String get baseUrl => String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5000/api',
+    defaultValue: _defaultApiBaseUrl,
   );
-  static const socketUrl = String.fromEnvironment(
+  static String get socketUrl => String.fromEnvironment(
     'SOCKET_URL',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: _defaultSocketUrl,
   );
+
+  static String get _defaultApiBaseUrl {
+    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:5000/api';
+    return 'http://127.0.0.1:5000/api';
+  }
+
+  static String get _defaultSocketUrl {
+    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:5000';
+    return 'http://127.0.0.1:5000';
+  }
 }

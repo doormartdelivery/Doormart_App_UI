@@ -148,7 +148,11 @@ class _ProductImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final path = product.imageUrl;
     if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.contain);
+      return Image.asset(
+        path,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => _fallbackIcon(product.category),
+      );
     }
     if (path.startsWith('http')) {
       return Image.network(

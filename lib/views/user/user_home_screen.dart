@@ -12,6 +12,7 @@ import '../delivery/delivery_home_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
 import 'cart_screen.dart';
 import 'product_list_screen.dart';
+import 'profile_screen.dart';
 
 class UserHomeScreen extends StatelessWidget {
   const UserHomeScreen({super.key});
@@ -46,7 +47,14 @@ class UserHomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavBar(index: 0, onTap: (_) {}),
+      bottomNavigationBar: BottomNavBar(
+        index: 0,
+        onTap: (index) {
+          if (index == 3) {
+            Navigator.pushNamed(context, ProfileScreen.routeName);
+          }
+        },
+      ),
     );
   }
 }

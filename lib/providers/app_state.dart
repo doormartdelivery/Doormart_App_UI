@@ -23,7 +23,7 @@ class CartLine {
 }
 
 class AppState extends ChangeNotifier {
-  AppState({this.apiService = const ApiService()});
+  AppState({ApiService? apiService}) : apiService = apiService ?? ApiService();
 
   final ApiService apiService;
 
@@ -42,23 +42,7 @@ class AppState extends ChangeNotifier {
   bool get signedIn => token != null && user != null;
 
   Future<void> bootstrap() async {
-    await Future.wait([
-      loadProducts(),
-      loginDemo(role: UserRoles.user, silent: true),
-    ]);
-  }
-
-  Future<void> loginDemo({
-    String role = UserRoles.user,
-    bool silent = false,
-  }) async {
-    final phone = switch (role) {
-      UserRoles.delivery => '8888888888',
-      UserRoles.admin => '7777777777',
-      UserRoles.superAdmin => '6666666666',
-      _ => '9999999999',
-    };
-    await login(phone: phone, password: 'password', silent: silent);
+    await loadProducts();
   }
 
   Future<void> login({
@@ -79,6 +63,16 @@ class AppState extends ChangeNotifier {
     }, silent: silent);
   }
 
+  Future<void> refreshProfile() async {
+    if (token == null) return;
+    final data = await apiService.get('/auth/me', token: token) as Map<String, dynamic>;
+    final currentUser = data['user'];
+    if (currentUser is Map<String, dynamic>) {
+      user = UserModel.fromJson(currentUser);
+      notifyListeners();
+    }
+  }
+
   Future<void> loadProducts({String? category, String? search}) async {
     await _run(() async {
       final query = <String>[
@@ -92,7 +86,6 @@ class AppState extends ChangeNotifier {
           .cast<Map<String, dynamic>>()
           .map(ProductModel.fromJson)
           .toList();
-      if (products.isEmpty) products = _fallbackProducts;
     });
   }
 
@@ -135,7 +128,7 @@ class AppState extends ChangeNotifier {
     String paymentMethod = 'razorpay',
     DateTime? scheduledFor,
   }) async {
-    if (token == null) await loginDemo(silent: true);
+    if (token == null) throw StateError('Please login first');
     final data =
         await apiService.post(
               '/orders',
@@ -158,7 +151,7 @@ class AppState extends ChangeNotifier {
 
   Future<Map<String, dynamic>> adminDashboard() async {
     if (token == null || user?.role != UserRoles.admin) {
-      await loginDemo(role: UserRoles.admin, silent: true);
+      throw StateError('Admin login required');
     }
     return await apiService.get('/admin/dashboard', token: token)
         as Map<String, dynamic>;
@@ -166,7 +159,7 @@ class AppState extends ChangeNotifier {
 
   Future<Map<String, dynamic>> superAdminAnalytics() async {
     if (token == null || user?.role != UserRoles.superAdmin) {
-      await loginDemo(role: UserRoles.superAdmin, silent: true);
+      throw StateError('Super admin login required');
     }
     return await apiService.get('/super-admin/analytics', token: token)
         as Map<String, dynamic>;
@@ -178,7 +171,7 @@ class AppState extends ChangeNotifier {
 
   Future<List<OrderModel>> allOrdersForRole(String role) async {
     if (token == null || user?.role != role) {
-      await loginDemo(role: role, silent: true);
+      throw StateError('Login required');
     }
     final data = await apiService.get('/orders', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
@@ -186,27 +179,25 @@ class AppState extends ChangeNotifier {
 
   Future<List<dynamic>> notificationsForRole(String role) async {
     if (token == null || user?.role != role) {
-      await loginDemo(role: role, silent: true);
+      throw StateError('Login required');
     }
     return await apiService.get('/notifications', token: token)
         as List<dynamic>;
   }
 
   Future<List<dynamic>> addresses() async {
-    if (token == null) await loginDemo(silent: true);
-    return await apiService.get('/users/addresses', token: token)
-        as List<dynamic>;
+    if (token == null) throw StateError('Please login first');
+    return await apiService.get('/addresses', token: token) as List<dynamic>;
   }
 
   Future<List<dynamic>> scheduledOrders() async {
-    if (token == null) await loginDemo(silent: true);
-    return await apiService.get('/scheduled-orders', token: token)
-        as List<dynamic>;
+    if (token == null) throw StateError('Please login first');
+    return await apiService.get('/orders/scheduled', token: token) as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> deliveryEarnings() async {
     if (token == null || user?.role != UserRoles.delivery) {
-      await loginDemo(role: UserRoles.delivery, silent: true);
+      throw StateError('Delivery login required');
     }
     return await apiService.get('/delivery/earnings', token: token)
         as Map<String, dynamic>;
@@ -226,57 +217,9 @@ class AppState extends ChangeNotifier {
       error = null;
     } catch (exception) {
       if (!silent) error = exception.toString();
-      if (products.isEmpty) products = _fallbackProducts;
     } finally {
       if (!silent) loading = false;
       notifyListeners();
     }
   }
-
-  static const List<ProductModel> _fallbackProducts = [
-    ProductModel(
-      id: 'local-tomato',
-      name: 'Fresh Tomato',
-      category: 'Vegetables',
-      price: 38,
-      cost: 24,
-      stock: 120,
-      imageUrl: 'assets/images/products/tomato.png',
-      rating: 4.6,
-      unit: '1 kg',
-    ),
-    ProductModel(
-      id: 'local-milk',
-      name: 'A2 Milk',
-      category: 'Dairy',
-      price: 72,
-      cost: 53,
-      stock: 42,
-      imageUrl: 'assets/images/products/milk.png',
-      rating: 4.8,
-      unit: '1 litre',
-    ),
-    ProductModel(
-      id: 'local-rice',
-      name: 'Basmati Rice',
-      category: 'Staples',
-      price: 149,
-      cost: 104,
-      stock: 80,
-      imageUrl: 'assets/images/products/rice.png',
-      rating: 4.5,
-      unit: '1 kg',
-    ),
-    ProductModel(
-      id: 'local-banana',
-      name: 'Yelakki Banana',
-      category: 'Fruits',
-      price: 64,
-      cost: 39,
-      stock: 36,
-      imageUrl: 'assets/images/products/banana.png',
-      rating: 4.7,
-      unit: '500 g',
-    ),
-  ];
 }

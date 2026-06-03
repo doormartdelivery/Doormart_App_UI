@@ -1,13 +1,9 @@
+import 'constants/api_constants.dart';
+
 class AppConstants {
   static const appName = 'Doormart Delivery';
-  static const apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5000/api',
-  );
-  static const socketUrl = String.fromEnvironment(
-    'SOCKET_URL',
-    defaultValue: 'http://10.0.2.2:5000',
-  );
+  static String get apiBaseUrl => ApiConstants.baseUrl;
+  static String get socketUrl => ApiConstants.socketUrl;
   static const maxCarouselItems = 12;
   static const carouselAutoSlideSeconds = 3;
 }

@@ -27,13 +27,17 @@ import '../views/user/notification_screen.dart';
 import '../views/user/order_success_screen.dart';
 import '../views/user/product_category_screen.dart';
 import '../views/user/product_list_screen.dart';
+import '../views/user/login_screen.dart';
 import '../views/user/profile_screen.dart';
+import '../views/user/signup_screen.dart';
 import '../views/user/scheduled_order_screen.dart';
 import '../views/user/user_home_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
     UserHomeScreen.routeName: (_) => const UserHomeScreen(),
+    LoginScreen.routeName: (_) => const LoginScreen(),
+    SignupScreen.routeName: (_) => const SignupScreen(),
     ProductListScreen.routeName: (_) => const ProductListScreen(),
     ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
     CartScreen.routeName: (_) => const CartScreen(),
