@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 import 'checkout_screen.dart';
 
@@ -40,12 +41,30 @@ class CartScreen extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         IconButton(
-                          onPressed: () => state.decrement(line.product),
+                          onPressed: () async {
+                            final changed = await state.decrement(line.product);
+                            if (!context.mounted) return;
+                            showToast(
+                              context,
+                              changed
+                                  ? '${line.product.name} removed one item'
+                                  : state.error ?? 'Please login first',
+                            );
+                          },
                           icon: const Icon(Icons.remove_circle_outline),
                         ),
                         Text('Rs ${line.total.toStringAsFixed(0)}'),
                         IconButton(
-                          onPressed: () => state.addToCart(line.product),
+                          onPressed: () async {
+                            final added = await state.addToCart(line.product);
+                            if (!context.mounted) return;
+                            showToast(
+                              context,
+                              added
+                                  ? '${line.product.name} added to cart'
+                                  : state.error ?? 'Please login first',
+                            );
+                          },
                           icon: const Icon(Icons.add_circle_outline),
                         ),
                       ],
@@ -73,8 +92,11 @@ class CartScreen extends StatelessWidget {
             label: 'Checkout',
             icon: Icons.payment,
             onPressed: state.cart.isEmpty
-                ? () {}
-                : () => Navigator.pushNamed(context, CheckoutScreen.routeName),
+                ? () => showToast(context, 'Your cart is empty')
+                : () {
+                    showToast(context, 'Proceeding to checkout');
+                    Navigator.pushNamed(context, CheckoutScreen.routeName);
+                  },
           ),
         ),
       ],

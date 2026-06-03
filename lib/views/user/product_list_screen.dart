@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 
 class ProductListScreen extends StatelessWidget {
@@ -46,12 +47,14 @@ class ProductListScreen extends StatelessWidget {
               ),
               itemBuilder: (context, index) => ProductCard(
                 product: state.products[index],
-                onAdd: () {
-                  state.addToCart(state.products[index]);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${state.products[index].name} added'),
-                    ),
+                onAdd: () async {
+                  final added = await state.addToCart(state.products[index]);
+                  if (!context.mounted) return;
+                  showToast(
+                    context,
+                    added
+                        ? '${state.products[index].name} added to cart'
+                        : state.error ?? 'Please login first',
                   );
                 },
               ),

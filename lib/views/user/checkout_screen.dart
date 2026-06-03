@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 import 'order_success_screen.dart';
 
@@ -47,11 +48,14 @@ class CheckoutScreen extends StatelessWidget {
             label: 'Pay with Razorpay',
             icon: Icons.currency_rupee,
             onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
               final navigator = Navigator.of(context);
-              await state.checkout(address: _AddressField.address);
-              if (state.error != null) {
-                messenger.showSnackBar(SnackBar(content: Text(state.error!)));
+              try {
+                await state.checkout(address: _AddressField.address);
+                if (!context.mounted) return;
+                showToast(context, 'Payment successful');
+              } catch (error) {
+                if (!context.mounted) return;
+                showToast(context, error.toString());
                 return;
               }
               navigator.pushReplacementNamed(OrderSuccessScreen.routeName);

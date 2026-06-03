@@ -7,6 +7,7 @@ import '../../mascot/walking_mascot_widget.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/toast_widget.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../delivery/delivery_home_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
@@ -470,7 +471,16 @@ class _ProductRail extends StatelessWidget {
               width: 168,
               child: ProductCard(
                 product: products[index],
-                onAdd: () => state.addToCart(products[index]),
+                onAdd: () async {
+                  final added = await state.addToCart(products[index]);
+                  if (!context.mounted) return;
+                  showToast(
+                    context,
+                    added
+                        ? '${products[index].name} added to cart'
+                        : state.error ?? 'Please login first',
+                  );
+                },
               ),
             ),
           ),
@@ -501,7 +511,16 @@ class _EssentialsGrid extends StatelessWidget {
           ),
           itemBuilder: (context, index) => ProductCard(
             product: products[index],
-            onAdd: () => state.addToCart(products[index]),
+            onAdd: () async {
+              final added = await state.addToCart(products[index]);
+              if (!context.mounted) return;
+              showToast(
+                context,
+                added
+                    ? '${products[index].name} added to cart'
+                    : state.error ?? 'Please login first',
+              );
+            },
           ),
         );
       },

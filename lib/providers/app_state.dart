@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../models/order_model.dart';
@@ -26,6 +27,7 @@ class AppState extends ChangeNotifier {
   AppState({ApiService? apiService}) : apiService = apiService ?? ApiService();
 
   final ApiService apiService;
+  static const _tokenKey = 'auth_token';
 
   bool loading = false;
   String? error;
@@ -42,7 +44,9 @@ class AppState extends ChangeNotifier {
   bool get signedIn => token != null && user != null;
 
   Future<void> bootstrap() async {
-    await loadProducts();
+    final prefs = await SharedPreferences.getInstance();
+    token = prefs.getString(_tokenKey);
+    await Future.wait([loadProducts(), _restoreSession()]);
   }
 
   Future<void> login({
@@ -59,8 +63,51 @@ class AppState extends ChangeNotifier {
               as Map<String, dynamic>;
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, token!);
       await loadOrders();
+      await loadCart();
     }, silent: silent);
+  }
+
+  Future<void> register({
+    required String name,
+    required String phone,
+    String? email,
+    required String password,
+    String? addressLabel,
+    String? addressLine1,
+    String? city,
+    String? pincode,
+  }) async {
+    final data = await apiService.post(
+      '/auth/register',
+      body: {
+        'name': name,
+        'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email,
+        'password': password,
+      },
+    ) as Map<String, dynamic>;
+    token = data['token'] as String?;
+    final userJson = data['user'] as Map<String, dynamic>;
+    user = UserModel.fromJson(userJson);
+    final prefs = await SharedPreferences.getInstance();
+    if (token != null) await prefs.setString(_tokenKey, token!);
+    notifyListeners();
+
+    if ((addressLine1 ?? '').isNotEmpty && (city ?? '').isNotEmpty && (pincode ?? '').isNotEmpty) {
+      await apiService.post(
+        '/addresses',
+        token: token,
+        body: {
+          'label': addressLabel ?? 'Home',
+          'line1': addressLine1,
+          'city': city,
+          'pincode': pincode,
+        },
+      );
+    }
   }
 
   Future<void> refreshProfile() async {
@@ -71,6 +118,16 @@ class AppState extends ChangeNotifier {
       user = UserModel.fromJson(currentUser);
       notifyListeners();
     }
+  }
+
+  Future<void> logout() async {
+    token = null;
+    user = null;
+    orders = [];
+    cart.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    notifyListeners();
   }
 
   Future<void> loadProducts({String? category, String? search}) async {
@@ -100,27 +157,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToCart(ProductModel product) {
-    final index = cart.indexWhere((line) => line.product.id == product.id);
-    if (index == -1) {
-      cart.add(CartLine(product: product));
-    } else {
-      cart[index].quantity += 1;
-    }
-    notifyListeners();
+  Future<bool> addToCart(ProductModel product) async {
+    return await _syncAddToCart(product);
   }
 
-  void decrement(ProductModel product) {
-    final index = cart.indexWhere((line) => line.product.id == product.id);
-    if (index == -1) return;
-    cart[index].quantity -= 1;
-    if (cart[index].quantity <= 0) cart.removeAt(index);
-    notifyListeners();
+  Future<bool> decrement(ProductModel product) async {
+    return await _syncDecrement(product);
   }
 
-  void clearCart() {
-    cart.clear();
-    notifyListeners();
+  Future<bool> clearCart() async {
+    return await _syncClearCart();
   }
 
   Future<OrderModel> checkout({
@@ -221,5 +267,87 @@ class AppState extends ChangeNotifier {
       if (!silent) loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _restoreSession() async {
+    if (token == null) return;
+    try {
+      final data = await apiService.get('/auth/me', token: token) as Map<String, dynamic>;
+      final currentUser = data['user'];
+      if (currentUser is Map<String, dynamic>) {
+        user = UserModel.fromJson(currentUser);
+        await loadOrders();
+        await loadCart();
+      }
+    } catch (_) {
+      token = null;
+    }
+  }
+
+  Future<void> loadCart() async {
+    if (token == null) return;
+    final data = await apiService.get('/cart', token: token);
+    final items = data is Map<String, dynamic> ? (data['items'] as List<dynamic>? ?? []) : <dynamic>[];
+    cart
+      ..clear()
+      ..addAll(
+        items.map((item) {
+          final map = item as Map<String, dynamic>;
+          final productJson = map['product'] as Map<String, dynamic>;
+          final product = ProductModel.fromJson(productJson);
+          return CartLine(product: product, quantity: (map['quantity'] as num).toInt());
+        }),
+      );
+    notifyListeners();
+  }
+
+  Future<bool> _syncAddToCart(ProductModel product) async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+    await apiService.post(
+      '/cart/add',
+      token: token,
+      body: {'productId': product.id, 'quantity': 1},
+    );
+    await loadCart();
+    return true;
+  }
+
+  Future<bool> _syncDecrement(ProductModel product) async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+    final current = cart.firstWhere(
+      (line) => line.product.id == product.id,
+      orElse: () => CartLine(product: product, quantity: 0),
+    );
+    if (current.quantity <= 1) {
+      await apiService.delete('/cart/remove/${product.id}', token: token);
+    } else {
+      await apiService.put(
+        '/cart/update',
+        token: token,
+        body: {'productId': product.id, 'quantity': current.quantity - 1},
+      );
+    }
+    await loadCart();
+    return true;
+  }
+
+  Future<bool> _syncClearCart() async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+    await apiService.delete('/cart/clear', token: token);
+    cart.clear();
+    notifyListeners();
+    return true;
   }
 }

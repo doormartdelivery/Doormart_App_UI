@@ -43,6 +43,30 @@ class ApiService {
     return _decode(response);
   }
 
+  Future<dynamic> put(
+    String path, {
+    Map<String, dynamic>? body,
+    String? token,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token),
+      body: jsonEncode(body ?? {}),
+    );
+    return _decode(response);
+  }
+
+  Future<dynamic> delete(
+    String path, {
+    String? token,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: _headers(token),
+    );
+    return _decode(response);
+  }
+
   Map<String, String> _headers(String? token) => {
     'Content-Type': 'application/json',
     if (token != null) 'Authorization': 'Bearer $token',
