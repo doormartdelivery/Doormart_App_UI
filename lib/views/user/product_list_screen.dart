@@ -15,6 +15,7 @@ class ProductListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Products',
+      bottomNavIndex: 1,
       children: [
         Consumer<AppState>(
           builder: (context, state, _) => TextField(

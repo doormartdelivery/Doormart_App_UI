@@ -13,6 +13,7 @@ class NotificationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Notifications',
+      bottomNavIndex: 3,
       children: [
         FutureBuilder<List<dynamic>>(
           future: context.read<AppState>().notificationsForRole(UserRoles.user),

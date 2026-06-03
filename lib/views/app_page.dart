@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../mascot/walking_mascot_widget.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class AppPage extends StatelessWidget {
   const AppPage({
@@ -8,19 +9,32 @@ class AppPage extends StatelessWidget {
     required this.title,
     required this.children,
     this.actions,
+    this.bottomNavIndex,
   });
 
   final String title;
   final List<Widget> children;
   final List<Widget>? actions;
+  final int? bottomNavIndex;
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomNavPadding = bottomNavIndex == null
+        ? 0.0
+        : kBottomNavigationBarHeight;
+
     return Scaffold(
-      appBar: AppBar(title: Text(title), actions: actions),
+      appBar: AppBar(toolbarHeight: 48, title: Text(title), actions: actions),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            16 + bottomInset + bottomNavPadding,
+          ),
           children: [
             ...children,
             const SizedBox(height: 12),
@@ -28,6 +42,12 @@ class AppPage extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: bottomNavIndex == null
+          ? null
+          : BottomNavBar(
+              index: bottomNavIndex!,
+              onTap: (index) => BottomNavBar.navigate(context, index),
+            ),
     );
   }
 }

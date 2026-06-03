@@ -16,6 +16,7 @@ class CheckoutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Checkout',
+      bottomNavIndex: 2,
       children: [
         const _AddressField(),
         const SizedBox(height: 12),

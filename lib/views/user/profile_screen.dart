@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
+import '../../widgets/bottom_nav_bar.dart';
 import '../select_role_screen.dart';
 import 'address_screen.dart';
 import 'my_orders_screen.dart';
@@ -16,6 +17,10 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     return Scaffold(
+      bottomNavigationBar: BottomNavBar(
+        index: 3,
+        onTap: (index) => BottomNavBar.navigate(context, index),
+      ),
       body: SafeArea(
         child: Container(
           decoration: const BoxDecoration(

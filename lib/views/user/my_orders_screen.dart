@@ -13,6 +13,7 @@ class MyOrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'My Orders',
+      bottomNavIndex: 3,
       children: [
         Consumer<AppState>(
           builder: (context, state, _) {

@@ -13,6 +13,7 @@ class ProductCategoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Categories',
+      bottomNavIndex: 1,
       children: [
         FutureBuilder<List<dynamic>>(
           future: context.read<AppState>().categories(),

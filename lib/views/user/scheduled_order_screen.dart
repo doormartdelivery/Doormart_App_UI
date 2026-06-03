@@ -11,6 +11,7 @@ class ScheduledOrderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const AppPage(
       title: 'Scheduled orders',
+      bottomNavIndex: 3,
       children: [
         ListTile(
           leading: Icon(Icons.calendar_month),

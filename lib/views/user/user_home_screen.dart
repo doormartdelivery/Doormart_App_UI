@@ -8,12 +8,13 @@ import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
+import '../../features/customer/search/voice_search_widget.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../delivery/delivery_home_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
 import 'cart_screen.dart';
 import 'product_list_screen.dart';
-import 'profile_screen.dart';
+import 'search_screen.dart';
 
 class UserHomeScreen extends StatelessWidget {
   const UserHomeScreen({super.key});
@@ -29,8 +30,13 @@ class UserHomeScreen extends StatelessWidget {
           slivers: [
             SliverToBoxAdapter(child: _HomeHeader()),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            const SliverToBoxAdapter(child: _SearchAndDelivery()),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickySearchHeaderDelegate(
+                child: const _SearchAndDelivery(),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 0)),
             const SliverToBoxAdapter(child: _OfferBanners()),
             const SliverToBoxAdapter(child: SizedBox(height: 18)),
             const SliverToBoxAdapter(child: _SectionTitle('Shop by category')),
@@ -50,11 +56,7 @@ class UserHomeScreen extends StatelessWidget {
       ),
       bottomNavigationBar: BottomNavBar(
         index: 0,
-        onTap: (index) {
-          if (index == 3) {
-            Navigator.pushNamed(context, ProfileScreen.routeName);
-          }
-        },
+        onTap: (index) => BottomNavBar.navigate(context, index),
       ),
     );
   }
@@ -63,58 +65,68 @@ class UserHomeScreen extends StatelessWidget {
 class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final addressText =
+            state.selectedAddress?.fullAddress ?? 'Add your delivery address';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.timer, color: Color(0xFF0F9D58)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Delivery in 10 minutes',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(Icons.timer, color: Color(0xFF0F9D58)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Delivery in 10 minutes',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 18,
+                          color: Color(0xFF667064),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            addressText,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF667064)),
+                          ),
+                        ),
+                        const Icon(Icons.keyboard_arrow_down, size: 18),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                const Row(
-                  children: [
-                    Icon(Icons.location_on, size: 18, color: Color(0xFF667064)),
-                    SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Anna Nagar, Chennai',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Color(0xFF667064)),
-                      ),
-                    ),
-                    Icon(Icons.keyboard_arrow_down, size: 18),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Consumer<AppState>(
-            builder: (context, state, _) => Badge(
-              isLabelVisible: state.cartCount > 0,
-              label: Text('${state.cartCount}'),
-              child: IconButton.filledTonal(
-                tooltip: 'Cart',
-                onPressed: () =>
-                    Navigator.pushNamed(context, CartScreen.routeName),
-                icon: const Icon(Icons.shopping_cart),
               ),
-            ),
+              Badge(
+                isLabelVisible: state.cartCount > 0,
+                label: Text('${state.cartCount}'),
+                child: IconButton.filledTonal(
+                  tooltip: 'Cart',
+                  onPressed: () =>
+                      Navigator.pushNamed(context, CartScreen.routeName),
+                  icon: const Icon(Icons.shopping_cart),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -126,55 +138,51 @@ class _SearchAndDelivery extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () =>
-                  Navigator.pushNamed(context, ProductListScreen.routeName),
-              child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 16,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search, color: Color(0xFF667064)),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Search atta, milk, fruits...',
-                        style: TextStyle(color: Color(0xFF667064)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            height: 50,
-            width: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF8A00),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.mic, color: Colors.white),
-          ),
-        ],
+      child: VoiceSearchWidget(
+        controller: TextEditingController(),
+        readOnly: true,
+        hintText: 'Search atta, milk, fruits...',
+        onTap: () => Navigator.pushNamed(context, SearchScreen.routeName),
+        onSearchChanged: (query) {
+          if (query.trim().isEmpty) return;
+          Navigator.pushNamed(
+            context,
+            SearchScreen.routeName,
+            arguments: query.trim(),
+          );
+        },
       ),
     );
+  }
+}
+
+class _StickySearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _StickySearchHeaderDelegate({required this.child});
+
+  final Widget child;
+
+  @override
+  double get minExtent => 120;
+
+  @override
+  double get maxExtent => 146;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: const Color(0xFFF7FAF4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickySearchHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 }
 
@@ -194,26 +202,22 @@ class _OfferBannersState extends State<_OfferBanners> {
     (
       'Fresh fruits',
       'Up to 30% off',
-      'assets/images/categories/fruits.png',
-      Color(0xFFFFF0D7),
+      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=1200&q=80',
     ),
     (
       'Daily dairy',
       'Morning essentials',
-      'assets/images/categories/dairy.png',
-      Color(0xFFE7F7EC),
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=1200&q=80',
     ),
     (
       'Home care',
       'Cleaning deals',
-      'assets/images/categories/cleaning.png',
-      Color(0xFFEAF1FF),
+      'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
     ),
     (
       'Kitchen staples',
       'Rice, dal and oil',
-      'assets/images/categories/staples.png',
-      Color(0xFFFFEFEA),
+      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
     ),
   ];
 
@@ -245,7 +249,7 @@ class _OfferBannersState extends State<_OfferBanners> {
     return Column(
       children: [
         SizedBox(
-          height: 164,
+          height: 190,
           child: PageView.builder(
             controller: _controller,
             padEnds: false,
@@ -256,49 +260,76 @@ class _OfferBannersState extends State<_OfferBanners> {
               return Padding(
                 padding: EdgeInsets.only(left: index == 0 ? 16 : 6, right: 6),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: banner.$4,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(24),
+                    image: DecorationImage(
+                      image: NetworkImage(banner.$3),
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              banner.$1,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xCC000000), Color(0x22000000)],
+                        begin: Alignment.bottomLeft,
+                        end: Alignment.topRight,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'Fresh picks',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              banner.$2,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Shop now',
-                              style: TextStyle(
-                                color: Color(0xFF0F9D58),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      Image.asset(
-                        banner.$3,
-                        width: 82,
-                        height: 82,
-                        fit: BoxFit.contain,
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        Text(
+                          banner.$1,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          banner.$2,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Shop now',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

@@ -16,6 +16,7 @@ class CartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Cart',
+      bottomNavIndex: 2,
       children: [
         Consumer<AppState>(
           builder: (context, state, _) {

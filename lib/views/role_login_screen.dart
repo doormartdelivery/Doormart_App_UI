@@ -126,6 +126,8 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       body: SafeArea(
         child: Container(
@@ -137,7 +139,7 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
             ),
           ),
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
             children: [
               const SizedBox(height: 20),
               _HeroCard(title: widget.title, subtitle: widget.subtitle),

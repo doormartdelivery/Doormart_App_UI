@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../core/role_access.dart';
+import '../models/address_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
@@ -38,6 +39,8 @@ class AppState extends ChangeNotifier {
   UserModel? user;
   List<ProductModel> products = [];
   List<OrderModel> orders = [];
+  List<AddressModel> savedAddresses = [];
+  AddressModel? selectedAddress;
   final List<CartLine> cart = [];
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
@@ -80,6 +83,7 @@ class AppState extends ChangeNotifier {
       await _persistSession();
       await loadOrders();
       await loadCart();
+      await loadAddresses();
     }, silent: silent);
   }
 
@@ -104,6 +108,7 @@ class AppState extends ChangeNotifier {
       await _persistSession();
       await loadOrders();
       await loadCart();
+      await loadAddresses();
     }, silent: silent);
   }
 
@@ -147,6 +152,7 @@ class AppState extends ChangeNotifier {
           'pincode': pincode,
         },
       );
+      await loadAddresses();
     }
   }
 
@@ -165,6 +171,8 @@ class AppState extends ChangeNotifier {
     token = null;
     user = null;
     orders = [];
+    savedAddresses = [];
+    selectedAddress = null;
     cart.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
@@ -280,9 +288,27 @@ class AppState extends ChangeNotifier {
         as List<dynamic>;
   }
 
-  Future<List<dynamic>> addresses() async {
+  Future<List<AddressModel>> addresses() async {
     if (token == null) throw StateError('Please login first');
-    return await apiService.get('/addresses', token: token) as List<dynamic>;
+    return await loadAddresses();
+  }
+
+  Future<List<AddressModel>> loadAddresses() async {
+    if (token == null) return <AddressModel>[];
+    final data =
+        await apiService.get('/addresses', token: token) as List<dynamic>;
+    savedAddresses = data
+        .whereType<Map<String, dynamic>>()
+        .map(AddressModel.fromJson)
+        .toList();
+    if (savedAddresses.isEmpty) {
+      selectedAddress = null;
+    } else if (selectedAddress == null ||
+        !savedAddresses.any((address) => address.id == selectedAddress!.id)) {
+      selectedAddress = savedAddresses.first;
+    }
+    notifyListeners();
+    return savedAddresses;
   }
 
   Future<List<dynamic>> scheduledOrders() async {
@@ -331,6 +357,7 @@ class AppState extends ChangeNotifier {
         await _persistSession();
         await loadOrders();
         await loadCart();
+        await loadAddresses();
       }
     } catch (_) {
       token = null;
@@ -360,15 +387,20 @@ class AppState extends ChangeNotifier {
     cart
       ..clear()
       ..addAll(
-        items.map((item) {
-          final map = item as Map<String, dynamic>;
-          final productJson = map['product'] as Map<String, dynamic>;
-          final product = ProductModel.fromJson(productJson);
+        items.whereType<Map<String, dynamic>>().map((item) {
+          final productJson = item['product'];
+          if (productJson is! Map<String, dynamic>) {
+            return null;
+          }
+          final quantity = item['quantity'];
+          if (quantity is! num) {
+            return null;
+          }
           return CartLine(
-            product: product,
-            quantity: (map['quantity'] as num).toInt(),
+            product: ProductModel.fromJson(productJson),
+            quantity: quantity.toInt(),
           );
-        }),
+        }).whereType<CartLine>(),
       );
     notifyListeners();
   }
