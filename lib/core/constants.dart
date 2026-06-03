@@ -10,7 +10,7 @@ class AppConstants {
 
 class UserRoles {
   static const user = 'user';
-  static const delivery = 'delivery';
+  static const deliveryPerson = 'delivery_person';
   static const admin = 'admin';
   static const superAdmin = 'super_admin';
 }

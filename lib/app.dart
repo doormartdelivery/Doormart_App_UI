@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/routes.dart';
 import 'core/theme.dart';
 import 'providers/app_state.dart';
-import 'views/user/user_home_screen.dart';
+import 'views/user/splash_screen.dart';
 
 class DoormartDeliveryApp extends StatelessWidget {
   const DoormartDeliveryApp({super.key});
@@ -15,13 +15,16 @@ class DoormartDeliveryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AppState()..bootstrap(),
-      child: MaterialApp(
-        title: 'Doormart Delivery',
-        debugShowCheckedModeBanner: false,
-        scaffoldMessengerKey: scaffoldMessengerKey,
-        theme: AppTheme.lightTheme,
-        initialRoute: UserHomeScreen.routeName,
-        routes: AppRoutes.routes,
+      child: Consumer<AppState>(
+        builder: (context, state, child) => MaterialApp(
+          title: 'Doormart Delivery',
+          debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: scaffoldMessengerKey,
+          theme: AppTheme.lightTheme,
+          initialRoute: SplashScreen.routeName,
+          onGenerateRoute: (settings) =>
+              AppRoutes.onGenerateRoute(context, settings),
+        ),
       ),
     );
   }

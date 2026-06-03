@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class UserModel {
   const UserModel({
     required this.id,
@@ -30,4 +32,10 @@ class UserModel {
     'role': role,
     'email': email,
   };
+
+  String toStorage() => jsonEncode(toJson());
+
+  factory UserModel.fromStorage(String raw) {
+    return UserModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
 }

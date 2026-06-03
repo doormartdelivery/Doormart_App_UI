@@ -1,7 +1,7 @@
 import 'api_service.dart';
 
 class PaymentService {
-  const PaymentService({this.api = const ApiService()});
+  PaymentService({ApiService? api}) : api = api ?? ApiService();
   final ApiService api;
 
   Future<Map<String, dynamic>> createRazorpayOrder(

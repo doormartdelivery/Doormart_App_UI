@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
+import '../select_role_screen.dart';
 import 'address_screen.dart';
-import 'login_screen.dart';
 import 'my_orders_screen.dart';
 import 'notification_screen.dart';
 import 'settings_screen.dart';
-import 'signup_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -37,25 +36,29 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.receipt_long_rounded,
                 title: 'My orders',
                 subtitle: 'View recent and repeat orders',
-                onTap: () => Navigator.pushNamed(context, MyOrdersScreen.routeName),
+                onTap: () =>
+                    Navigator.pushNamed(context, MyOrdersScreen.routeName),
               ),
               _ActionTile(
                 icon: Icons.location_on_rounded,
                 title: 'Saved addresses',
                 subtitle: 'Home, work, and other locations',
-                onTap: () => Navigator.pushNamed(context, AddressScreen.routeName),
+                onTap: () =>
+                    Navigator.pushNamed(context, AddressScreen.routeName),
               ),
               _ActionTile(
                 icon: Icons.notifications_active_rounded,
                 title: 'Notifications',
                 subtitle: 'Order updates and offers',
-                onTap: () => Navigator.pushNamed(context, NotificationScreen.routeName),
+                onTap: () =>
+                    Navigator.pushNamed(context, NotificationScreen.routeName),
               ),
               _ActionTile(
                 icon: Icons.settings_rounded,
                 title: 'Settings',
                 subtitle: 'Language, support, and preferences',
-                onTap: () => Navigator.pushNamed(context, SettingsScreen.routeName),
+                onTap: () =>
+                    Navigator.pushNamed(context, SettingsScreen.routeName),
               ),
             ],
           ),
@@ -93,7 +96,11 @@ class _HeaderCard extends StatelessWidget {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.white.withValues(alpha: 0.18),
-                child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -101,7 +108,9 @@ class _HeaderCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      signedIn ? (state.user?.name ?? 'Doormart customer') : 'Welcome to Doormart',
+                      signedIn
+                          ? (state.user?.name ?? 'Doormart customer')
+                          : 'Welcome to Doormart',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -112,8 +121,8 @@ class _HeaderCard extends StatelessWidget {
                     Text(
                       signedIn
                           ? (state.user?.email?.isNotEmpty == true
-                              ? state.user!.email!
-                              : state.user?.phone ?? '')
+                                ? state.user!.email!
+                                : state.user?.phone ?? '')
                           : 'Login to manage addresses, orders, and offers.',
                       style: const TextStyle(color: Colors.white70),
                     ),
@@ -144,7 +153,10 @@ class _HeaderCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: signedIn
                       ? () => context.read<AppState>().refreshProfile()
-                      : () => Navigator.pushNamed(context, LoginScreen.routeName),
+                      : () => Navigator.pushNamed(
+                          context,
+                          SelectRoleScreen.routeName,
+                        ),
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF14532D),
@@ -159,7 +171,10 @@ class _HeaderCard extends StatelessWidget {
               if (!signedIn)
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pushNamed(context, SignupScreen.routeName),
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      SelectRoleScreen.routeName,
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white54),
@@ -178,7 +193,7 @@ class _HeaderCard extends StatelessWidget {
                       if (!context.mounted) return;
                       Navigator.pushNamedAndRemoveUntil(
                         context,
-                        LoginScreen.routeName,
+                        SelectRoleScreen.routeName,
                         (route) => false,
                       );
                     },
@@ -239,7 +254,11 @@ class _ProfileStats extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.value, required this.icon});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;
@@ -267,9 +286,9 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 2),
           Text(label, style: const TextStyle(color: Color(0xFF667064))),

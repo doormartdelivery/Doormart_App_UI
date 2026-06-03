@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/app_state.dart';
+import '../views/access_denied_screen.dart';
 import '../views/admin/admin_dashboard_screen.dart';
+import '../views/admin/admin_login_screen.dart';
 import '../views/admin/admin_notifications_screen.dart';
 import '../views/admin/admin_orders_screen.dart';
 import '../views/admin/audit_logs_screen.dart';
@@ -10,6 +14,7 @@ import '../views/admin/manage_users_screen.dart';
 import '../views/admin/stock_screen.dart';
 import '../views/delivery/delivery_earnings_screen.dart';
 import '../views/delivery/delivery_home_screen.dart';
+import '../views/delivery/delivery_login_screen.dart';
 import '../views/delivery/delivery_order_screen.dart';
 import '../views/delivery/live_tracking_screen.dart';
 import '../views/super_admin/delivery_analytics_screen.dart';
@@ -18,7 +23,9 @@ import '../views/super_admin/reports_screen.dart';
 import '../views/super_admin/revenue_analytics_screen.dart';
 import '../views/super_admin/super_admin_dashboard_screen.dart';
 import '../views/super_admin/super_admin_heatmap_screen.dart';
+import '../views/super_admin/super_admin_login_screen.dart';
 import '../views/super_admin/super_admin_orders_screen.dart';
+import '../views/select_role_screen.dart';
 import '../views/user/address_screen.dart';
 import '../views/user/cart_screen.dart';
 import '../views/user/checkout_screen.dart';
@@ -30,13 +37,20 @@ import '../views/user/product_list_screen.dart';
 import '../views/user/login_screen.dart';
 import '../views/user/profile_screen.dart';
 import '../views/user/signup_screen.dart';
+import '../views/user/splash_screen.dart';
 import '../views/user/scheduled_order_screen.dart';
 import '../views/user/user_home_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
+    SplashScreen.routeName: (_) => const SplashScreen(),
+    SelectRoleScreen.routeName: (_) => const SelectRoleScreen(),
+    AccessDeniedScreen.routeName: (_) => const AccessDeniedScreen(),
     UserHomeScreen.routeName: (_) => const UserHomeScreen(),
     LoginScreen.routeName: (_) => const LoginScreen(),
+    DeliveryLoginScreen.routeName: (_) => const DeliveryLoginScreen(),
+    AdminLoginScreen.routeName: (_) => const AdminLoginScreen(),
+    SuperAdminLoginScreen.routeName: (_) => const SuperAdminLoginScreen(),
     SignupScreen.routeName: (_) => const SignupScreen(),
     ProductListScreen.routeName: (_) => const ProductListScreen(),
     ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
@@ -69,4 +83,28 @@ class AppRoutes {
     SuperAdminOrdersScreen.routeName: (_) => const SuperAdminOrdersScreen(),
     SuperAdminHeatmapScreen.routeName: (_) => const SuperAdminHeatmapScreen(),
   };
+
+  static Route<dynamic> onGenerateRoute(
+    BuildContext context,
+    RouteSettings settings,
+  ) {
+    final builder = routes[settings.name];
+    if (builder == null) {
+      return MaterialPageRoute(
+        builder: (_) => const AccessDeniedScreen(),
+        settings: settings,
+      );
+    }
+
+    final state = context.read<AppState>();
+    final routeName = settings.name ?? '';
+    if (!state.canAccessRoute(routeName)) {
+      return MaterialPageRoute(
+        builder: (_) => const AccessDeniedScreen(),
+        settings: settings,
+      );
+    }
+
+    return MaterialPageRoute(builder: builder, settings: settings);
+  }
 }

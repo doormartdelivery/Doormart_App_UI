@@ -2,7 +2,7 @@ import '../models/product_model.dart';
 import 'api_service.dart';
 
 class ProductService {
-  const ProductService({this.api = const ApiService()});
+  ProductService({ApiService? api}) : api = api ?? ApiService();
   final ApiService api;
 
   Future<List<ProductModel>> list() async {

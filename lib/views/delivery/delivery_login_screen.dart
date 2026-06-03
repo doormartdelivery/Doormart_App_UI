@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import '../feature_placeholder_screen.dart';
+import '../../core/constants.dart';
+import '../role_login_screen.dart';
 
 class DeliveryLoginScreen extends StatelessWidget {
   const DeliveryLoginScreen({super.key});
   static const routeName = '/delivery/login';
   @override
-  Widget build(BuildContext context) => const FeaturePlaceholderScreen(
+  Widget build(BuildContext context) => const RoleLoginScreen(
     title: 'Delivery Login',
-    icon: Icons.delivery_dining,
-    description: 'Delivery partner mobile/password login with JWT.',
+    subtitle: 'Delivery partners sign in with mobile number and password.',
+    role: UserRoles.deliveryPerson,
+    allowPhonePassword: true,
   );
 }

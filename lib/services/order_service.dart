@@ -2,7 +2,7 @@ import '../models/order_model.dart';
 import 'api_service.dart';
 
 class OrderService {
-  const OrderService({this.api = const ApiService()});
+  OrderService({ApiService? api}) : api = api ?? ApiService();
   final ApiService api;
 
   Future<List<OrderModel>> mine(String token) async {

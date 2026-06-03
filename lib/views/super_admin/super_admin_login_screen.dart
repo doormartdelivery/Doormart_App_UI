@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import '../feature_placeholder_screen.dart';
+import '../../core/constants.dart';
+import '../role_login_screen.dart';
 
 class SuperAdminLoginScreen extends StatelessWidget {
   const SuperAdminLoginScreen({super.key});
   static const routeName = '/super-admin/login';
   @override
-  Widget build(BuildContext context) => const FeaturePlaceholderScreen(
+  Widget build(BuildContext context) => const RoleLoginScreen(
     title: 'Super Admin Login',
-    icon: Icons.security,
-    description: 'Secure super admin email/password login.',
+    subtitle:
+        'Super admins sign in with email and password for platform control.',
+    role: UserRoles.superAdmin,
+    allowPhonePassword: false,
+    allowEmailPassword: true,
   );
 }

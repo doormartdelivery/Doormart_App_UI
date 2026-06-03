@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
+import '../core/role_access.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
@@ -28,7 +29,9 @@ class AppState extends ChangeNotifier {
 
   final ApiService apiService;
   static const _tokenKey = 'auth_token';
+  static const _userKey = 'auth_user';
 
+  bool initialized = false;
   bool loading = false;
   String? error;
   String? token;
@@ -46,11 +49,18 @@ class AppState extends ChangeNotifier {
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     token = prefs.getString(_tokenKey);
+    final storedUser = prefs.getString(_userKey);
+    if (storedUser != null && storedUser.isNotEmpty) {
+      user = UserModel.fromStorage(storedUser);
+    }
     await Future.wait([loadProducts(), _restoreSession()]);
+    initialized = true;
+    notifyListeners();
   }
 
-  Future<void> login({
-    required String phone,
+  Future<void> loginWithPassword({
+    String? email,
+    String? phone,
     required String password,
     bool silent = false,
   }) async {
@@ -58,13 +68,40 @@ class AppState extends ChangeNotifier {
       final data =
           await apiService.post(
                 '/auth/login',
-                body: {'phone': phone, 'password': password},
+                body: {
+                  if (phone != null && phone.isNotEmpty) 'phone': phone,
+                  if (email != null && email.isNotEmpty) 'email': email,
+                  'password': password,
+                },
               )
               as Map<String, dynamic>;
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, token!);
+      await _persistSession();
+      await loadOrders();
+      await loadCart();
+    }, silent: silent);
+  }
+
+  Future<void> sendOtp({required String email}) async {
+    await apiService.post('/auth/send-otp', body: {'email': email});
+  }
+
+  Future<void> verifyOtp({
+    required String email,
+    required String otp,
+    bool silent = false,
+  }) async {
+    await _run(() async {
+      final data =
+          await apiService.post(
+                '/auth/verify-otp',
+                body: {'email': email, 'otp': otp},
+              )
+              as Map<String, dynamic>;
+      token = data['token'] as String;
+      user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      await _persistSession();
       await loadOrders();
       await loadCart();
     }, silent: silent);
@@ -80,23 +117,26 @@ class AppState extends ChangeNotifier {
     String? city,
     String? pincode,
   }) async {
-    final data = await apiService.post(
-      '/auth/register',
-      body: {
-        'name': name,
-        'phone': phone,
-        if (email != null && email.isNotEmpty) 'email': email,
-        'password': password,
-      },
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post(
+              '/auth/register',
+              body: {
+                'name': name,
+                'phone': phone,
+                if (email != null && email.isNotEmpty) 'email': email,
+                'password': password,
+              },
+            )
+            as Map<String, dynamic>;
     token = data['token'] as String?;
     final userJson = data['user'] as Map<String, dynamic>;
     user = UserModel.fromJson(userJson);
-    final prefs = await SharedPreferences.getInstance();
-    if (token != null) await prefs.setString(_tokenKey, token!);
+    await _persistSession();
     notifyListeners();
 
-    if ((addressLine1 ?? '').isNotEmpty && (city ?? '').isNotEmpty && (pincode ?? '').isNotEmpty) {
+    if ((addressLine1 ?? '').isNotEmpty &&
+        (city ?? '').isNotEmpty &&
+        (pincode ?? '').isNotEmpty) {
       await apiService.post(
         '/addresses',
         token: token,
@@ -112,7 +152,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> refreshProfile() async {
     if (token == null) return;
-    final data = await apiService.get('/auth/me', token: token) as Map<String, dynamic>;
+    final data =
+        await apiService.get('/auth/me', token: token) as Map<String, dynamic>;
     final currentUser = data['user'];
     if (currentUser is Map<String, dynamic>) {
       user = UserModel.fromJson(currentUser);
@@ -127,7 +168,14 @@ class AppState extends ChangeNotifier {
     cart.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
     notifyListeners();
+  }
+
+  String get defaultDashboardRoute => RoleAccess.dashboardForRole(user?.role);
+
+  bool canAccessRoute(String routeName) {
+    return RoleAccess.canAccessRoute(user?.role, routeName);
   }
 
   Future<void> loadProducts({String? category, String? search}) async {
@@ -196,7 +244,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> adminDashboard() async {
-    if (token == null || user?.role != UserRoles.admin) {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
     return await apiService.get('/admin/dashboard', token: token)
@@ -238,11 +287,12 @@ class AppState extends ChangeNotifier {
 
   Future<List<dynamic>> scheduledOrders() async {
     if (token == null) throw StateError('Please login first');
-    return await apiService.get('/orders/scheduled', token: token) as List<dynamic>;
+    return await apiService.get('/orders/scheduled', token: token)
+        as List<dynamic>;
   }
 
   Future<Map<String, dynamic>> deliveryEarnings() async {
-    if (token == null || user?.role != UserRoles.delivery) {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
       throw StateError('Delivery login required');
     }
     return await apiService.get('/delivery/earnings', token: token)
@@ -272,22 +322,41 @@ class AppState extends ChangeNotifier {
   Future<void> _restoreSession() async {
     if (token == null) return;
     try {
-      final data = await apiService.get('/auth/me', token: token) as Map<String, dynamic>;
+      final data =
+          await apiService.get('/auth/me', token: token)
+              as Map<String, dynamic>;
       final currentUser = data['user'];
       if (currentUser is Map<String, dynamic>) {
         user = UserModel.fromJson(currentUser);
+        await _persistSession();
         await loadOrders();
         await loadCart();
       }
     } catch (_) {
       token = null;
+      user = null;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+      await prefs.remove(_userKey);
+    }
+  }
+
+  Future<void> _persistSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (token != null) {
+      await prefs.setString(_tokenKey, token!);
+    }
+    if (user != null) {
+      await prefs.setString(_userKey, user!.toStorage());
     }
   }
 
   Future<void> loadCart() async {
     if (token == null) return;
     final data = await apiService.get('/cart', token: token);
-    final items = data is Map<String, dynamic> ? (data['items'] as List<dynamic>? ?? []) : <dynamic>[];
+    final items = data is Map<String, dynamic>
+        ? (data['items'] as List<dynamic>? ?? [])
+        : <dynamic>[];
     cart
       ..clear()
       ..addAll(
@@ -295,7 +364,10 @@ class AppState extends ChangeNotifier {
           final map = item as Map<String, dynamic>;
           final productJson = map['product'] as Map<String, dynamic>;
           final product = ProductModel.fromJson(productJson);
-          return CartLine(product: product, quantity: (map['quantity'] as num).toInt());
+          return CartLine(
+            product: product,
+            quantity: (map['quantity'] as num).toInt(),
+          );
         }),
       );
     notifyListeners();
