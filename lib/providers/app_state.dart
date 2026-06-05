@@ -194,6 +194,93 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  Future<ProductModel> createProduct({
+    required String name,
+    required String category,
+    required double price,
+    required double cost,
+    required int stock,
+    String imageUrl = '',
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    final data =
+        await apiService.post(
+              '/products',
+              token: token,
+              body: {
+                'name': name,
+                'category': category,
+                'price': price,
+                'cost': cost,
+                'stock': stock,
+                'imageUrl': imageUrl,
+              },
+            )
+            as Map<String, dynamic>;
+
+    final product = ProductModel.fromJson(data);
+    products.insert(0, product);
+    notifyListeners();
+    return product;
+  }
+
+  Future<ProductModel> updateProduct({
+    required String productId,
+    required String name,
+    required String category,
+    required double price,
+    required double cost,
+    required int stock,
+    required String unit,
+    String imageUrl = '',
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    final data =
+        await apiService.put(
+              '/products/$productId',
+              token: token,
+              body: {
+                'name': name,
+                'category': category,
+                'price': price,
+                'cost': cost,
+                'stock': stock,
+                'unit': unit,
+                'imageUrl': imageUrl,
+              },
+            )
+            as Map<String, dynamic>;
+
+    final product = ProductModel.fromJson(data);
+    final index = products.indexWhere((item) => item.id == product.id);
+    if (index == -1) {
+      products.insert(0, product);
+    } else {
+      products[index] = product;
+    }
+    notifyListeners();
+    return product;
+  }
+
+  Future<void> deleteProduct(String productId) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    await apiService.delete('/products/$productId', token: token);
+    products.removeWhere((product) => product.id == productId);
+    notifyListeners();
+  }
+
   Future<void> loadOrders() async {
     if (token == null) return;
     final data =
@@ -270,6 +357,104 @@ class AppState extends ChangeNotifier {
     }
     final data = await apiService.get('/orders', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
+  }
+
+  Future<OrderModel> updateOrderStatus(String orderId, String status) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    final data =
+        await apiService.patch(
+              '/orders/$orderId/status',
+              token: token,
+              body: {'status': status},
+            )
+            as Map<String, dynamic>;
+
+    return OrderModel.fromJson(data);
+  }
+
+  Future<List<UserModel>> adminUsers() async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.get('/admin/users', token: token)
+        as List<dynamic>;
+    return data.cast<Map<String, dynamic>>().map(UserModel.fromJson).toList();
+  }
+
+  Future<UserModel> updateAdminUserRole(String userId, String role) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.put(
+      '/admin/users/$userId',
+      token: token,
+      body: {'role': role},
+    ) as Map<String, dynamic>;
+    return UserModel.fromJson(data);
+  }
+
+  Future<List<OrderModel>> availableDeliveryOrders() async {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
+      throw StateError('Delivery login required');
+    }
+    final data = await apiService.get('/delivery/available-orders', token: token)
+        as List<dynamic>;
+    return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
+  }
+
+  Future<List<OrderModel>> deliveryOrderHistory() async {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
+      throw StateError('Delivery login required');
+    }
+    final data =
+        await apiService.get('/delivery/history', token: token)
+            as List<dynamic>;
+    return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
+  }
+
+  Future<OrderModel> acceptDeliveryOrder(String orderId) async {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
+      throw StateError('Delivery login required');
+    }
+    final data = await apiService.post(
+      '/delivery/accept/$orderId',
+      token: token,
+    ) as Map<String, dynamic>;
+    final order = OrderModel.fromJson(data);
+    await loadOrders();
+    return order;
+  }
+
+  Future<OrderModel> pickupDeliveryOrder(String orderId) async {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
+      throw StateError('Delivery login required');
+    }
+    final data = await apiService.post(
+      '/delivery/pickup/$orderId',
+      token: token,
+    ) as Map<String, dynamic>;
+    final order = OrderModel.fromJson(data);
+    await loadOrders();
+    return order;
+  }
+
+  Future<OrderModel> deliverDeliveryOrder(String orderId) async {
+    if (token == null || user?.role != UserRoles.deliveryPerson) {
+      throw StateError('Delivery login required');
+    }
+    final data = await apiService.post(
+      '/delivery/delivered/$orderId',
+      token: token,
+    ) as Map<String, dynamic>;
+    final order = OrderModel.fromJson(data);
+    await loadOrders();
+    return order;
   }
 
   Future<List<dynamic>> notificationsForRole(String role) async {
