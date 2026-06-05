@@ -1,6 +1,15 @@
 import 'product_model.dart';
 
-enum OrderStatus { placed, accepted, pickedUp, delivered }
+enum OrderStatus {
+  placed,
+  accepted,
+  packed,
+  assigned,
+  deliveryAccepted,
+  pickedUp,
+  delivered,
+  cancelled,
+}
 
 class OrderModel {
   const OrderModel({
@@ -11,6 +20,9 @@ class OrderModel {
     required this.createdAt,
     this.scheduledFor,
     this.address = '',
+    this.deliveryPersonId,
+    this.deliveryPersonName,
+    this.deliveryAcceptedAt,
   });
 
   final String id;
@@ -20,10 +32,18 @@ class OrderModel {
   final DateTime createdAt;
   final DateTime? scheduledFor;
   final String address;
+  final String? deliveryPersonId;
+  final String? deliveryPersonName;
+  final DateTime? deliveryAcceptedAt;
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final productsJson = (json['products'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
+    final deliveryPerson = json['deliveryPerson'];
+    final deliveryPersonMap = deliveryPerson is Map<String, dynamic>
+        ? deliveryPerson
+        : null;
+
     return OrderModel(
       id: json['_id'] as String? ?? json['id'] as String,
       products: productsJson
@@ -50,6 +70,12 @@ class OrderModel {
           DateTime.now(),
       scheduledFor: DateTime.tryParse(json['scheduledFor'] as String? ?? ''),
       address: json['address'] as String? ?? '',
+      deliveryPersonId: deliveryPersonMap == null
+          ? deliveryPerson as String?
+          : deliveryPersonMap['_id'] as String? ?? deliveryPersonMap['id'] as String?,
+      deliveryPersonName: deliveryPersonMap?['name'] as String?,
+      deliveryAcceptedAt:
+          DateTime.tryParse(json['deliveryAcceptedAt'] as String? ?? ''),
     );
   }
 }
@@ -57,8 +83,12 @@ class OrderModel {
 OrderStatus _statusFromJson(String? status) {
   return switch (status) {
     'accepted' => OrderStatus.accepted,
+    'packed' => OrderStatus.packed,
+    'assigned' => OrderStatus.assigned,
+    'delivery_accepted' => OrderStatus.deliveryAccepted,
     'picked_up' => OrderStatus.pickedUp,
     'delivered' => OrderStatus.delivered,
+    'cancelled' => OrderStatus.cancelled,
     _ => OrderStatus.placed,
   };
 }

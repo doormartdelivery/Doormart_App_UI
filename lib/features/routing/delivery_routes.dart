@@ -4,6 +4,7 @@ import '../../views/delivery/delivery_earnings_screen.dart';
 import '../../views/delivery/delivery_home_screen.dart';
 import '../../views/delivery/delivery_login_screen.dart';
 import '../../views/delivery/delivery_order_screen.dart';
+import '../../views/delivery/delivery_status_screen.dart';
 import '../../views/delivery/live_tracking_screen.dart';
 
 class DeliveryRoutes {
@@ -11,6 +12,7 @@ class DeliveryRoutes {
     DeliveryLoginScreen.routeName: (_) => const DeliveryLoginScreen(),
     DeliveryHomeScreen.routeName: (_) => const DeliveryHomeScreen(),
     DeliveryOrderScreen.routeName: (_) => const DeliveryOrderScreen(),
+    DeliveryStatusScreen.routeName: (_) => const DeliveryStatusScreen(),
     LiveTrackingScreen.routeName: (_) => const LiveTrackingScreen(),
     DeliveryEarningsScreen.routeName: (_) => const DeliveryEarningsScreen(),
   };

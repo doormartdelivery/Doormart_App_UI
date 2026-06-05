@@ -222,7 +222,7 @@ class _OfferBannersState extends State<_OfferBanners> {
     (
       'Fresh vegetables',
       'Farm to table',
-      'https://ts4.mm.bing.net/th?id=OIP.f_11dVu0mmQ8AzHvruohJQHaE8&pid=15.1&o=7&rm=3', // replace with one of the above Unsplash links,
+      'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1200&q=80',
     ),
     (
       'Kitchen staples',
@@ -272,70 +272,101 @@ class _OfferBannersState extends State<_OfferBanners> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    image: DecorationImage(
-                      image: NetworkImage(banner.$3),
-                      fit: BoxFit.cover,
-                    ),
                   ),
                   child: Container(
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xCC000000), Color(0x22000000)],
-                        begin: Alignment.bottomLeft,
-                        end: Alignment.topRight,
-                      ),
+                      color: const Color(0xFFEAF1EA),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
+                        Image.network(
+                          banner.$3,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFFDFF3E4), Color(0xFFB8E0C3)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  _bannerIconFor(banner.$1),
+                                  size: 92,
+                                  color: const Color(0xFF0F9D58),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text(
-                            'Fresh picks',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xCC000000), Color(0x22000000)],
+                              begin: Alignment.bottomLeft,
+                              end: Alignment.topRight,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          banner.$1,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  'Fresh picks',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          banner.$2,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Shop now',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                              const SizedBox(height: 10),
+                              Text(
+                                banner.$1,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                banner.$2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Shop now',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -368,6 +399,14 @@ class _OfferBannersState extends State<_OfferBanners> {
       ],
     );
   }
+}
+
+IconData _bannerIconFor(String title) {
+  final lower = title.toLowerCase();
+  if (lower.contains('fruit')) return Icons.apple;
+  if (lower.contains('vegetable')) return Icons.eco;
+  if (lower.contains('dairy')) return Icons.local_drink;
+  return Icons.local_grocery_store;
 }
 
 class _SectionTitle extends StatelessWidget {
