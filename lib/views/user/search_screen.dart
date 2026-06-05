@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../providers/app_state.dart';
+import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
@@ -93,6 +94,23 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               itemBuilder: (context, index) => ProductCard(
                 product: state.products[index],
+                onTap: () => showProductBottomSheet(
+                  context,
+                  state.products[index],
+                  onAddToCart: (quantity) async {
+                    final added = await state.addToCart(
+                      state.products[index],
+                      quantity: quantity,
+                    );
+                    if (!context.mounted) return;
+                    showToast(
+                      context,
+                      added
+                          ? '${state.products[index].name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
+                  },
+                ),
                 onAdd: () async {
                   final added = await state.addToCart(state.products[index]);
                   if (!context.mounted) return;

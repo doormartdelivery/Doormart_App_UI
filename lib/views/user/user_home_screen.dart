@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../mascot/walking_mascot_widget.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/gradient_background.dart';
+import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
@@ -25,33 +27,41 @@ class UserHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAF4),
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _HomeHeader()),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickySearchHeaderDelegate(
-                child: const _SearchAndDelivery(),
+      body: GradientBackground(
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _HomeHeader()),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickySearchHeaderDelegate(
+                  child: const _SearchAndDelivery(),
+                ),
               ),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 0)),
-            const SliverToBoxAdapter(child: _OfferBanners()),
-            const SliverToBoxAdapter(child: SizedBox(height: 18)),
-            const SliverToBoxAdapter(child: _SectionTitle('Shop by category')),
-            const SliverToBoxAdapter(child: _CategoryGrid()),
-            const SliverToBoxAdapter(child: SizedBox(height: 18)),
-            const SliverToBoxAdapter(child: _SectionTitle('Fresh picks today')),
-            const SliverToBoxAdapter(child: _ProductRail()),
-            const SliverToBoxAdapter(child: SizedBox(height: 18)),
-            const SliverToBoxAdapter(child: _SectionTitle('Daily essentials')),
-            const SliverToBoxAdapter(child: _EssentialsGrid()),
-            const SliverToBoxAdapter(child: SizedBox(height: 10)),
-            const SliverToBoxAdapter(child: _OperationsEntry()),
-            const SliverToBoxAdapter(child: WalkingMascotWidget()),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 0)),
+              const SliverToBoxAdapter(child: _OfferBanners()),
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              const SliverToBoxAdapter(
+                child: _SectionTitle('Shop by category'),
+              ),
+              const SliverToBoxAdapter(child: _CategoryGrid()),
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              const SliverToBoxAdapter(
+                child: _SectionTitle('Fresh picks today'),
+              ),
+              const SliverToBoxAdapter(child: _ProductRail()),
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              const SliverToBoxAdapter(
+                child: _SectionTitle('Daily essentials'),
+              ),
+              const SliverToBoxAdapter(child: _EssentialsGrid()),
+              const SliverToBoxAdapter(child: SizedBox(height: 10)),
+              const SliverToBoxAdapter(child: _OperationsEntry()),
+              const SliverToBoxAdapter(child: WalkingMascotWidget()),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavBar(
@@ -165,7 +175,7 @@ class _StickySearchHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => 120;
 
   @override
-  double get maxExtent => 146;
+  double get maxExtent => 126;
 
   @override
   Widget build(
@@ -210,9 +220,9 @@ class _OfferBannersState extends State<_OfferBanners> {
       'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=1200&q=80',
     ),
     (
-      'Home care',
-      'Cleaning deals',
-      'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+      'Fresh vegetables',
+      'Farm to table',
+      'https://ts4.mm.bing.net/th?id=OIP.f_11dVu0mmQ8AzHvruohJQHaE8&pid=15.1&o=7&rm=3', // replace with one of the above Unsplash links,
     ),
     (
       'Kitchen staples',
@@ -502,6 +512,23 @@ class _ProductRail extends StatelessWidget {
               width: 168,
               child: ProductCard(
                 product: products[index],
+                onTap: () => showProductBottomSheet(
+                  context,
+                  products[index],
+                  onAddToCart: (quantity) async {
+                    final added = await state.addToCart(
+                      products[index],
+                      quantity: quantity,
+                    );
+                    if (!context.mounted) return;
+                    showToast(
+                      context,
+                      added
+                          ? '${products[index].name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
+                  },
+                ),
                 onAdd: () async {
                   final added = await state.addToCart(products[index]);
                   if (!context.mounted) return;
@@ -542,6 +569,23 @@ class _EssentialsGrid extends StatelessWidget {
           ),
           itemBuilder: (context, index) => ProductCard(
             product: products[index],
+            onTap: () => showProductBottomSheet(
+              context,
+              products[index],
+              onAddToCart: (quantity) async {
+                final added = await state.addToCart(
+                  products[index],
+                  quantity: quantity,
+                );
+                if (!context.mounted) return;
+                showToast(
+                  context,
+                  added
+                      ? '${products[index].name} added to cart'
+                      : state.error ?? 'Please login first',
+                );
+              },
+            ),
             onAdd: () async {
               final added = await state.addToCart(products[index]);
               if (!context.mounted) return;

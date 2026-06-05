@@ -213,8 +213,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> addToCart(ProductModel product) async {
-    return await _syncAddToCart(product);
+  Future<bool> addToCart(ProductModel product, {int quantity = 1}) async {
+    return await _syncAddToCart(product, quantity: quantity);
   }
 
   Future<bool> decrement(ProductModel product) async {
@@ -405,7 +405,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> _syncAddToCart(ProductModel product) async {
+  Future<bool> _syncAddToCart(ProductModel product, {int quantity = 1}) async {
     if (token == null) {
       error = 'Please login first';
       notifyListeners();
@@ -414,7 +414,7 @@ class AppState extends ChangeNotifier {
     await apiService.post(
       '/cart/add',
       token: token,
-      body: {'productId': product.id, 'quantity': 1},
+      body: {'productId': product.id, 'quantity': quantity},
     );
     await loadCart();
     return true;

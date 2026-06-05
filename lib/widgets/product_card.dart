@@ -3,10 +3,16 @@ import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product, required this.onAdd});
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.onAdd,
+    this.onTap,
+  });
 
   final ProductModel product;
   final VoidCallback onAdd;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +22,7 @@ class ProductCard extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Column(
