@@ -38,6 +38,7 @@ class AppState extends ChangeNotifier {
   String? token;
   UserModel? user;
   List<ProductModel> products = [];
+  List<ProductModel> favorites = [];
   List<OrderModel> orders = [];
   List<AddressModel> savedAddresses = [];
   AddressModel? selectedAddress;
@@ -47,6 +48,7 @@ class AppState extends ChangeNotifier {
   double get deliveryFee => cart.isEmpty ? 0 : 35;
   double get total => subtotal + deliveryFee;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
+  int get favoritesCount => favorites.length;
   bool get signedIn => token != null && user != null;
 
   Future<void> bootstrap() async {
@@ -57,6 +59,9 @@ class AppState extends ChangeNotifier {
       user = UserModel.fromStorage(storedUser);
     }
     await Future.wait([loadProducts(), _restoreSession()]);
+    if (token != null) {
+      await loadFavorites();
+    }
     initialized = true;
     notifyListeners();
   }
@@ -84,6 +89,7 @@ class AppState extends ChangeNotifier {
       await loadOrders();
       await loadCart();
       await loadAddresses();
+      await loadFavorites();
     }, silent: silent);
   }
 
@@ -109,6 +115,7 @@ class AppState extends ChangeNotifier {
       await loadOrders();
       await loadCart();
       await loadAddresses();
+      await loadFavorites();
     }, silent: silent);
   }
 
@@ -174,10 +181,37 @@ class AppState extends ChangeNotifier {
     savedAddresses = [];
     selectedAddress = null;
     cart.clear();
+    favorites = [];
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
     notifyListeners();
+  }
+
+  bool isFavorite(ProductModel product) =>
+      favorites.any((item) => item.id == product.id);
+
+  Future<void> toggleFavorite(ProductModel product) async {
+    if (token == null) throw StateError('Please login first');
+    if (isFavorite(product)) {
+      await removeFavorite(product.id);
+      return;
+    }
+    await apiService.post(
+      '/wishlist/add',
+      token: token,
+      body: {'productId': product.id},
+    );
+    await loadFavorites();
+  }
+
+  Future<void> removeFavorite(String productId) async {
+    if (token == null) throw StateError('Please login first');
+    await apiService.delete(
+      '/wishlist/remove/$productId',
+      token: token,
+    );
+    await loadFavorites();
   }
 
   String get defaultDashboardRoute => RoleAccess.dashboardForRole(user?.role);
@@ -296,6 +330,24 @@ class AppState extends ChangeNotifier {
     orders = data
         .cast<Map<String, dynamic>>()
         .map(OrderModel.fromJson)
+        .toList();
+    notifyListeners();
+  }
+
+  Future<void> loadFavorites() async {
+    if (token == null) {
+      favorites = [];
+      notifyListeners();
+      return;
+    }
+
+    final data =
+        await apiService.get('/wishlist', token: token) as Map<String, dynamic>;
+    final items = (data['items'] as List<dynamic>? ?? const []);
+    favorites = items
+        .map((item) => item is Map<String, dynamic> ? item['product'] : null)
+        .whereType<Map<String, dynamic>>()
+        .map(ProductModel.fromJson)
         .toList();
     notifyListeners();
   }

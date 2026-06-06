@@ -13,6 +13,7 @@ class RoleAccess {
     '/my-orders',
     '/order-details',
     '/scheduled-orders',
+    '/wishlist',
     '/notifications',
     '/profile',
     '/profile/edit',

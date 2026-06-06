@@ -15,6 +15,7 @@ import '../../views/user/scheduled_order_screen.dart';
 import '../../views/user/signup_screen.dart';
 import '../../views/user/splash_screen.dart';
 import '../../views/user/user_home_screen.dart';
+import '../../views/user/wishlist_screen.dart';
 
 class CustomerRoutes {
   static Map<String, WidgetBuilder> get routes => {
@@ -33,5 +34,6 @@ class CustomerRoutes {
     AddressScreen.routeName: (_) => const AddressScreen(),
     NotificationScreen.routeName: (_) => const NotificationScreen(),
     ProfileScreen.routeName: (_) => const ProfileScreen(),
+    WishlistScreen.routeName: (_) => const WishlistScreen(),
   };
 }

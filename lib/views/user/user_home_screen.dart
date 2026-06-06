@@ -39,7 +39,7 @@ class UserHomeScreen extends StatelessWidget {
                   child: const _SearchAndDelivery(),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 0)),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
               const SliverToBoxAdapter(child: _OfferBanners()),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
               const SliverToBoxAdapter(
@@ -80,8 +80,22 @@ class _HomeHeader extends StatelessWidget {
         final addressText =
             state.selectedAddress?.fullAddress ?? 'Add your delivery address';
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFE3E8DF)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
             children: [
               Expanded(
                 child: Column(
@@ -89,7 +103,18 @@ class _HomeHeader extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.timer, color: Color(0xFF0F9D58)),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF7EF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.timer,
+                            color: Color(0xFF0F9D58),
+                            size: 18,
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Delivery in 10 minutes',
@@ -105,7 +130,7 @@ class _HomeHeader extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(
-                          Icons.location_on,
+                          Icons.location_on_outlined,
                           size: 18,
                           color: Color(0xFF667064),
                         ),
@@ -114,10 +139,12 @@ class _HomeHeader extends StatelessWidget {
                           child: Text(
                             addressText,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Color(0xFF667064)),
+                            style: const TextStyle(
+                              color: Color(0xFF667064),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                        const Icon(Icons.keyboard_arrow_down, size: 18),
                       ],
                     ),
                   ],
@@ -134,6 +161,7 @@ class _HomeHeader extends StatelessWidget {
                 ),
               ),
             ],
+            ),
           ),
         );
       },
@@ -175,7 +203,7 @@ class _StickySearchHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => 120;
 
   @override
-  double get maxExtent => 126;
+  double get maxExtent => 120;
 
   @override
   Widget build(
@@ -212,22 +240,22 @@ class _OfferBannersState extends State<_OfferBanners> {
     (
       'Fresh fruits',
       'Up to 30% off',
-      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=1200&q=80',
+      'assets/images/banners/grocery_bag.png',
     ),
     (
       'Daily dairy',
       'Morning essentials',
-      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=1200&q=80',
+      'assets/images/banners/coupon_basket.png',
     ),
     (
       'Fresh vegetables',
       'Farm to table',
-      'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1200&q=80',
+      'assets/images/categories/vegetables.png',
     ),
     (
       'Kitchen staples',
       'Rice, dal and oil',
-      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
+      'assets/images/categories/staples.png',
     ),
   ];
 
@@ -259,7 +287,7 @@ class _OfferBannersState extends State<_OfferBanners> {
     return Column(
       children: [
         SizedBox(
-          height: 190,
+          height: 206,
           child: PageView.builder(
             controller: _controller,
             padEnds: false,
@@ -271,53 +299,48 @@ class _OfferBannersState extends State<_OfferBanners> {
                 padding: EdgeInsets.only(left: index == 0 ? 16 : 6, right: 6),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  child: Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      color: const Color(0xFFEAF1EA),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(26),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.network(
-                          banner.$3,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Color(0xFFDFF3E4), Color(0xFFB8E0C3)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  _bannerIconFor(banner.$1),
-                                  size: 92,
-                                  color: const Color(0xFF0F9D58),
-                                ),
-                              ),
-                            );
-                          },
+                        _BannerImage(path: banner.$3, title: banner.$1),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF0F9D58).withValues(alpha: 0.10),
+                                Colors.black.withValues(alpha: 0.18),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.topRight,
+                            ),
+                          ),
                         ),
                         Container(
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Color(0xCC000000), Color(0x22000000)],
+                              colors: [Color(0x11000000), Color(0xAA000000)],
                               begin: Alignment.bottomLeft,
                               end: Alignment.topRight,
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          bottom: 16,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -327,6 +350,9 @@ class _OfferBannersState extends State<_OfferBanners> {
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                  ),
                                 ),
                                 child: const Text(
                                   'Fresh picks',
@@ -344,8 +370,9 @@ class _OfferBannersState extends State<_OfferBanners> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleLarge
                                     ?.copyWith(
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w900,
                                       color: Colors.white,
+                                      letterSpacing: -0.2,
                                     ),
                               ),
                               const SizedBox(height: 4),
@@ -359,11 +386,21 @@ class _OfferBannersState extends State<_OfferBanners> {
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              const Text(
-                                'Shop now',
-                                style: TextStyle(
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w700,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'Shop now',
+                                  style: TextStyle(
+                                    color: Color(0xFF14532D),
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ],
@@ -409,6 +446,55 @@ IconData _bannerIconFor(String title) {
   return Icons.local_grocery_store;
 }
 
+class _BannerImage extends StatelessWidget {
+  const _BannerImage({required this.path, required this.title});
+
+  final String path;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = path.startsWith('http')
+        ? Image.network(
+            path,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _BannerFallback(title: title),
+          )
+        : Image.asset(
+            path,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _BannerFallback(title: title),
+          );
+    return image;
+  }
+}
+
+class _BannerFallback extends StatelessWidget {
+  const _BannerFallback({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFDFF3E4), Color(0xFFB8E0C3)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          _bannerIconFor(title),
+          size: 92,
+          color: const Color(0xFF0F9D58),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.title);
   final String title;
@@ -424,7 +510,10 @@ class _SectionTitle extends StatelessWidget {
               title,
               style: Theme.of(
                 context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
             ),
           ),
           TextButton(
@@ -490,7 +579,7 @@ class _CategoryGrid extends StatelessWidget {
         crossAxisCount: 4,
         mainAxisSpacing: 12,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.84,
       ),
       itemBuilder: (context, index) {
         final category = categories[index];
@@ -503,12 +592,20 @@ class _CategoryGrid extends StatelessWidget {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: category.$3,
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: category.$3.withValues(alpha: 0.8)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(9),
+                      padding: const EdgeInsets.all(10),
                       child: Image.asset(category.$2, fit: BoxFit.contain),
                     ),
                   ),
@@ -521,7 +618,8 @@ class _CategoryGrid extends StatelessWidget {
                 maxLines: 2,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334035),
                 ),
               ),
             ],
@@ -541,7 +639,7 @@ class _ProductRail extends StatelessWidget {
       builder: (context, state, _) {
         final products = state.products.take(6).toList();
         return SizedBox(
-          height: 260,
+          height: 320,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
@@ -551,6 +649,10 @@ class _ProductRail extends StatelessWidget {
               width: 168,
               child: ProductCard(
                 product: products[index],
+                isFavorite: state.isFavorite(products[index]),
+                onFavoriteToggle: () async {
+                  await state.toggleFavorite(products[index]);
+                },
                 onTap: () => showProductBottomSheet(
                   context,
                   products[index],
@@ -604,10 +706,14 @@ class _EssentialsGrid extends StatelessWidget {
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.76,
+            childAspectRatio: 0.68,
           ),
           itemBuilder: (context, index) => ProductCard(
             product: products[index],
+            isFavorite: state.isFavorite(products[index]),
+            onFavoriteToggle: () async {
+              await state.toggleFavorite(products[index]);
+            },
             onTap: () => showProductBottomSheet(
               context,
               products[index],
@@ -649,40 +755,61 @@ class _OperationsEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        title: const Text('Team access'),
-        subtitle: const Text('Delivery, admin and super admin tools'),
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () =>
-                    Navigator.pushNamed(context, DeliveryHomeScreen.routeName),
-                icon: const Icon(Icons.delivery_dining),
-                label: const Text('Delivery'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  AdminDashboardScreen.routeName,
-                ),
-                icon: const Icon(Icons.admin_panel_settings),
-                label: const Text('Admin'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  SuperAdminDashboardScreen.routeName,
-                ),
-                icon: const Icon(Icons.insights),
-                label: const Text('Super admin'),
-              ),
-            ],
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFE3E8DF)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(top: 12),
+          title: const Text(
+            'Team access',
+            style: TextStyle(fontWeight: FontWeight.w800),
           ),
-        ],
+          subtitle: const Text('Delivery, admin and super admin tools'),
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    DeliveryHomeScreen.routeName,
+                  ),
+                  icon: const Icon(Icons.delivery_dining),
+                  label: const Text('Delivery'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AdminDashboardScreen.routeName,
+                  ),
+                  icon: const Icon(Icons.admin_panel_settings),
+                  label: const Text('Admin'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    SuperAdminDashboardScreen.routeName,
+                  ),
+                  icon: const Icon(Icons.insights),
+                  label: const Text('Super admin'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

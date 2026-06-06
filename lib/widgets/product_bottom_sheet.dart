@@ -199,27 +199,36 @@ class _ProductBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = product.imageUrl;
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _fallbackBackground(product),
+      );
+    }
     if (imageUrl.startsWith('http')) {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => _FallbackBackground(product: product),
+        errorBuilder: (_, __, ___) => _fallbackBackground(product),
       );
     }
-    return _FallbackBackground(product: product);
+    return _fallbackBackground(product);
   }
 }
 
-class _FallbackBackground extends StatelessWidget {
-  const _FallbackBackground({required this.product});
-
-  final ProductModel product;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
+Widget _fallbackBackground(ProductModel product) {
+  final asset = _bestImageAsset(product);
+  return Image.asset(
+    asset,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    height: double.infinity,
+    errorBuilder: (_, __, ___) => Container(
       color: _categoryColor(product.category),
       child: Center(
         child: Icon(
@@ -228,8 +237,8 @@ class _FallbackBackground extends StatelessWidget {
           color: const Color(0xFF0F9D58),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 String _descriptionFor(ProductModel product) {
@@ -253,5 +262,30 @@ Color _categoryColor(String category) {
     'dairy' => const Color(0xFFEAF1FF),
     'staples' => const Color(0xFFFFEFEA),
     _ => const Color(0xFFF1F4EF),
+  };
+}
+
+String _bestImageAsset(ProductModel product) {
+  final name = product.name.toLowerCase();
+  final category = product.category.toLowerCase();
+
+  if (name.contains('tomato')) return 'assets/images/products/tomato.png';
+  if (name.contains('milk')) return 'assets/images/products/milk.png';
+  if (name.contains('rice')) return 'assets/images/products/rice.png';
+  if (name.contains('dal') || name.contains('toor')) {
+    return 'assets/images/products/dal.png';
+  }
+  if (name.contains('ghee')) return 'assets/images/products/oil.png';
+  if (name.contains('ice cream')) return 'assets/images/products/milk.png';
+  if (name.contains('banana') || name.contains('fruit')) {
+    return 'assets/images/products/banana.png';
+  }
+
+  return switch (category) {
+    'vegetables' => 'assets/images/products/tomato.png',
+    'fruits' => 'assets/images/products/banana.png',
+    'dairy' => 'assets/images/products/milk.png',
+    'staples' => 'assets/images/products/rice.png',
+    _ => 'assets/images/products/oil.png',
   };
 }

@@ -94,6 +94,10 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               itemBuilder: (context, index) => ProductCard(
                 product: state.products[index],
+                isFavorite: state.isFavorite(state.products[index]),
+                onFavoriteToggle: () async {
+                  await state.toggleFavorite(state.products[index]);
+                },
                 onTap: () => showProductBottomSheet(
                   context,
                   state.products[index],
