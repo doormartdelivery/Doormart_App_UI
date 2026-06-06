@@ -14,8 +14,10 @@ class AdminOrdersScreen extends StatefulWidget {
   State<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
 }
 
-class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
+class _AdminOrdersScreenState extends State<AdminOrdersScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  late final AnimationController _animationController;
   late Future<List<OrderModel>> _ordersFuture;
   int _sortColumnIndex = 1;
   bool _sortAscending = false;
@@ -24,6 +26,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
     _ordersFuture = _loadOrders();
   }
 
@@ -33,6 +39,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -97,10 +104,21 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           tooltip: 'Refresh orders',
           onPressed: () {
             setState(() {
+              _animationController
+                ..reset()
+                ..forward();
               _ordersFuture = _loadOrders();
             });
           },
-          icon: const Icon(Icons.refresh),
+          icon: RotationTransition(
+            turns: Tween<double>(begin: 0, end: 1).animate(
+              CurvedAnimation(
+                parent: _animationController,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
+            child: const Icon(Icons.refresh),
+          ),
         ),
       ],
       children: [
@@ -118,25 +136,37 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _OrdersHero(orders: allOrders),
-                const SizedBox(height: 14),
-                _OrderSearchField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _query = value),
-                  onClear: _query.isEmpty
-                      ? null
-                      : () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
+                _AnimatedIn(
+                  animation: _animationController,
+                  index: 0,
+                  child: _OrdersHero(orders: allOrders),
                 ),
                 const SizedBox(height: 14),
-                _OrdersTable(
-                  orders: orders,
-                  sortColumnIndex: _sortColumnIndex,
-                  sortAscending: _sortAscending,
-                  onSort: _sortBy,
-                  onMove: _moveOrder,
+                _AnimatedIn(
+                  animation: _animationController,
+                  index: 1,
+                  child: _OrderSearchField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _query = value),
+                    onClear: _query.isEmpty
+                        ? null
+                        : () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _AnimatedIn(
+                  animation: _animationController,
+                  index: 2,
+                  child: _OrdersTable(
+                    orders: orders,
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _sortAscending,
+                    onSort: _sortBy,
+                    onMove: _moveOrder,
+                  ),
                 ),
               ],
             );
@@ -276,30 +306,35 @@ class _OrdersHero extends StatelessWidget {
                   value: '${orders.length}',
                   icon: Icons.shopping_bag,
                   color: const Color(0xFFFFFFFF),
+                  index: 0,
                 ),
                 _HeroMetric(
                   label: 'Pending',
                   value: '$pending',
                   icon: Icons.hourglass_top,
                   color: const Color(0xFFFFEDD5),
+                  index: 1,
                 ),
                 _HeroMetric(
                   label: 'Active',
                   value: '$active',
                   icon: Icons.local_shipping,
                   color: const Color(0xFFDBEAFE),
+                  index: 2,
                 ),
                 _HeroMetric(
                   label: 'Delivered',
                   value: '$delivered',
                   icon: Icons.check_circle,
                   color: const Color(0xFFD1FAE5),
+                  index: 3,
                 ),
                 _HeroMetric(
                   label: 'Revenue',
                   value: 'Rs ${revenue.toStringAsFixed(0)}',
                   icon: Icons.payments,
                   color: const Color(0xFFFCE7F3),
+                  index: 4,
                 ),
               ],
             ),
@@ -316,50 +351,63 @@ class _HeroMetric extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    required this.index,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 420 + index * 90),
+      curve: Curves.easeOutBack,
+      builder: (context, progress, child) {
+        return Transform.scale(
+          scale: 0.92 + progress * 0.08,
+          child: Opacity(opacity: progress.clamp(0, 1), child: child),
+        );
+      },
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -486,75 +534,111 @@ class _OrdersTable extends StatelessWidget {
                           }),
                           cells: [
                             DataCell(
-                              Row(
-                                children: [
-                                  DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const SizedBox(
-                                      width: 34,
-                                      height: 34,
-                                      child: Icon(
-                                        Icons.receipt,
-                                        color: Color(0xFF475569),
-                                        size: 18,
+                              _TableCellIn(
+                                animationKey: '${order.id}-id',
+                                index: index,
+                                child: Row(
+                                  children: [
+                                    DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    '#${_shortId(order.id)}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF0F172A),
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            DataCell(Text(_formatDate(order.createdAt))),
-                            DataCell(_StatusBadge(status: order.status)),
-                            DataCell(
-                              Text(
-                                '${order.products.length}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                'Rs ${order.total.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  color: Color(0xFF0F766E),
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            DataCell(_DeliveryAcceptedCell(order: order)),
-                            DataCell(
-                              action == null
-                                  ? const _DonePill()
-                                  : FilledButton.icon(
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF2563EB),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                      child: const SizedBox(
+                                        width: 34,
+                                        height: 34,
+                                        child: Icon(
+                                          Icons.receipt,
+                                          color: Color(0xFF475569),
+                                          size: 18,
                                         ),
                                       ),
-                                      onPressed: () =>
-                                          onMove(order, action.status),
-                                      icon: const Icon(
-                                        Icons.arrow_forward,
-                                        size: 16,
-                                      ),
-                                      label: Text(action.label),
                                     ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      '#${_shortId(order.id)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF0F172A),
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-date',
+                                index: index,
+                                child: Text(_formatDate(order.createdAt)),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-status-${order.status.name}',
+                                index: index,
+                                child: _StatusBadge(status: order.status),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-items',
+                                index: index,
+                                child: Text(
+                                  '${order.products.length}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-total',
+                                index: index,
+                                child: Text(
+                                  'Rs ${order.total.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F766E),
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey:
+                                    '${order.id}-delivery-${order.deliveryPersonId}',
+                                index: index,
+                                child: _DeliveryAcceptedCell(order: order),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey:
+                                    '${order.id}-action-${action?.status ?? 'done'}',
+                                index: index,
+                                child: action == null
+                                    ? const _DonePill()
+                                    : FilledButton.icon(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              const Color(0xFF2563EB),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        onPressed: () =>
+                                            onMove(order, action.status),
+                                        icon: const Icon(
+                                          Icons.arrow_forward,
+                                          size: 16,
+                                        ),
+                                        label: Text(action.label),
+                                      ),
+                              ),
                             ),
                           ],
                         );
@@ -723,6 +807,69 @@ class _OrdersError extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedIn extends StatelessWidget {
+  const _AnimatedIn({
+    required this.animation,
+    required this.index,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Interval(
+        (index * 0.12).clamp(0, 0.72),
+        1,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _TableCellIn extends StatelessWidget {
+  const _TableCellIn({
+    required this.animationKey,
+    required this.index,
+    required this.child,
+  });
+
+  final String animationKey;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(animationKey),
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 280 + (index.clamp(0, 8) * 55)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 8 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: child,
     );
   }
 }
