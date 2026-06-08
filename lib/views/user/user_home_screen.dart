@@ -55,6 +55,7 @@ class UserHomeScreen extends StatelessWidget {
               const SliverToBoxAdapter(
                 child: _SectionTitle('Daily essentials'),
               ),
+              const SliverToBoxAdapter(child: _EssentialsFilters()),
               const SliverToBoxAdapter(child: _EssentialsGrid()),
               const SliverToBoxAdapter(child: SizedBox(height: 10)),
               const SliverToBoxAdapter(child: _OperationsEntry()),
@@ -744,6 +745,98 @@ class _EssentialsGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _EssentialsFilters extends StatelessWidget {
+  const _EssentialsFilters();
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = [
+      _FeedChipData('Filter', Icons.tune, false),
+      _FeedChipData('Sort by', Icons.keyboard_arrow_down, false),
+      _FeedChipData('99 Store', Icons.local_offer_outlined, true),
+      _FeedChipData('Bolt 15 mins', Icons.bolt, true),
+    ];
+
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final chip = chips[index];
+          return _FeedChip(
+            label: chip.label,
+            icon: chip.icon,
+            active: chip.active,
+            onTap: () {},
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FeedChipData {
+  const _FeedChipData(this.label, this.icon, this.active);
+
+  final String label;
+  final IconData icon;
+  final bool active;
+}
+
+class _FeedChip extends StatelessWidget {
+  const _FeedChip({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withValues(alpha: 0.84) : Colors.white.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF16231C)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                color: Color(0xFF16231C),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
