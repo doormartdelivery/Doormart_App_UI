@@ -36,7 +36,6 @@ dependencies:
   permission_handler: ^12.0.3
   provider: ^6.1.2
   shared_preferences: ^2.3.2
-  speech_to_text: ^7.4.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

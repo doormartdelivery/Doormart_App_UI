@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../core/role_access.dart';
 import '../models/address_model.dart';
+import '../models/category_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
@@ -38,6 +39,7 @@ class AppState extends ChangeNotifier {
   String? token;
   UserModel? user;
   List<ProductModel> products = [];
+  List<CategoryModel> categoryCatalog = [];
   List<ProductModel> favorites = [];
   List<OrderModel> orders = [];
   List<AddressModel> savedAddresses = [];
@@ -49,7 +51,7 @@ class AppState extends ChangeNotifier {
   double get total => subtotal + deliveryFee;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
-  bool get signedIn => token != null && user != null;
+  bool get signedIn => token != null;
 
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
@@ -58,7 +60,7 @@ class AppState extends ChangeNotifier {
     if (storedUser != null && storedUser.isNotEmpty) {
       user = UserModel.fromStorage(storedUser);
     }
-    await Future.wait([loadProducts(), _restoreSession()]);
+    await Future.wait([loadProducts(), loadCategories(), _restoreSession()]);
     if (token != null) {
       await loadFavorites();
     }
@@ -86,6 +88,7 @@ class AppState extends ChangeNotifier {
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       await _persistSession();
+      await refreshProfile();
       await loadOrders();
       await loadCart();
       await loadAddresses();
@@ -112,6 +115,7 @@ class AppState extends ChangeNotifier {
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       await _persistSession();
+      await refreshProfile();
       await loadOrders();
       await loadCart();
       await loadAddresses();
@@ -234,6 +238,67 @@ class AppState extends ChangeNotifier {
           .map(ProductModel.fromJson)
           .toList();
     });
+  }
+
+  Future<void> loadCategories() async {
+    final data = await apiService.get('/categories') as List<dynamic>;
+    categoryCatalog = data
+        .cast<Map<String, dynamic>>()
+        .map(CategoryModel.fromJson)
+        .toList();
+    notifyListeners();
+  }
+
+  Future<void> createCategory({
+    required String name,
+    String description = '',
+    String imageUrl = '',
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.post(
+      '/categories',
+      token: token,
+      body: {
+        'name': name,
+        'description': description,
+        'imageUrl': imageUrl,
+      },
+    );
+    await loadCategories();
+  }
+
+  Future<void> updateCategory({
+    required String categoryId,
+    required String name,
+    String description = '',
+    String imageUrl = '',
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.put(
+      '/categories/$categoryId',
+      token: token,
+      body: {
+        'name': name,
+        'description': description,
+        'imageUrl': imageUrl,
+      },
+    );
+    await loadCategories();
+  }
+
+  Future<void> deleteCategory(String categoryId) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.delete('/categories/$categoryId', token: token);
+    await loadCategories();
   }
 
   Future<ProductModel> createProduct({
@@ -408,7 +473,13 @@ class AppState extends ChangeNotifier {
   }
 
   Future<List<dynamic>> categories() async {
-    return await apiService.get('/categories') as List<dynamic>;
+    final data = await apiService.get('/categories') as List<dynamic>;
+    categoryCatalog = data
+        .cast<Map<String, dynamic>>()
+        .map(CategoryModel.fromJson)
+        .toList();
+    notifyListeners();
+    return data;
   }
 
   Future<List<OrderModel>> allOrdersForRole(String role) async {

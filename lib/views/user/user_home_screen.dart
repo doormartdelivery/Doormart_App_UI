@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../mascot/walking_mascot_widget.dart';
+import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/gradient_background.dart';
@@ -17,11 +18,20 @@ import '../super_admin/super_admin_dashboard_screen.dart';
 import 'cart_screen.dart';
 import 'product_list_screen.dart';
 import 'search_screen.dart';
+import 'profile_screen.dart';
 
-class UserHomeScreen extends StatelessWidget {
+class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
 
   static const routeName = '/';
+
+  @override
+  State<UserHomeScreen> createState() => _UserHomeScreenState();
+}
+
+class _UserHomeScreenState extends State<UserHomeScreen> {
+  _EssentialsSort _sort = _EssentialsSort.relevance;
+  String _selectedCategory = 'All';
 
   @override
   Widget build(BuildContext context) {
@@ -33,12 +43,7 @@ class UserHomeScreen extends StatelessWidget {
             slivers: [
               SliverToBoxAdapter(child: _HomeHeader()),
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickySearchHeaderDelegate(
-                  child: const _SearchAndDelivery(),
-                ),
-              ),
+              const SliverToBoxAdapter(child: _SearchAndDelivery()),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               const SliverToBoxAdapter(child: _OfferBanners()),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
@@ -55,8 +60,22 @@ class UserHomeScreen extends StatelessWidget {
               const SliverToBoxAdapter(
                 child: _SectionTitle('Daily essentials'),
               ),
-              const SliverToBoxAdapter(child: _EssentialsFilters()),
-              const SliverToBoxAdapter(child: _EssentialsGrid()),
+              SliverToBoxAdapter(
+                child: _EssentialsFilters(
+                  sort: _sort,
+                  selectedCategory: _selectedCategory,
+                  onFilterTap: _showFilterSheet,
+                  onSortTap: _showSortSheet,
+                  onCategorySelected: (value) =>
+                      setState(() => _selectedCategory = value),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _EssentialsGrid(
+                  sort: _sort,
+                  selectedCategory: _selectedCategory,
+                ),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: 10)),
               const SliverToBoxAdapter(child: _OperationsEntry()),
               const SliverToBoxAdapter(child: WalkingMascotWidget()),
@@ -69,6 +88,130 @@ class UserHomeScreen extends StatelessWidget {
         index: 0,
         onTap: (index) => BottomNavBar.navigate(context, index),
       ),
+    );
+  }
+
+  void _showFilterSheet() {
+    final categories = context.read<AppState>().categoryCatalog;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Choose category',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: categories.map((category) {
+                      final selected = _selectedCategory == category.name;
+                      return ChoiceChip(
+                        label: Text(category.name),
+                        selected: selected,
+                        onSelected: (_) => setModalState(() {
+                          _selectedCategory = category.name;
+                        }),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        setState(() {});
+                        Navigator.pop(sheetContext);
+                      },
+                      child: const Text('Apply Filters'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showSortSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SortTile(
+                    label: 'Relevance',
+                    selected: _sort == _EssentialsSort.relevance,
+                    onTap: () => setModalState(
+                      () => _sort = _EssentialsSort.relevance,
+                    ),
+                  ),
+                  _SortTile(
+                    label: 'Price: Low to High',
+                    selected: _sort == _EssentialsSort.priceLowHigh,
+                    onTap: () => setModalState(
+                      () => _sort = _EssentialsSort.priceLowHigh,
+                    ),
+                  ),
+                  _SortTile(
+                    label: 'Price: High to Low',
+                    selected: _sort == _EssentialsSort.priceHighLow,
+                    onTap: () => setModalState(
+                      () => _sort = _EssentialsSort.priceHighLow,
+                    ),
+                  ),
+                  _SortTile(
+                    label: 'Rating: High to Low',
+                    selected: _sort == _EssentialsSort.ratingHighLow,
+                    onTap: () => setModalState(
+                      () => _sort = _EssentialsSort.ratingHighLow,
+                    ),
+                  ),
+                  _SortTile(
+                    label: 'Name: A to Z',
+                    selected: _sort == _EssentialsSort.nameAZ,
+                    onTap: () => setModalState(
+                      () => _sort = _EssentialsSort.nameAZ,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        setState(() {});
+                        Navigator.pop(sheetContext);
+                      },
+                      child: const Text('Apply Sort'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -151,15 +294,11 @@ class _HomeHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              Badge(
-                isLabelVisible: state.cartCount > 0,
-                label: Text('${state.cartCount}'),
-                child: IconButton.filledTonal(
-                  tooltip: 'Cart',
-                  onPressed: () =>
-                      Navigator.pushNamed(context, CartScreen.routeName),
-                  icon: const Icon(Icons.shopping_cart),
-                ),
+              IconButton.filledTonal(
+                tooltip: 'Profile',
+                onPressed: () =>
+                    Navigator.pushNamed(context, ProfileScreen.routeName),
+                icon: const Icon(Icons.person),
               ),
             ],
             ),
@@ -170,15 +309,28 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
-class _SearchAndDelivery extends StatelessWidget {
+class _SearchAndDelivery extends StatefulWidget {
   const _SearchAndDelivery();
+
+  @override
+  State<_SearchAndDelivery> createState() => _SearchAndDeliveryState();
+}
+
+class _SearchAndDeliveryState extends State<_SearchAndDelivery> {
+  late final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: VoiceSearchWidget(
-        controller: TextEditingController(),
+        controller: _controller,
         readOnly: true,
         hintText: 'Search atta, milk, fruits...',
         onTap: () => Navigator.pushNamed(context, SearchScreen.routeName),
@@ -192,36 +344,6 @@ class _SearchAndDelivery extends StatelessWidget {
         },
       ),
     );
-  }
-}
-
-class _StickySearchHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _StickySearchHeaderDelegate({required this.child});
-
-  final Widget child;
-
-  @override
-  double get minExtent => 120;
-
-  @override
-  double get maxExtent => 120;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: const Color(0xFFF7FAF4),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: child,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _StickySearchHeaderDelegate oldDelegate) {
-    return oldDelegate.child != child;
   }
 }
 
@@ -533,101 +655,109 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categories = [
-      (
-        'Vegetables',
-        'assets/images/categories/vegetables.png',
-        const Color(0xFFE7F7EC),
-      ),
-      (
-        'Fruits',
-        'assets/images/categories/fruits.png',
-        const Color(0xFFFFF0D7),
-      ),
-      ('Dairy', 'assets/images/categories/dairy.png', const Color(0xFFEAF1FF)),
-      (
-        'Staples',
-        'assets/images/categories/staples.png',
-        const Color(0xFFFFEFEA),
-      ),
-      (
-        'Snacks',
-        'assets/images/categories/snacks.png',
-        const Color(0xFFFFF8D8),
-      ),
-      (
-        'Cleaning',
-        'assets/images/categories/cleaning.png',
-        const Color(0xFFEFF3F0),
-      ),
-      (
-        'Personal',
-        'assets/images/categories/personal.png',
-        const Color(0xFFF2EAFE),
-      ),
-      (
-        'Baby care',
-        'assets/images/categories/baby_care.png',
-        const Color(0xFFFFEAF3),
-      ),
-    ];
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: categories.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.84,
-      ),
-      itemBuilder: (context, index) {
-        final category = categories[index];
-        return InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () =>
-              Navigator.pushNamed(context, ProductListScreen.routeName),
-          child: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: category.$3.withValues(alpha: 0.8)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final categories = state.categoryCatalog;
+        if (categories.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text('No categories available'),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: categories.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.84,
+          ),
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            final bgColor = _categoryTint(index);
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => Navigator.pushNamed(
+                context,
+                ProductListScreen.routeName,
+                arguments: category.name,
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: bgColor.withValues(alpha: 0.8)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Image.asset(category.$2, fit: BoxFit.contain),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: _CategoryImage(imageUrl: category.imageUrl),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    category.name,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334035),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                category.$1,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF334035),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
+  }
+}
+
+Color _categoryTint(int index) {
+  final tints = [
+    const Color(0xFFE7F7EC),
+    const Color(0xFFFFF0D7),
+    const Color(0xFFEAF1FF),
+    const Color(0xFFFFEFEA),
+    const Color(0xFFFFF8D8),
+    const Color(0xFFEFF3F0),
+    const Color(0xFFF2EAFE),
+    const Color(0xFFFFEAF3),
+  ];
+  return tints[index % tints.length];
+}
+
+class _CategoryImage extends StatelessWidget {
+  const _CategoryImage({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(imageUrl, fit: BoxFit.contain);
+    }
+    if (imageUrl.startsWith('http')) {
+      return Image.network(imageUrl, fit: BoxFit.contain);
+    }
+    return const Icon(Icons.category, size: 34, color: Color(0xFF0F9D58));
   }
 }
 
@@ -690,14 +820,48 @@ class _ProductRail extends StatelessWidget {
   }
 }
 
+enum _EssentialsSort { relevance, priceLowHigh, priceHighLow, ratingHighLow, nameAZ }
+
 class _EssentialsGrid extends StatelessWidget {
-  const _EssentialsGrid();
+  const _EssentialsGrid({
+    required this.sort,
+    required this.selectedCategory,
+  });
+
+  final _EssentialsSort sort;
+  final String selectedCategory;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, state, _) {
-        final products = state.products.toList();
+        var products = List<ProductModel>.from(state.products);
+        if (selectedCategory != 'All') {
+          products = products
+              .where(
+                (item) =>
+                    item.category.toLowerCase() == selectedCategory.toLowerCase(),
+              )
+              .toList();
+        }
+        switch (sort) {
+          case _EssentialsSort.relevance:
+            break;
+          case _EssentialsSort.priceLowHigh:
+            products.sort((a, b) => a.price.compareTo(b.price));
+            break;
+          case _EssentialsSort.priceHighLow:
+            products.sort((a, b) => b.price.compareTo(a.price));
+            break;
+          case _EssentialsSort.ratingHighLow:
+            products.sort((a, b) => b.rating.compareTo(a.rating));
+            break;
+          case _EssentialsSort.nameAZ:
+            products.sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
+            break;
+        }
         return GridView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shrinkWrap: true,
@@ -749,22 +913,67 @@ class _EssentialsGrid extends StatelessWidget {
   }
 }
 
+class _SortTile extends StatelessWidget {
+  const _SortTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: selected ? const Color(0xFF0F9D58) : const Color(0xFF1E1C1A),
+        ),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle, color: Color(0xFF0F9D58))
+          : const Icon(Icons.circle_outlined, color: Color(0xFFB7B0A6)),
+    );
+  }
+}
+
 class _EssentialsFilters extends StatelessWidget {
-  const _EssentialsFilters();
+  const _EssentialsFilters({
+    required this.sort,
+    required this.onFilterTap,
+    required this.onSortTap,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+  });
+
+  final _EssentialsSort sort;
+  final VoidCallback onFilterTap;
+  final VoidCallback onSortTap;
+  final String selectedCategory;
+  final ValueChanged<String> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
     final chips = [
-      _FeedChipData('Filter', Icons.tune, false),
-      _FeedChipData('Sort by', Icons.keyboard_arrow_down, false),
-      _FeedChipData('99 Store', Icons.local_offer_outlined, true),
-      _FeedChipData('Bolt 15 mins', Icons.bolt, true),
+      _FeedChipData('Filter', Icons.tune, selectedCategory != 'All'),
+      _FeedChipData('Sort by', Icons.keyboard_arrow_down, sort != _EssentialsSort.relevance),
+      _FeedChipData(
+        selectedCategory == 'All' ? 'All Categories' : selectedCategory,
+        Icons.category_outlined,
+        selectedCategory != 'All',
+      ),
     ];
 
     return SizedBox(
-      height: 54,
+      height: 58,
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         scrollDirection: Axis.horizontal,
         itemCount: chips.length,
         separatorBuilder: (_, _) => const SizedBox(width: 10),
@@ -774,7 +983,19 @@ class _EssentialsFilters extends StatelessWidget {
             label: chip.label,
             icon: chip.icon,
             active: chip.active,
-            onTap: () {},
+            onTap: () {
+            switch (chip.label) {
+              case 'Filter':
+                onFilterTap();
+                break;
+              case 'Sort by':
+                onSortTap();
+                break;
+              default:
+                onFilterTap();
+                break;
+            }
+          },
           );
         },
       ),
@@ -808,7 +1029,8 @@ class _FeedChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        constraints: const BoxConstraints(minWidth: 92),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: active ? Colors.white.withValues(alpha: 0.84) : Colors.white.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(16),
@@ -824,13 +1046,15 @@ class _FeedChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: const Color(0xFF16231C)),
-            const SizedBox(width: 8),
+            Icon(icon, size: 17, color: const Color(0xFF16231C)),
+            const SizedBox(width: 6),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
-                fontSize: 14,
+                fontSize: 13.5,
                 color: Color(0xFF16231C),
               ),
             ),
