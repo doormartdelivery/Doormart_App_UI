@@ -301,6 +301,38 @@ class AppState extends ChangeNotifier {
     await loadCategories();
   }
 
+  Future<String> uploadCategoryImage(String filePath) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    final data = await apiService.uploadImage(
+      '/categories/upload-image',
+      token: token,
+      filePath: filePath,
+      fieldName: 'image',
+    ) as Map<String, dynamic>;
+
+    return data['url'] as String? ?? '';
+  }
+
+  Future<String> uploadProductImage(String filePath) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+
+    final data = await apiService.uploadImage(
+      '/categories/upload-image',
+      token: token,
+      filePath: filePath,
+      fieldName: 'image',
+    ) as Map<String, dynamic>;
+
+    return data['url'] as String? ?? '';
+  }
+
   Future<ProductModel> createProduct({
     required String name,
     required String category,
@@ -528,6 +560,41 @@ class AppState extends ChangeNotifier {
       body: {'role': role},
     ) as Map<String, dynamic>;
     return UserModel.fromJson(data);
+  }
+
+  Future<UserModel> updateAdminUser({
+    required String userId,
+    String? name,
+    String? phone,
+    String? email,
+    String? role,
+    String? status,
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (role != null) 'role': role,
+      if (status != null) 'status': status,
+    };
+    final data = await apiService.put(
+      '/admin/users/$userId',
+      token: token,
+      body: body,
+    ) as Map<String, dynamic>;
+    return UserModel.fromJson(data);
+  }
+
+  Future<void> deleteAdminUser(String userId) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.delete('/admin/users/$userId', token: token);
   }
 
   Future<List<OrderModel>> availableDeliveryOrders() async {

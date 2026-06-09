@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone for voice product search.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app uses your photo library to upload category images.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app uses speech recognition to convert your voice into product search text.</string>
 	<key>UIApplicationSceneManifest</key>

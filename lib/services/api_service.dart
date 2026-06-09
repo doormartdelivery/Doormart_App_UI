@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -61,6 +62,32 @@ class ApiService {
       Uri.parse('$baseUrl$path'),
       headers: _headers(token),
     );
+    return _decode(response);
+  }
+
+  Future<dynamic> uploadImage(
+    String path, {
+    required String filePath,
+    required String fieldName,
+    String? token,
+    Map<String, String>? fields,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl$path'),
+    );
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+    request.files.add(
+      await http.MultipartFile.fromPath(fieldName, filePath),
+    );
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
     return _decode(response);
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/category_model.dart';
@@ -211,7 +212,9 @@ class _CategoryEditorSheetState extends State<_CategoryEditorSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _imageUrlController;
+  final ImagePicker _imagePicker = ImagePicker();
   bool _saving = false;
+  bool _uploadingImage = false;
 
   @override
   void initState() {
@@ -241,6 +244,21 @@ class _CategoryEditorSheetState extends State<_CategoryEditorSheet> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _uploadingImage = true);
+    try {
+      final imageUrl = await context.read<AppState>().uploadCategoryImage(picked.path);
+      if (!mounted) return;
+      _imageUrlController.text = imageUrl;
+      setState(() {});
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
     }
   }
 
@@ -288,21 +306,77 @@ class _CategoryEditorSheetState extends State<_CategoryEditorSheet> {
                     width: double.infinity,
                     height: 160,
                     color: const Color(0xFFF3F5F2),
-                    child: _imageUrlController.text.trim().startsWith('http')
-                        ? Image.network(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (_imageUrlController.text.trim().startsWith('http'))
+                          Image.network(
                             _imageUrlController.text.trim(),
                             fit: BoxFit.cover,
                           )
-                        : _imageUrlController.text.trim().startsWith('assets/')
-                            ? Image.asset(
-                                _imageUrlController.text.trim(),
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 52,
-                                color: Color(0xFF0F766E),
+                        else if (_imageUrlController.text.trim().startsWith('assets/'))
+                          Image.asset(
+                            _imageUrlController.text.trim(),
+                            fit: BoxFit.cover,
+                          )
+                        else
+                          const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 52,
+                            color: Color(0xFF0F766E),
+                          ),
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.5),
+                                ],
                               ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _imageUrlController.text.trim().isEmpty
+                                        ? 'No image selected'
+                                        : 'Image selected',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _uploadingImage ? null : _pickAndUploadImage,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.black.withValues(alpha: 0.2),
+                                  ),
+                                  icon: _uploadingImage
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.upload),
+                                  label: Text(_uploadingImage ? 'Uploading' : 'Upload'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -315,7 +389,7 @@ class _CategoryEditorSheetState extends State<_CategoryEditorSheet> {
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: 'Image URL or asset path',
-              hintText: 'https://... or assets/images/categories/...',
+              hintText: 'Upload from phone or paste https://... or assets/images/categories/...',
               filled: true,
             ),
           ),

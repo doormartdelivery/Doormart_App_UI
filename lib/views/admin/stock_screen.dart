@@ -1,36 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class StockScreen extends StatelessWidget {
+import '../../models/product_model.dart';
+import '../../providers/app_state.dart';
+
+class StockScreen extends StatefulWidget {
   const StockScreen({super.key});
 
   static const routeName = '/admin/stock';
 
   @override
-  Widget build(BuildContext context) {
-    return const _StockAlertPanel();
-  }
+  State<StockScreen> createState() => _StockScreenState();
 }
 
-class _StockAlertPanel extends StatefulWidget {
-  const _StockAlertPanel();
-
-  @override
-  State<_StockAlertPanel> createState() => _StockAlertPanelState();
-}
-
-class _StockAlertPanelState extends State<_StockAlertPanel>
+class _StockScreenState extends State<StockScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  late Future<Map<String, dynamic>> _dashboardFuture;
   String _filter = 'All';
-
-  static final List<_StockItem> _items = [
-    _StockItem('Tomato', 'Vegetables', 18, 120, 'Critical', 'Today 4 PM', Color(0xFFDC2626), Icons.spa),
-    _StockItem('Milk 1L', 'Dairy', 32, 160, 'Low', 'Tomorrow 8 AM', Color(0xFF2563EB), Icons.local_drink),
-    _StockItem('Rice 5kg', 'Staples', 42, 210, 'Low', 'Tomorrow 11 AM', Color(0xFFB45309), Icons.rice_bowl),
-    _StockItem('Banana', 'Fruits', 76, 140, 'Healthy', 'Friday 9 AM', Color(0xFF0F766E), Icons.eco),
-    _StockItem('Cooking oil', 'Staples', 12, 90, 'Critical', 'Today 2 PM', Color(0xFFDB2777), Icons.inventory_2),
-    _StockItem('Baby wipes', 'Baby care', 64, 130, 'Healthy', 'Monday 10 AM', Color(0xFF7C3AED), Icons.child_care),
-  ];
 
   @override
   void initState() {
@@ -39,6 +26,7 @@ class _StockAlertPanelState extends State<_StockAlertPanel>
       vsync: this,
       duration: const Duration(milliseconds: 950),
     )..forward();
+    _dashboardFuture = context.read<AppState>().adminDashboard();
   }
 
   @override
@@ -47,12 +35,17 @@ class _StockAlertPanelState extends State<_StockAlertPanel>
     super.dispose();
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _dashboardFuture = context.read<AppState>().adminDashboard();
+      _controller
+        ..reset()
+        ..forward();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visibleItems = _filter == 'All'
-        ? _items
-        : _items.where((item) => item.status == _filter).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F6),
       appBar: AppBar(
@@ -60,57 +53,90 @@ class _StockAlertPanelState extends State<_StockAlertPanel>
         actions: [
           IconButton(
             tooltip: 'Sync stock',
-            onPressed: () {
-              _controller
-                ..reset()
-                ..forward();
-            },
+            onPressed: _refresh,
             icon: const Icon(Icons.sync),
           ),
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _AnimatedIn(animation: _controller, index: 0, child: const _StockHero()),
-            const SizedBox(height: 14),
-            _AnimatedIn(animation: _controller, index: 1, child: _StockMetrics(items: _items)),
-            const SizedBox(height: 18),
-            _AnimatedIn(
-              animation: _controller,
-              index: 2,
-              child: _AlertFilter(selected: _filter, onChanged: (value) => setState(() => _filter = value)),
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth > 980 ? 3 : constraints.maxWidth > 650 ? 2 : 1;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: visibleItems.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: columns == 1 ? 1.95 : 1.45,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _dashboardFuture,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: _ErrorCard(message: snapshot.error.toString(), onRetry: _refresh),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final lowStockItems = _parseLowStock(snapshot.data!);
+            final visibleItems = _filter == 'All'
+                ? lowStockItems
+                : lowStockItems.where((item) => item.status == _filter).toList();
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _AnimatedIn(
+                  animation: _controller,
+                  index: 0,
+                  child: _StockHero(items: lowStockItems),
+                ),
+                const SizedBox(height: 14),
+                _AnimatedIn(
+                  animation: _controller,
+                  index: 1,
+                  child: _StockMetrics(items: lowStockItems),
+                ),
+                const SizedBox(height: 18),
+                _AnimatedIn(
+                  animation: _controller,
+                  index: 2,
+                  child: _AlertFilter(
+                    selected: _filter,
+                    onChanged: (value) => setState(() => _filter = value),
                   ),
-                  itemBuilder: (context, index) => _AnimatedIn(
-                    animation: _controller,
-                    index: index + 3,
-                    child: _StockCard(item: visibleItems[index]),
+                ),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth > 980
+                        ? 3
+                        : constraints.maxWidth > 650
+                            ? 2
+                            : 1;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: visibleItems.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: columns == 1 ? 1.95 : 1.45,
+                      ),
+                      itemBuilder: (context, index) => _AnimatedIn(
+                        animation: _controller,
+                        index: index + 3,
+                        child: _StockCard(item: visibleItems[index]),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                _AnimatedIn(
+                  animation: _controller,
+                  index: 8,
+                  child: _RestockPlanner(
+                    items: lowStockItems.where((item) => item.status != 'Healthy').toList(),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 18),
-            _AnimatedIn(
-              animation: _controller,
-              index: 8,
-              child: _RestockPlanner(items: _items.where((item) => item.status != 'Healthy').toList()),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -118,14 +144,18 @@ class _StockAlertPanelState extends State<_StockAlertPanel>
 }
 
 class _StockHero extends StatelessWidget {
-  const _StockHero();
+  const _StockHero({required this.items});
+
+  final List<_StockAlertItem> items;
 
   @override
   Widget build(BuildContext context) {
+    final critical = items.where((item) => item.status == 'Critical').length;
+    final low = items.where((item) => item.status == 'Low').length;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFF17211B),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -144,10 +174,19 @@ class _StockHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Catch low stock early, prioritize restock runs, and protect customer orders.',
+                    'Live low-stock items from the backend. Prioritize restock before orders are affected.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withValues(alpha: .78),
                         ),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _HeroPill('Critical', critical, const Color(0xFFDC2626)),
+                      _HeroPill('Low stock', low, const Color(0xFFB45309)),
+                    ],
                   ),
                 ],
               ),
@@ -155,7 +194,7 @@ class _StockHero extends StatelessWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: const Padding(
                 padding: EdgeInsets.all(14),
@@ -172,7 +211,7 @@ class _StockHero extends StatelessWidget {
 class _StockMetrics extends StatelessWidget {
   const _StockMetrics({required this.items});
 
-  final List<_StockItem> items;
+  final List<_StockAlertItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -239,16 +278,16 @@ class _AlertFilter extends StatelessWidget {
 class _StockCard extends StatelessWidget {
   const _StockCard({required this.item});
 
-  final _StockItem item;
+  final _StockAlertItem item;
 
   @override
   Widget build(BuildContext context) {
     final percent = item.stock / item.target;
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {},
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -260,9 +299,13 @@ class _StockCard extends StatelessWidget {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: item.color.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: SizedBox(width: 46, height: 46, child: Icon(item.icon, color: item.color)),
+                    child: SizedBox(
+                      width: 46,
+                      height: 46,
+                      child: Icon(item.icon, color: item.color),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -291,7 +334,7 @@ class _StockCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
                   value: percent.clamp(0, 1),
                   minHeight: 9,
@@ -323,12 +366,12 @@ class _StockCard extends StatelessWidget {
 class _RestockPlanner extends StatelessWidget {
   const _RestockPlanner({required this.items});
 
-  final List<_StockItem> items;
+  final List<_StockAlertItem> items;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -347,7 +390,13 @@ class _RestockPlanner extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...items.map((item) => _RestockRow(item: item)),
+            if (items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No stock alerts right now.'),
+              )
+            else
+              ...items.map((item) => _RestockRow(item: item)),
           ],
         ),
       ),
@@ -358,7 +407,7 @@ class _RestockPlanner extends StatelessWidget {
 class _RestockRow extends StatelessWidget {
   const _RestockRow({required this.item});
 
-  final _StockItem item;
+  final _StockAlertItem item;
 
   @override
   Widget build(BuildContext context) {
@@ -393,7 +442,7 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -401,7 +450,7 @@ class _MetricCard extends StatelessWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 color: metric.color.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: SizedBox(width: 44, height: 44, child: Icon(metric.icon, color: metric.color)),
             ),
@@ -434,11 +483,37 @@ class _StatusBadge extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill(this.label, this.value, this.color);
+
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Text(
+          '$label: $value',
+          style: TextStyle(color: color, fontWeight: FontWeight.w800),
+        ),
       ),
     );
   }
@@ -467,17 +542,51 @@ class _AnimatedIn extends StatelessWidget {
   }
 }
 
-class _StockItem {
-  const _StockItem(
-    this.name,
-    this.category,
-    this.stock,
-    this.target,
-    this.status,
-    this.restock,
-    this.color,
-    this.icon,
-  );
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F2),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFBE123C),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockAlertItem {
+  const _StockAlertItem({
+    required this.name,
+    required this.category,
+    required this.stock,
+    required this.target,
+    required this.status,
+    required this.restock,
+    required this.color,
+    required this.icon,
+  });
 
   final String name;
   final String category;
@@ -496,4 +605,64 @@ class _Metric {
   final String value;
   final IconData icon;
   final Color color;
+}
+
+List<_StockAlertItem> _parseLowStock(Map<String, dynamic> data) {
+  final rawItems = (data['lowStock'] as List<dynamic>? ?? const []);
+  return rawItems.map((raw) {
+    final item = raw as Map<String, dynamic>;
+    final product = ProductModel.fromJson(item);
+    final target = _targetFor(product);
+    final stock = product.stock;
+    final ratio = target == 0 ? 1.0 : stock / target;
+    final status = ratio <= 0.2
+        ? 'Critical'
+        : ratio <= 0.5
+            ? 'Low'
+            : 'Healthy';
+    final restockDays = status == 'Critical'
+        ? 'Today'
+        : status == 'Low'
+            ? 'Tomorrow'
+            : 'This week';
+    return _StockAlertItem(
+      name: product.name,
+      category: product.category,
+      stock: stock,
+      target: target,
+      status: status,
+      restock: restockDays,
+      color: _stockColor(status),
+      icon: _stockIcon(product.category),
+    );
+  }).toList();
+}
+
+int _targetFor(ProductModel product) {
+  if (product.stock <= 0) return 20;
+  if (product.stock <= 5) return 20;
+  if (product.stock <= 10) return 25;
+  if (product.stock <= 15) return 30;
+  return product.stock + 20;
+}
+
+Color _stockColor(String status) {
+  switch (status) {
+    case 'Critical':
+      return const Color(0xFFDC2626);
+    case 'Low':
+      return const Color(0xFFB45309);
+    case 'Healthy':
+    default:
+      return const Color(0xFF0F766E);
+  }
+}
+
+IconData _stockIcon(String category) {
+  final value = category.toLowerCase();
+  if (value.contains('dairy') || value.contains('milk')) return Icons.local_drink;
+  if (value.contains('fruit')) return Icons.eco;
+  if (value.contains('staple') || value.contains('rice')) return Icons.rice_bowl;
+  if (value.contains('baby')) return Icons.child_care;
+  return Icons.inventory_2;
 }

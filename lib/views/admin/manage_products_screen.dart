@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/product_model.dart';
@@ -23,7 +24,10 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<AppState>().loadProducts());
+    Future.microtask(() async {
+      final state = context.read<AppState>();
+      await Future.wait([state.loadProducts(), state.loadCategories()]);
+    });
   }
 
   void _sortBy(int columnIndex) {
@@ -133,13 +137,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Manage products',
-      actions: [
-        IconButton.filled(
-          tooltip: 'Add product',
-          onPressed: _openAddProductForm,
-          icon: const Icon(Icons.add),
-        ),
-      ],
       children: [
         Consumer<AppState>(
           builder: (context, state, _) {
@@ -254,9 +251,16 @@ class _ProductsHero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.14),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -265,11 +269,11 @@ class _ProductsHero extends StatelessWidget {
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: const SizedBox(
-                    width: 48,
-                    height: 48,
+                    width: 54,
+                    height: 54,
                     child: Icon(Icons.inventory_2, color: Colors.white),
                   ),
                 ),
@@ -287,8 +291,9 @@ class _ProductsHero extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF0F766E),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   onPressed: onAdd,
@@ -391,7 +396,7 @@ class _ProductsTable extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFDDE7F0)),
         boxShadow: [
           BoxShadow(
@@ -402,7 +407,7 @@ class _ProductsTable extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(20),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -620,16 +625,18 @@ class _ProductDialog extends StatefulWidget {
 }
 
 class _ProductDialogState extends State<_ProductDialog> {
+  final ImagePicker _imagePicker = ImagePicker();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _categoryController = TextEditingController();
   final _costController = TextEditingController();
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
   final _imageController = TextEditingController();
   final _unitController = TextEditingController();
   bool _saving = false;
+  bool _uploadingImage = false;
   String? _error;
+  String? _selectedCategory;
 
   bool get _editing => widget.product != null;
 
@@ -639,18 +646,17 @@ class _ProductDialogState extends State<_ProductDialog> {
     final product = widget.product;
     if (product == null) return;
     _nameController.text = product.name;
-    _categoryController.text = product.category;
     _costController.text = product.cost.toStringAsFixed(0);
     _priceController.text = product.price.toStringAsFixed(0);
     _stockController.text = product.stock.toString();
     _imageController.text = product.imageUrl;
     _unitController.text = product.unit;
+    _selectedCategory = product.category;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _categoryController.dispose();
     _costController.dispose();
     _priceController.dispose();
     _stockController.dispose();
@@ -672,7 +678,7 @@ class _ProductDialogState extends State<_ProductDialog> {
       if (product == null) {
         await state.createProduct(
           name: _nameController.text.trim(),
-          category: _categoryController.text.trim(),
+          category: _selectedCategory?.trim() ?? '',
           price: double.parse(_priceController.text.trim()),
           cost: double.parse(_costController.text.trim()),
           stock: int.parse(_stockController.text.trim()),
@@ -682,7 +688,7 @@ class _ProductDialogState extends State<_ProductDialog> {
         await state.updateProduct(
           productId: product.id,
           name: _nameController.text.trim(),
-          category: _categoryController.text.trim(),
+          category: _selectedCategory?.trim() ?? '',
           price: double.parse(_priceController.text.trim()),
           cost: double.parse(_costController.text.trim()),
           stock: int.parse(_stockController.text.trim()),
@@ -700,118 +706,316 @@ class _ProductDialogState extends State<_ProductDialog> {
     }
   }
 
+  Future<void> _pickAndUploadImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _uploadingImage = true);
+    try {
+      final imageUrl = await context.read<AppState>().uploadProductImage(picked.path);
+      if (!mounted) return;
+      _imageController.text = imageUrl;
+      setState(() {});
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() => _error = exception.toString());
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      title: Row(
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const SizedBox(
-              width: 38,
-              height: 38,
-              child: Icon(Icons.add_box, color: Color(0xFF2563EB)),
-            ),
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final categories = state.categoryCatalog;
+        final validCategories = categories.map((item) => item.name).toList();
+        final hasSelectedCategory =
+            _selectedCategory != null && _selectedCategory!.trim().isNotEmpty;
+
+        if (_selectedCategory == null && widget.product != null) {
+          _selectedCategory = widget.product!.category;
+        }
+
+        if (!hasSelectedCategory &&
+            validCategories.isNotEmpty &&
+            _selectedCategory == null) {
+          _selectedCategory = validCategories.first;
+        }
+
+        return AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Icon(Icons.add_box, color: Color(0xFF2563EB)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _editing ? 'Edit product' : 'Add product',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(_editing ? 'Edit product' : 'Add product')),
-        ],
-      ),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ProductField(
-                  controller: _nameController,
-                  label: 'Product name',
-                  icon: Icons.inventory_2,
-                ),
-                _ProductField(
-                  controller: _categoryController,
-                  label: 'Category',
-                  icon: Icons.category,
-                ),
-                Row(
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: _ProductField(
-                        controller: _costController,
-                        label: 'Cost',
-                        icon: Icons.price_change,
-                        numeric: true,
-                      ),
+                    _ImageUploadField(
+                      controller: _imageController,
+                      uploading: _uploadingImage,
+                      onUpload: _pickAndUploadImage,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ProductField(
-                        controller: _priceController,
-                        label: 'Selling price',
-                        icon: Icons.sell,
-                        numeric: true,
-                      ),
+                    const SizedBox(height: 12),
+                    _ProductField(
+                      controller: _nameController,
+                      label: 'Product name',
+                      icon: Icons.inventory_2,
                     ),
+                    _CategoryDropdownField(
+                      categories: validCategories,
+                      value: _selectedCategory,
+                      onChanged: (value) => setState(() => _selectedCategory = value),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ProductField(
+                            controller: _costController,
+                            label: 'Cost',
+                            icon: Icons.price_change,
+                            numeric: true,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _ProductField(
+                            controller: _priceController,
+                            label: 'Selling price',
+                            icon: Icons.sell,
+                            numeric: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _ProductField(
+                      controller: _stockController,
+                      label: 'Stock',
+                      icon: Icons.numbers,
+                      integer: true,
+                    ),
+                    _ProductField(
+                      controller: _unitController,
+                      label: 'Unit',
+                      icon: Icons.straighten,
+                      required: false,
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                _ProductField(
-                  controller: _stockController,
-                  label: 'Stock',
-                  icon: Icons.numbers,
-                  integer: true,
-                ),
-                _ProductField(
-                  controller: _unitController,
-                  label: 'Unit',
-                  icon: Icons.straighten,
-                  required: false,
-                ),
-                _ProductField(
-                  controller: _imageController,
-                  label: 'Image URL or asset path',
-                  icon: Icons.image,
-                  required: false,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: Color(0xFFDC2626),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: _saving ? null : () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add),
+              label: Text(
+                _saving ? 'Saving' : (_editing ? 'Save product' : 'Add product'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CategoryDropdownField extends StatelessWidget {
+  const _CategoryDropdownField({
+    required this.categories,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final List<String> categories;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: DropdownButtonFormField<String>(
+        value: value != null && categories.contains(value) ? value : null,
+        items: categories
+            .map(
+              (category) => DropdownMenuItem(
+                value: category,
+                child: Text(category),
+              ),
+            )
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: 'Category',
+          prefixIcon: const Icon(Icons.category),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) return 'Category is required';
+          return null;
+        },
+      ),
+    );
+  }
+}
+
+class _ImageUploadField extends StatelessWidget {
+  const _ImageUploadField({
+    required this.controller,
+    required this.uploading,
+    required this.onUpload,
+  });
+
+  final TextEditingController controller;
+  final bool uploading;
+  final VoidCallback onUpload;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = controller.text.trim();
+    final hasImage = value.startsWith('http') || value.startsWith('assets/');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              height: 180,
+              width: double.infinity,
+              color: const Color(0xFFEFF6F5),
+              child: hasImage
+                  ? Image.network(
+                      value,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const _UploadPlaceholder(),
+                    )
+                  : const _UploadPlaceholder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value.isEmpty ? 'Upload a product image from your phone' : 'Image ready',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: uploading ? null : onUpload,
+                icon: uploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload),
+                label: Text(uploading ? 'Uploading' : 'Upload'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Image URL',
+              hintText: 'Automatically filled after upload',
+              prefixIcon: Icon(Icons.link),
+            ),
+            readOnly: true,
+            validator: (value) {
+              final text = value?.trim() ?? '';
+              if (text.isEmpty) return 'Upload a product image';
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UploadPlaceholder extends StatelessWidget {
+  const _UploadPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF0FDF4), Color(0xFFE0F2FE)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.photo_library_outlined, size: 54, color: Color(0xFF0F766E)),
+            SizedBox(height: 10),
+            Text(
+              'No image selected',
+              style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+          ],
         ),
-        FilledButton.icon(
-          onPressed: _saving ? null : _save,
-          icon: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.add),
-          label: Text(
-            _saving ? 'Saving' : (_editing ? 'Save product' : 'Add product'),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

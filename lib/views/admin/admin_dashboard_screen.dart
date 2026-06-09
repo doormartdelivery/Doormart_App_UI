@@ -38,6 +38,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           setState(() => _selectedIndex = index);
           Navigator.pop(context);
         },
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/admin/login',
+            (route) => false,
+          );
+        },
       ),
       appBar: AppBar(
         title: const Text('Admin dashboard'),
@@ -160,11 +170,13 @@ class _AdminDrawer extends StatelessWidget {
     required this.selectedIndex,
     required this.destinations,
     required this.onSelect,
+    required this.onLogout,
   });
 
   final int selectedIndex;
   final List<_AdminSection> destinations;
   final ValueChanged<int> onSelect;
+  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +279,29 @@ class _AdminDrawer extends StatelessWidget {
                       ),
                     );
                   },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onLogout,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB91C1C),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.white.withValues(alpha: 0.82),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text(
+                      'Logout',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
                 ),
               ),
             ],

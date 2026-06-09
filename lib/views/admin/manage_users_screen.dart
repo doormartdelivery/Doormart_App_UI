@@ -80,6 +80,102 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     }
   }
 
+  Future<void> _editUser(UserModel user) async {
+    final updated = await showDialog<UserModel?>(
+      context: context,
+      builder: (context) => _EditUserDialog(user: user),
+    );
+    if (!mounted || updated == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${updated.name} updated'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    setState(() => _usersFuture = _loadUsers());
+  }
+
+  Future<void> _toggleBlock(UserModel user) async {
+    final nextStatus = user.status.toLowerCase() == 'active' ? 'blocked' : 'active';
+    setState(() => _updatingUsers.add(user.id));
+    try {
+      await context.read<AppState>().updateAdminUser(
+            userId: user.id,
+            status: nextStatus,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextStatus == 'blocked' ? '${user.name} blocked' : '${user.name} unblocked',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _updatingUsers.remove(user.id);
+        _usersFuture = _loadUsers();
+      });
+    }
+  }
+
+  Future<void> _deleteUser(UserModel user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete user'),
+        content: Text('Delete ${user.name}? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _updatingUsers.add(user.id));
+    try {
+      await context.read<AppState>().deleteAdminUser(user.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${user.name} deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _updatingUsers.remove(user.id);
+        _usersFuture = _loadUsers();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppPage(
@@ -126,6 +222,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                   updatingUserIds: _updatingUsers,
                   canAssignSuperAdmin: canAssignSuperAdmin,
                   onRoleChanged: _assignRole,
+                  onEdit: _editUser,
+                  onToggleBlock: _toggleBlock,
+                  onDelete: _deleteUser,
                 ),
               ],
             );
@@ -265,12 +364,18 @@ class _UsersTable extends StatelessWidget {
     required this.updatingUserIds,
     required this.canAssignSuperAdmin,
     required this.onRoleChanged,
+    required this.onEdit,
+    required this.onToggleBlock,
+    required this.onDelete,
   });
 
   final List<UserModel> users;
   final Set<String> updatingUserIds;
   final bool canAssignSuperAdmin;
   final void Function(UserModel user, String role) onRoleChanged;
+  final Future<void> Function(UserModel user) onEdit;
+  final Future<void> Function(UserModel user) onToggleBlock;
+  final Future<void> Function(UserModel user) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +407,7 @@ class _UsersTable extends StatelessWidget {
                   DataColumn(label: Text('Status')),
                   DataColumn(label: Text('Joined')),
                   DataColumn(label: Text('Assign role')),
+                  DataColumn(label: Text('Actions')),
                 ],
                 rows: users.map((user) {
                   final updating = updatingUserIds.contains(user.id);
@@ -326,6 +432,42 @@ class _UsersTable extends StatelessWidget {
                                 canAssignSuperAdmin: canAssignSuperAdmin,
                                 onChanged: (role) =>
                                     onRoleChanged(user, role),
+                              ),
+                      ),
+                      DataCell(
+                        updating
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Wrap(
+                                spacing: 4,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Edit user',
+                                    onPressed: () => onEdit(user),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip: user.status.toLowerCase() == 'active'
+                                        ? 'Block user'
+                                        : 'Unblock user',
+                                    onPressed: () => onToggleBlock(user),
+                                    icon: Icon(
+                                      user.status.toLowerCase() == 'active'
+                                          ? Icons.block
+                                          : Icons.verified_user_outlined,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete user',
+                                    onPressed: () => onDelete(user),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
                               ),
                       ),
                     ],
@@ -496,6 +638,130 @@ class _RoleSelector extends StatelessWidget {
                 if (role != null && role != value) onChanged(role);
               },
       ),
+    );
+  }
+}
+
+class _EditUserDialog extends StatefulWidget {
+  const _EditUserDialog({required this.user});
+
+  final UserModel user;
+
+  @override
+  State<_EditUserDialog> createState() => _EditUserDialogState();
+}
+
+class _EditUserDialogState extends State<_EditUserDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
+  late String _role;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.name);
+    _phoneController = TextEditingController(text: widget.user.phone);
+    _emailController = TextEditingController(text: widget.user.email ?? '');
+    _role = widget.user.role;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final updated = await context.read<AppState>().updateAdminUser(
+            userId: widget.user.id,
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            email: _emailController.text.trim(),
+            role: _role,
+          );
+      if (!mounted) return;
+      Navigator.pop(context, updated);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message), behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentRole = context.read<AppState>().user?.role;
+    final canAssignSuperAdmin = currentRole == UserRoles.superAdmin;
+    final roles = _assignableRoles.where((role) {
+      return role != UserRoles.superAdmin || canAssignSuperAdmin || _role == UserRoles.superAdmin;
+    }).toList();
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Text('Edit user'),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _phoneController,
+                decoration: const InputDecoration(labelText: 'Phone'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: roles.contains(_role) ? _role : UserRoles.user,
+                items: roles
+                    .map((role) => DropdownMenuItem(
+                          value: role,
+                          child: Text(_roleLabel(role)),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _role = value);
+                },
+                decoration: const InputDecoration(labelText: 'Role'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
+        ),
+      ],
     );
   }
 }
