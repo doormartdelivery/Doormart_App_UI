@@ -2,11 +2,20 @@ class BannerModel {
   const BannerModel({
     required this.id,
     required this.title,
-    required this.mediaUrl,
-    this.video = false,
+    required this.imageUrl,
+    this.active = true,
   });
   final String id;
   final String title;
-  final String mediaUrl;
-  final bool video;
+  final String imageUrl;
+  final bool active;
+
+  factory BannerModel.fromJson(Map<String, dynamic> json) {
+    return BannerModel(
+      id: json['_id'] as String? ?? json['id'] as String,
+      title: json['title'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String? ?? '',
+      active: json['active'] as bool? ?? true,
+    );
+  }
 }

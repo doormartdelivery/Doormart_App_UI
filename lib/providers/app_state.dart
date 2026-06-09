@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../core/role_access.dart';
 import '../models/address_model.dart';
+import '../models/banner_model.dart';
 import '../models/category_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
@@ -40,6 +41,7 @@ class AppState extends ChangeNotifier {
   UserModel? user;
   List<ProductModel> products = [];
   List<CategoryModel> categoryCatalog = [];
+  List<BannerModel> banners = [];
   List<ProductModel> favorites = [];
   List<OrderModel> orders = [];
   List<AddressModel> savedAddresses = [];
@@ -60,7 +62,7 @@ class AppState extends ChangeNotifier {
     if (storedUser != null && storedUser.isNotEmpty) {
       user = UserModel.fromStorage(storedUser);
     }
-    await Future.wait([loadProducts(), loadCategories(), _restoreSession()]);
+    await Future.wait([loadProducts(), loadCategories(), loadBanners(), _restoreSession()]);
     if (token != null) {
       await loadFavorites();
     }
@@ -245,6 +247,16 @@ class AppState extends ChangeNotifier {
     categoryCatalog = data
         .cast<Map<String, dynamic>>()
         .map(CategoryModel.fromJson)
+        .toList();
+    notifyListeners();
+  }
+
+  Future<void> loadBanners() async {
+    final data = await apiService.get('/banners') as List<dynamic>;
+    banners = data
+        .cast<Map<String, dynamic>>()
+        .where((item) => item['active'] != false)
+        .map(BannerModel.fromJson)
         .toList();
     notifyListeners();
   }
@@ -595,6 +607,61 @@ class AppState extends ChangeNotifier {
       throw StateError('Admin login required');
     }
     await apiService.delete('/admin/users/$userId', token: token);
+  }
+
+  Future<List<BannerModel>> adminBanners() async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.get('/admin/banners', token: token) as List<dynamic>;
+    return data.cast<Map<String, dynamic>>().map(BannerModel.fromJson).toList();
+  }
+
+  Future<BannerModel> createBanner({
+    required String title,
+    required String imageUrl,
+    bool active = true,
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.post(
+      '/admin/banners',
+      token: token,
+      body: {'title': title, 'imageUrl': imageUrl, 'active': active},
+    ) as Map<String, dynamic>;
+    await loadBanners();
+    return BannerModel.fromJson(data);
+  }
+
+  Future<BannerModel> updateBanner({
+    required String bannerId,
+    required String title,
+    required String imageUrl,
+    bool active = true,
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.put(
+      '/admin/banners/$bannerId',
+      token: token,
+      body: {'title': title, 'imageUrl': imageUrl, 'active': active},
+    ) as Map<String, dynamic>;
+    await loadBanners();
+    return BannerModel.fromJson(data);
+  }
+
+  Future<void> deleteBanner(String bannerId) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.delete('/admin/banners/$bannerId', token: token);
+    await loadBanners();
   }
 
   Future<List<OrderModel>> availableDeliveryOrders() async {

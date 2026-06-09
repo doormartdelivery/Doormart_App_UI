@@ -7,6 +7,7 @@ import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/gradient_background.dart';
 import '../../widgets/toast_widget.dart';
+import '../../widgets/product_bottom_sheet.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -133,12 +134,29 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         separatorBuilder: (_, _) => const SizedBox(height: 18),
                         itemBuilder: (context, index) {
                           final product = products[index];
-                          return _ProductFeedCard(
-                            product: product,
-                            isFavorite: state.isFavorite(product),
-                            onFavoriteToggle: () async {
-                              await state.toggleFavorite(product);
+                        return _ProductFeedCard(
+                          product: product,
+                          isFavorite: state.isFavorite(product),
+                          onTap: () => showProductBottomSheet(
+                            context,
+                            product,
+                            onAddToCart: (quantity) async {
+                              final added = await state.addToCart(
+                                product,
+                                quantity: quantity,
+                              );
+                              if (!context.mounted) return;
+                              showToast(
+                                context,
+                                added
+                                    ? '${product.name} added to cart'
+                                    : state.error ?? 'Please login first',
+                              );
                             },
+                          ),
+                          onFavoriteToggle: () async {
+                            await state.toggleFavorite(product);
+                          },
                             onAddToCart: () async {
                               final added = await state.addToCart(product);
                               if (!context.mounted) return;
@@ -396,38 +414,42 @@ class _ProductFeedCard extends StatelessWidget {
   const _ProductFeedCard({
     required this.product,
     required this.isFavorite,
+    required this.onTap,
     required this.onFavoriteToggle,
     required this.onAddToCart,
   });
 
   final dynamic product;
   final bool isFavorite;
+  final VoidCallback onTap;
   final VoidCallback onFavoriteToggle;
   final Future<void> Function() onAddToCart;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.58),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Stack(
                 children: [
                   ClipRRect(
@@ -584,7 +606,8 @@ class _ProductFeedCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
+import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/toast_widget.dart';
 import 'cart_screen.dart';
 
@@ -91,6 +92,22 @@ class _WishlistScreenState extends State<WishlistScreen> {
                             final product = favorites[index];
                             return _FavoriteCard(
                               product: product,
+                              onTap: () => showProductBottomSheet(
+                                context,
+                                product,
+                                onAddToCart: (quantity) async {
+                                  final added = await context
+                                      .read<AppState>()
+                                      .addToCart(product, quantity: quantity);
+                                  if (!context.mounted) return;
+                                  showToast(
+                                    context,
+                                    added
+                                        ? '${product.name} added to cart'
+                                        : state.error ?? 'Please login first',
+                                  );
+                                },
+                              ),
                               onRemove: () async {
                                 await context
                                     .read<AppState>()
@@ -441,10 +458,12 @@ class _FilterPill extends StatelessWidget {
 class _FavoriteCard extends StatelessWidget {
   const _FavoriteCard({
     required this.product,
+    required this.onTap,
     required this.onRemove,
   });
 
   final ProductModel product;
+  final VoidCallback onTap;
   final Future<void> Function() onRemove;
 
   @override
@@ -454,162 +473,165 @@ class _FavoriteCard extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    width: 118,
-                    height: 128,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _Thumb(imageUrl: product.imageUrl),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Color(0x9A000000), Color(0x00000000)],
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: SizedBox(
+                      width: 118,
+                      height: 128,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _Thumb(imageUrl: product.imageUrl),
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [Color(0x9A000000), Color(0x00000000)],
+                              ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 10,
-                          bottom: 8,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'ITEMS',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
+                          Positioned(
+                            left: 10,
+                            bottom: 8,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'ITEMS',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'AT Rs ${product.price.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1,
+                                Text(
+                                  'AT Rs ${product.price.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: const SizedBox.shrink(),
-                ),
-              ],
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF1E1C1A),
-                        height: 1.05,
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1E1C1A),
+                          height: 1.05,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: const [
-                        Icon(Icons.star, size: 18, color: Color(0xFF0E9A57)),
-                        SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            '4.4 (3.6K+) · 30-35 mins',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF2F2D2B),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: const [
+                          Icon(Icons.star, size: 18, color: Color(0xFF0E9A57)),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '4.4 (3.6K+) · 30-35 mins',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2F2D2B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        product.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF66615B),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Vellore Fort · 1.7 km',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.black.withValues(alpha: 0.55),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _AnimatedTap(
+                          onTap: () => onRemove(),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7E9EE),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Color(0xFFE84C67),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      product.category,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF66615B),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Vellore Fort · 1.7 km',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.black.withValues(alpha: 0.55),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: _AnimatedTap(
-                        onTap: () => onRemove(),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7E9EE),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Color(0xFFE84C67),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

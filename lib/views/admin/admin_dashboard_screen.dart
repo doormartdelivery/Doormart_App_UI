@@ -9,6 +9,7 @@ import 'audit_logs_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
+import 'manage_banners_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
 
@@ -132,6 +133,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: Icons.category,
         accent: const Color(0xFF059669),
         builder: (_) => const ManageCategoriesScreen(),
+      ),
+      _AdminSection(
+        title: 'Banners',
+        subtitle: 'Manage home sliders',
+        icon: Icons.slideshow,
+        accent: const Color(0xFFEA580C),
+        builder: (_) => const ManageBannersScreen(),
       ),
       _AdminSection(
         title: 'Users',
