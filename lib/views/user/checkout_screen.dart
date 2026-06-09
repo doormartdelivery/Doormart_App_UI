@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
-import '../../widgets/app_button.dart';
+import '../../services/razorpay_service.dart';
 import '../../widgets/toast_widget.dart';
-import '../app_page.dart';
 import 'order_success_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -17,121 +17,373 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  final RazorpayService _razorpayService = RazorpayService();
+  String? _selectedAddressId;
   String _paymentMethod = 'razorpay';
+  bool _initialLoadDone = false;
+  bool _processing = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialLoadDone) return;
+    _initialLoadDone = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await context.read<AppState>().loadAddresses();
+      if (!mounted) return;
+      final state = context.read<AppState>();
+      _selectedAddressId = state.selectedAddress?.id;
+      if (mounted) setState(() {});
+    });
+  }
+
+  AddressModel? _selectedAddress(AppState state) {
+    if (state.savedAddresses.isEmpty) return null;
+    final selectedId = _selectedAddressId ?? state.selectedAddress?.id;
+    return state.savedAddresses.firstWhere(
+      (address) => address.id == selectedId,
+      orElse: () => state.savedAddresses.first,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Checkout',
-      bottomNavIndex: 2,
-      children: [
-        const _AddressField(),
-        const SizedBox(height: 12),
-        _PaymentMethodCard(
-          selectedMethod: _paymentMethod,
-          onChanged: (value) => setState(() => _paymentMethod = value),
-        ),
-        const SizedBox(height: 12),
-        Consumer<AppState>(
-          builder: (context, state, _) => Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _SummaryRow(
-                    'Items',
-                    'Rs ${state.subtotal.toStringAsFixed(0)}',
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
+      body: SafeArea(
+        child: Consumer<AppState>(
+          builder: (context, state, _) {
+            final addresses = state.savedAddresses;
+            final selectedAddress = _selectedAddress(state);
+            final addressText = selectedAddress?.fullAddress ?? '';
+
+            return Column(
+              children: [
+                _TopBar(onBack: () => Navigator.pop(context)),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Confirm delivery\nand payment',
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Choose the saved address from your account and pay securely with Razorpay or COD.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.45,
+                            color: Colors.black.withValues(alpha: 0.58),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const _SectionTitle('Saved addresses'),
+                        const SizedBox(height: 12),
+                        if (addresses.isEmpty)
+                          _EmptyStateCard(
+                            title: 'No saved addresses',
+                            subtitle: 'Add an address from your profile to continue.',
+                          )
+                        else
+                          SizedBox(
+                            height: 170,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: addresses.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 12),
+                              itemBuilder: (context, index) {
+                                final addr = addresses[index];
+                                return _AddressCard(
+                                  data: addr,
+                                  selected: _selectedAddressId == addr.id ||
+                                      (_selectedAddressId == null &&
+                                          state.selectedAddress?.id == addr.id),
+                                  onTap: () => setState(() => _selectedAddressId = addr.id),
+                                );
+                              },
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        const _SectionTitle('Payment method'),
+                        const SizedBox(height: 12),
+                        _PaymentTile(
+                          label: 'Razorpay',
+                          subtitle: 'UPI, cards, wallet, net banking',
+                          selected: _paymentMethod == 'razorpay',
+                          onTap: () => setState(() => _paymentMethod = 'razorpay'),
+                          icon: Icons.payments_rounded,
+                        ),
+                        const SizedBox(height: 10),
+                        _PaymentTile(
+                          label: 'Cash on Delivery',
+                          subtitle: 'Pay when your order arrives',
+                          selected: _paymentMethod == 'cod',
+                          onTap: () => setState(() => _paymentMethod = 'cod'),
+                          icon: Icons.local_atm_rounded,
+                        ),
+                        const SizedBox(height: 24),
+                        const _SectionTitle('Order summary'),
+                        const SizedBox(height: 12),
+                        _SummaryCard(
+                          deliveryFee: state.deliveryFee,
+                          subtotal: state.subtotal,
+                          total: state.total,
+                        ),
+                        const SizedBox(height: 24),
+                        _CheckoutButton(
+                          processing: _processing,
+                          label: _paymentMethod == 'razorpay'
+                              ? 'Pay with Razorpay'
+                              : 'Place COD Order',
+                          onPressed: addresses.isEmpty || state.cart.isEmpty
+                              ? null
+                              : () async {
+                                  if (selectedAddress == null) {
+                                    showToast(context, 'Please select an address');
+                                    return;
+                                  }
+
+                                  setState(() => _processing = true);
+                                  try {
+                                    if (_paymentMethod == 'razorpay') {
+                                      final paymentOrder = await state.apiService.post(
+                                        '/payments/razorpay/order',
+                                        token: state.token,
+                                        body: {'amount': (state.total * 100).round()},
+                                      ) as Map<String, dynamic>;
+
+                                      final paymentId = await _razorpayService.startPayment(
+                                        amount: state.total,
+                                        orderId: paymentOrder['id'] as String,
+                                      );
+
+                                      final order = await state.checkout(
+                                        address: selectedAddress.fullAddress,
+                                        paymentMethod: 'razorpay',
+                                        paymentId: paymentId,
+                                      );
+
+                                      await state.apiService.post(
+                                        '/payments/razorpay/verify',
+                                        token: state.token,
+                                        body: {
+                                          'orderId': order.id,
+                                          'paymentId': paymentId,
+                                          'signature': 'demo_signature',
+                                          'amount': state.total,
+                                          'method': 'razorpay',
+                                        },
+                                      );
+                                    } else {
+                                      await state.checkout(
+                                        address: selectedAddress.fullAddress,
+                                        paymentMethod: 'cod',
+                                      );
+                                    }
+
+                                    if (!context.mounted) return;
+                                    showToast(
+                                      context,
+                                      _paymentMethod == 'cod'
+                                          ? 'COD order placed'
+                                          : 'Payment successful',
+                                    );
+                                    if (!context.mounted) return;
+                                    Navigator.pushReplacementNamed(
+                                      context,
+                                      OrderSuccessScreen.routeName,
+                                    );
+                                  } catch (error) {
+                                    if (!context.mounted) return;
+                                    showToast(context, error.toString());
+                                  } finally {
+                                    if (mounted) setState(() => _processing = false);
+                                  }
+                                },
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          addressText.isEmpty
+                              ? 'Selected address will appear here after you choose one.'
+                              : 'Delivering to: $addressText',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Colors.black.withValues(alpha: 0.52),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  _SummaryRow(
-                    'Delivery',
-                    'Rs ${state.deliveryFee.toStringAsFixed(0)}',
-                  ),
-                  const Divider(),
-                  _SummaryRow(
-                    'Payable',
-                    'Rs ${state.total.toStringAsFixed(0)}',
-                  ),
-                ],
-              ),
-            ),
-          ),
+                ),
+              ],
+            );
+          },
         ),
-        Consumer<AppState>(
-          builder: (context, state, _) => AppButton(
-            label: _paymentMethod == 'cod'
-                ? 'Place COD Order'
-                : 'Pay with Razorpay',
-            icon: _paymentMethod == 'cod'
-                ? Icons.payments
-                : Icons.currency_rupee,
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              try {
-                await state.checkout(
-                  address: _AddressField.address,
-                  paymentMethod: _paymentMethod,
-                );
-                if (!context.mounted) return;
-                showToast(
-                  context,
-                  _paymentMethod == 'cod'
-                      ? 'COD order placed'
-                      : 'Payment successful',
-                );
-              } catch (error) {
-                if (!context.mounted) return;
-                showToast(context, error.toString());
-                return;
-              }
-              navigator.pushReplacementNamed(OrderSuccessScreen.routeName);
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _PaymentMethodCard extends StatelessWidget {
-  const _PaymentMethodCard({
-    required this.selectedMethod,
-    required this.onChanged,
-  });
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onBack});
 
-  final String selectedMethod;
-  final ValueChanged<String> onChanged;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.07),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.chevron_left_rounded, size: 26, color: Color(0xFF1A1A1A)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Text(
+            'Checkout',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1A1A1A),
+              letterSpacing: -0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+        color: Color(0xFF1A1A1A),
+      ),
+    );
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  const _AddressCard({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AddressModel data;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 210,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? const Color(0xFFE8541A) : const Color(0xFFE8E8E8),
+            width: selected ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Payment method',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? const Color(0xFFE8541A)
+                        : const Color(0xFFFFF0EB),
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    size: 18,
+                    color: selected ? Colors.white : const Color(0xFFE8541A),
+                  ),
+                ),
+                const Spacer(),
+                if (selected)
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFFE8541A), size: 20),
+              ],
             ),
-            const SizedBox(height: 8),
-            _PaymentOption(
-              title: 'Razorpay',
-              subtitle: 'UPI, card, wallet, or net banking',
-              icon: Icons.currency_rupee,
-              value: 'razorpay',
-              selectedMethod: selectedMethod,
-              onChanged: onChanged,
+            const SizedBox(height: 12),
+            Text(
+              data.label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1A1A),
+              ),
             ),
-            const SizedBox(height: 8),
-            _PaymentOption(
-              title: 'Cash on Delivery',
-              subtitle: 'Pay by cash when your order arrives',
-              icon: Icons.payments,
-              value: 'cod',
-              selectedMethod: selectedMethod,
-              onChanged: onChanged,
+            const SizedBox(height: 6),
+            Text(
+              data.line1,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF666666),
+                height: 1.4,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              data.shortAddress,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF9E9E9E),
+              ),
             ),
           ],
         ),
@@ -140,114 +392,265 @@ class _PaymentMethodCard extends StatelessWidget {
   }
 }
 
-class _PaymentOption extends StatelessWidget {
-  const _PaymentOption({
-    required this.title,
+class _PaymentTile extends StatelessWidget {
+  const _PaymentTile({
+    required this.label,
     required this.subtitle,
+    required this.selected,
+    required this.onTap,
     required this.icon,
-    required this.value,
-    required this.selectedMethod,
-    required this.onChanged,
   });
 
-  final String title;
+  final String label;
   final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
   final IconData icon;
-  final String value;
-  final String selectedMethod;
-  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final selected = selectedMethod == value;
-    final color = selected ? const Color(0xFF0F766E) : const Color(0xFF64748B);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () => onChanged(value),
-      child: DecoratedBox(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF7EF) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFF0F766E) : const Color(0xFFE2E8F0),
+            color: selected ? const Color(0xFFE8541A) : const Color(0xFFE8E8E8),
+            width: selected ? 1.5 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: selected
-                            ? const Color(0xFF12372A)
-                            : const Color(0xFF0F172A),
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  ],
-                ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFFFF0EB) : const Color(0xFFF6F6F6),
+                borderRadius: BorderRadius.circular(14),
               ),
-              Radio<String>(
-                value: value,
-                groupValue: selectedMethod,
-                onChanged: (method) {
-                  if (method != null) onChanged(method);
-                },
+              child: Icon(icon, color: const Color(0xFFE8541A)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Icon(
+              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: const Color(0xFFE8541A),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _AddressField extends StatelessWidget {
-  const _AddressField();
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.deliveryFee,
+    required this.subtotal,
+    required this.total,
+  });
 
-  static String address = 'Anna Nagar, Chennai';
+  final double deliveryFee;
+  final double subtotal;
+  final double total;
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      initialValue: address,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.home_work),
-        labelText: 'Delivery address',
-        border: OutlineInputBorder(),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      onChanged: (value) => address = value,
+      child: Column(
+        children: [
+          _SummaryRow(label: 'Delivery Charge', value: 'Rs ${deliveryFee.toStringAsFixed(2)}'),
+          const SizedBox(height: 10),
+          _SummaryRow(label: 'Subtotal', value: 'Rs ${subtotal.toStringAsFixed(2)}'),
+          const SizedBox(height: 10),
+          _SummaryRow(label: 'Total', value: 'Rs ${total.toStringAsFixed(2)}', bold: true),
+        ],
+      ),
     );
   }
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(this.label, this.value);
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.bold = false,
+  });
 
   final String label;
   final String value;
+  final bool bold;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: const Color(0xFF666666),
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: bold ? 16 : 14,
+            color: const Color(0xFF1A1A1A),
+            fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CheckoutButton extends StatelessWidget {
+  const _CheckoutButton({
+    required this.onPressed,
+    required this.label,
+    required this.processing,
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+  final bool processing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8541A),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE8541A).withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: processing ? null : onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          child: processing
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8E8E8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
-          Text(value, style: Theme.of(context).textTheme.titleMedium),
+          const Icon(Icons.info_outline_rounded, color: Color(0xFFE8541A)),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF666666),
+            ),
+          ),
         ],
       ),
     );

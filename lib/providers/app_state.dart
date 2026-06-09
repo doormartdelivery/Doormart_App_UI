@@ -476,6 +476,7 @@ class AppState extends ChangeNotifier {
   Future<OrderModel> checkout({
     required String address,
     String paymentMethod = 'razorpay',
+    String? paymentId,
     DateTime? scheduledFor,
   }) async {
     if (token == null) throw StateError('Please login first');
@@ -488,6 +489,7 @@ class AppState extends ChangeNotifier {
                 'deliveryFee': deliveryFee,
                 'address': address,
                 'paymentMethod': paymentMethod,
+                if (paymentId != null) 'paymentId': paymentId,
                 if (scheduledFor != null)
                   'scheduledFor': scheduledFor.toIso8601String(),
               },

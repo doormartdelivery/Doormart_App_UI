@@ -178,7 +178,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavBar(
-        index: 1,
+        index: 0,
         onTap: (index) => BottomNavBar.navigate(context, index),
       ),
     );

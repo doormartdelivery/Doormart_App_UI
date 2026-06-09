@@ -18,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     return Scaffold(
       bottomNavigationBar: BottomNavBar(
-        index: 3,
+        index: 4,
         onTap: (index) => BottomNavBar.navigate(context, index),
       ),
       body: SafeArea(
