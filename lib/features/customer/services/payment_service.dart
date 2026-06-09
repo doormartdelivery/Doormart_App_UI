@@ -4,12 +4,12 @@ class PaymentService {
   PaymentService({ApiService? api}) : api = api ?? ApiService();
   final ApiService api;
 
-  Future<Map<String, dynamic>> createRazorpayOrder(
+  Future<Map<String, dynamic>> placeCodOrder(
     double amount,
     String token,
   ) async {
     return await api.post(
-          '/payments/razorpay/order',
+          '/payments/cod',
           token: token,
           body: {'amount': amount},
         )

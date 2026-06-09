@@ -280,7 +280,7 @@ class _CartItemCard extends StatelessWidget {
                     children: [
                       // Price
                       Text(
-                        '\$${line.product.price.toStringAsFixed(2)}',
+                        'Rs ${line.product.price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
@@ -555,7 +555,7 @@ class _BottomBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '\$${state.total.toStringAsFixed(2)}',
+                    'Rs ${state.total.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 18,

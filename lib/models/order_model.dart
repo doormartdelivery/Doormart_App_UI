@@ -58,7 +58,7 @@ class OrderModel {
               price: (item['price'] as num? ?? 0).toDouble(),
               cost: 0,
               stock: 0,
-              imageUrl: '',
+              imageUrl: item['imageUrl'] as String? ?? '',
               unit: 'item',
             ),
           )

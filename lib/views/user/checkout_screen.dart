@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
-import '../../services/razorpay_service.dart';
 import '../../widgets/toast_widget.dart';
 import 'order_success_screen.dart';
 
@@ -17,9 +16,7 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  final RazorpayService _razorpayService = RazorpayService();
   String? _selectedAddressId;
-  String _paymentMethod = 'razorpay';
   bool _initialLoadDone = false;
   bool _processing = false;
 
@@ -78,7 +75,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Choose the saved address from your account and pay securely with Razorpay or COD.',
+                          'Choose the saved address from your account and place the order securely.',
                           style: TextStyle(
                             fontSize: 13,
                             height: 1.45,
@@ -90,13 +87,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const _SectionTitle('Saved addresses'),
                         const SizedBox(height: 12),
                         if (addresses.isEmpty)
-                          _EmptyStateCard(
+                          const _EmptyStateCard(
                             title: 'No saved addresses',
                             subtitle: 'Add an address from your profile to continue.',
                           )
                         else
                           SizedBox(
-                            height: 170,
+                            height: 168,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: addresses.length,
@@ -114,24 +111,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         const SizedBox(height: 24),
-                        const _SectionTitle('Payment method'),
-                        const SizedBox(height: 12),
-                        _PaymentTile(
-                          label: 'Razorpay',
-                          subtitle: 'UPI, cards, wallet, net banking',
-                          selected: _paymentMethod == 'razorpay',
-                          onTap: () => setState(() => _paymentMethod = 'razorpay'),
-                          icon: Icons.payments_rounded,
-                        ),
-                        const SizedBox(height: 10),
-                        _PaymentTile(
-                          label: 'Cash on Delivery',
-                          subtitle: 'Pay when your order arrives',
-                          selected: _paymentMethod == 'cod',
-                          onTap: () => setState(() => _paymentMethod = 'cod'),
-                          icon: Icons.local_atm_rounded,
-                        ),
-                        const SizedBox(height: 24),
                         const _SectionTitle('Order summary'),
                         const SizedBox(height: 12),
                         _SummaryCard(
@@ -142,9 +121,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(height: 24),
                         _CheckoutButton(
                           processing: _processing,
-                          label: _paymentMethod == 'razorpay'
-                              ? 'Pay with Razorpay'
-                              : 'Place COD Order',
+                          label: 'Place COD Order',
                           onPressed: addresses.isEmpty || state.cart.isEmpty
                               ? null
                               : () async {
@@ -152,52 +129,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     showToast(context, 'Please select an address');
                                     return;
                                   }
-
                                   setState(() => _processing = true);
                                   try {
-                                    if (_paymentMethod == 'razorpay') {
-                                      final paymentOrder = await state.apiService.post(
-                                        '/payments/razorpay/order',
-                                        token: state.token,
-                                        body: {'amount': (state.total * 100).round()},
-                                      ) as Map<String, dynamic>;
-
-                                      final paymentId = await _razorpayService.startPayment(
-                                        amount: state.total,
-                                        orderId: paymentOrder['id'] as String,
-                                      );
-
-                                      final order = await state.checkout(
-                                        address: selectedAddress.fullAddress,
-                                        paymentMethod: 'razorpay',
-                                        paymentId: paymentId,
-                                      );
-
-                                      await state.apiService.post(
-                                        '/payments/razorpay/verify',
-                                        token: state.token,
-                                        body: {
-                                          'orderId': order.id,
-                                          'paymentId': paymentId,
-                                          'signature': 'demo_signature',
-                                          'amount': state.total,
-                                          'method': 'razorpay',
-                                        },
-                                      );
-                                    } else {
-                                      await state.checkout(
-                                        address: selectedAddress.fullAddress,
-                                        paymentMethod: 'cod',
-                                      );
-                                    }
-
-                                    if (!context.mounted) return;
-                                    showToast(
-                                      context,
-                                      _paymentMethod == 'cod'
-                                          ? 'COD order placed'
-                                          : 'Payment successful',
+                                    await state.checkout(
+                                      address: selectedAddress.fullAddress,
+                                      paymentMethod: 'cod',
                                     );
+                                    if (!context.mounted) return;
+                                    showToast(context, 'COD order placed');
                                     if (!context.mounted) return;
                                     Navigator.pushReplacementNamed(
                                       context,
@@ -340,9 +279,7 @@ class _AddressCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFFE8541A)
-                        : const Color(0xFFFFF0EB),
+                    color: selected ? const Color(0xFFE8541A) : const Color(0xFFFFF0EB),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -384,88 +321,6 @@ class _AddressCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF9E9E9E),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PaymentTile extends StatelessWidget {
-  const _PaymentTile({
-    required this.label,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-    required this.icon,
-  });
-
-  final String label;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? const Color(0xFFE8541A) : const Color(0xFFE8E8E8),
-            width: selected ? 1.5 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFFFFF0EB) : const Color(0xFFF6F6F6),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: const Color(0xFFE8541A)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: const Color(0xFFE8541A),
             ),
           ],
         ),
