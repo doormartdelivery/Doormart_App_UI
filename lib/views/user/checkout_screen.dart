@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/toast_widget.dart';
+import 'payment_screen.dart';
 import 'order_success_screen.dart';
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const _kOrange = Color(0xFFE8541A);
+const _kOrangeLight = Color(0xFFFFF0EB);
+const _kBg = Color(0xFFF6F6F6);
+const _kTextDark = Color(0xFF1A1A1A);
+const _kTextMid = Color(0xFF9E9E9E);
+const _kBorder = Color(0xFFE8E8E8);
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
-
   static const routeName = '/checkout';
 
   @override
@@ -18,7 +27,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _selectedAddressId;
   bool _initialLoadDone = false;
-  bool _processing = false;
+  bool _processingCod = false;
 
   @override
   void didChangeDependencies() {
@@ -35,132 +44,178 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  AddressModel? _selectedAddress(AppState state) {
+  AddressModel? _resolveAddress(AppState state) {
     if (state.savedAddresses.isEmpty) return null;
-    final selectedId = _selectedAddressId ?? state.selectedAddress?.id;
+    final id = _selectedAddressId ?? state.selectedAddress?.id;
     return state.savedAddresses.firstWhere(
-      (address) => address.id == selectedId,
+      (a) => a.id == id,
       orElse: () => state.savedAddresses.first,
     );
+  }
+
+  // ── COD order ─────────────────────────────────────────────────────────────
+  Future<void> _placeCodOrder(
+    AppState state,
+    AddressModel selectedAddress,
+  ) async {
+    setState(() => _processingCod = true);
+    try {
+      await state.checkout(
+        address: selectedAddress.fullAddress,
+        paymentMethod: 'cod',
+      );
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      showToast(context, '✅ COD order placed!');
+      Navigator.pushReplacementNamed(context, OrderSuccessScreen.routeName);
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _processingCod = false);
+    }
+  }
+
+  // ── Cashfree — set address then navigate ──────────────────────────────────
+  Future<void> _goToCashfree(
+    AppState state,
+    AddressModel selectedAddress,
+  ) async {
+    state.selectedAddress = selectedAddress;
+    state.notifyListeners();
+    if (!mounted) return;
+    Navigator.pushNamed(context, PaymentScreen.routeName);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
+      backgroundColor: _kBg,
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, state, _) {
             final addresses = state.savedAddresses;
-            final selectedAddress = _selectedAddress(state);
-            final addressText = selectedAddress?.fullAddress ?? '';
+            final selectedAddress = _resolveAddress(state);
+            final canOrder =
+                addresses.isNotEmpty && state.cart.isNotEmpty && selectedAddress != null;
 
             return Column(
               children: [
                 _TopBar(onBack: () => Navigator.pop(context)),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+
+                        // ── Hero title ────────────────────────────────────
                         const Text(
                           'Confirm delivery\nand payment',
                           style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF1A1A1A),
+                            color: _kTextDark,
                             height: 1.1,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Choose the saved address from your account and place the order securely.',
+                          'Choose a delivery address and your preferred payment method.',
                           style: TextStyle(
                             fontSize: 13,
-                            height: 1.45,
-                            color: Colors.black.withValues(alpha: 0.58),
-                            fontWeight: FontWeight.w600,
+                            height: 1.5,
+                            color: Colors.black.withValues(alpha: 0.52),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        const _SectionTitle('Saved addresses'),
+
+                        const SizedBox(height: 24),
+
+                        // ── Addresses ─────────────────────────────────────
+                        const _SectionLabel('📍  Delivery address'),
                         const SizedBox(height: 12),
                         if (addresses.isEmpty)
-                          const _EmptyStateCard(
+                          const _InfoCard(
+                            icon: Icons.location_off_rounded,
                             title: 'No saved addresses',
-                            subtitle: 'Add an address from your profile to continue.',
+                            subtitle:
+                                'Add an address from your profile to continue.',
                           )
                         else
                           SizedBox(
-                            height: 168,
+                            height: 172,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: addresses.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 12),
-                              itemBuilder: (context, index) {
-                                final addr = addresses[index];
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (_, i) {
+                                final addr = addresses[i];
+                                final sel = _selectedAddressId == addr.id ||
+                                    (_selectedAddressId == null &&
+                                        state.selectedAddress?.id == addr.id);
                                 return _AddressCard(
                                   data: addr,
-                                  selected: _selectedAddressId == addr.id ||
-                                      (_selectedAddressId == null &&
-                                          state.selectedAddress?.id == addr.id),
-                                  onTap: () => setState(() => _selectedAddressId = addr.id),
+                                  selected: sel,
+                                  onTap: () => setState(
+                                    () => _selectedAddressId = addr.id,
+                                  ),
                                 );
                               },
                             ),
                           ),
+
                         const SizedBox(height: 24),
-                        const _SectionTitle('Order summary'),
+
+                        // ── Order summary ─────────────────────────────────
+                        const _SectionLabel('🧾  Order summary'),
                         const SizedBox(height: 12),
                         _SummaryCard(
-                          deliveryFee: state.deliveryFee,
                           subtotal: state.subtotal,
+                          deliveryFee: state.deliveryFee,
                           total: state.total,
                         ),
+
                         const SizedBox(height: 24),
-                        _CheckoutButton(
-                          processing: _processing,
+
+                        // ── Payment methods ───────────────────────────────
+                        const _SectionLabel('💳  Payment method'),
+                        const SizedBox(height: 12),
+
+                        // COD button
+                        _ActionButton(
                           label: 'Place COD Order',
-                          onPressed: addresses.isEmpty || state.cart.isEmpty
-                              ? null
-                              : () async {
-                                  if (selectedAddress == null) {
-                                    showToast(context, 'Please select an address');
-                                    return;
-                                  }
-                                  setState(() => _processing = true);
-                                  try {
-                                    await state.checkout(
-                                      address: selectedAddress.fullAddress,
-                                      paymentMethod: 'cod',
-                                    );
-                                    if (!context.mounted) return;
-                                    showToast(context, 'COD order placed');
-                                    if (!context.mounted) return;
-                                    Navigator.pushReplacementNamed(
-                                      context,
-                                      OrderSuccessScreen.routeName,
-                                    );
-                                  } catch (error) {
-                                    if (!context.mounted) return;
-                                    showToast(context, error.toString());
-                                  } finally {
-                                    if (mounted) setState(() => _processing = false);
-                                  }
-                                },
+                          icon: Icons.money_rounded,
+                          loading: _processingCod,
+                          enabled: canOrder,
+                          onTap: () =>
+                              _placeCodOrder(state, selectedAddress!),
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          addressText.isEmpty
-                              ? 'Selected address will appear here after you choose one.'
-                              : 'Delivering to: $addressText',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: Colors.black.withValues(alpha: 0.52),
-                            height: 1.4,
+
+                        const SizedBox(height: 12),
+
+                        // Cashfree button (outlined style)
+                        _CashfreeButton(
+                          enabled: canOrder,
+                          onTap: () => _goToCashfree(state, selectedAddress!),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Delivery address reminder
+                        if (selectedAddress != null)
+                          _DeliveryAddressChip(
+                            address: selectedAddress.fullAddress,
+                          )
+                        else
+                          const _InfoCard(
+                            icon: Icons.info_outline_rounded,
+                            title: 'Select an address',
+                            subtitle:
+                                'Tap a saved address above to continue.',
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -174,9 +229,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 }
 
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
+
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onBack});
-
   final VoidCallback onBack;
 
   @override
@@ -201,7 +257,8 @@ class _TopBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.chevron_left_rounded, size: 26, color: Color(0xFF1A1A1A)),
+              child: const Icon(Icons.chevron_left_rounded,
+                  size: 26, color: _kTextDark),
             ),
           ),
           const SizedBox(width: 14),
@@ -210,7 +267,7 @@ class _TopBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A1A1A),
+              color: _kTextDark,
               letterSpacing: -0.4,
             ),
           ),
@@ -220,22 +277,26 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-  final String title;
+// ─── Section label ────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      title,
+      text,
       style: const TextStyle(
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: FontWeight.w900,
-        color: Color(0xFF1A1A1A),
+        color: _kTextDark,
       ),
     );
   }
 }
+
+// ─── Address Card ─────────────────────────────────────────────────────────────
 
 class _AddressCard extends StatelessWidget {
   const _AddressCard({
@@ -253,19 +314,22 @@ class _AddressCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
         width: 210,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: selected ? const Color(0xFFE8541A) : const Color(0xFFE8E8E8),
-            width: selected ? 1.5 : 1,
+            color: selected ? _kOrange : _kBorder,
+            width: selected ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: selected
+                  ? _kOrange.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -276,39 +340,44 @@ class _AddressCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: selected ? const Color(0xFFE8541A) : const Color(0xFFFFF0EB),
+                    color: selected ? _kOrange : _kOrangeLight,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.location_on_rounded,
-                    size: 18,
-                    color: selected ? Colors.white : const Color(0xFFE8541A),
+                    size: 16,
+                    color: selected ? Colors.white : _kOrange,
                   ),
                 ),
                 const Spacer(),
-                if (selected)
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFFE8541A), size: 20),
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: selected ? 1 : 0,
+                  child: const Icon(Icons.check_circle_rounded,
+                      color: _kOrange, size: 20),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               data.label,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1A1A1A),
+                color: _kTextDark,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               data.line1,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: Color(0xFF666666),
                 height: 1.4,
               ),
@@ -317,9 +386,9 @@ class _AddressCard extends StatelessWidget {
             Text(
               data.shortAddress,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF9E9E9E),
+                color: _kTextMid,
               ),
             ),
           ],
@@ -329,21 +398,23 @@ class _AddressCard extends StatelessWidget {
   }
 }
 
+// ─── Summary Card ─────────────────────────────────────────────────────────────
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
-    required this.deliveryFee,
     required this.subtotal,
+    required this.deliveryFee,
     required this.total,
   });
 
-  final double deliveryFee;
   final double subtotal;
+  final double deliveryFee;
   final double total;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -357,11 +428,17 @@ class _SummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SummaryRow(label: 'Delivery Charge', value: 'Rs ${deliveryFee.toStringAsFixed(2)}'),
+          _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
-          _SummaryRow(label: 'Subtotal', value: 'Rs ${subtotal.toStringAsFixed(2)}'),
-          const SizedBox(height: 10),
-          _SummaryRow(label: 'Total', value: 'Rs ${total.toStringAsFixed(2)}', bold: true),
+          _SummaryRow(label: 'Delivery fee', value: deliveryFee),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(
+              height: 1,
+              color: Colors.grey.shade100,
+            ),
+          ),
+          _SummaryRow(label: 'Total', value: total, bold: true),
         ],
       ),
     );
@@ -376,7 +453,7 @@ class _SummaryRow extends StatelessWidget {
   });
 
   final String label;
-  final String value;
+  final double value;
   final bool bold;
 
   @override
@@ -386,18 +463,18 @@ class _SummaryRow extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 14,
-            color: const Color(0xFF666666),
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            fontSize: bold ? 15 : 13,
+            color: bold ? _kTextDark : const Color(0xFF666666),
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
           ),
         ),
         const Spacer(),
         Text(
-          value,
+          'Rs ${value.toStringAsFixed(2)}',
           style: TextStyle(
-            fontSize: bold ? 16 : 14,
-            color: const Color(0xFF1A1A1A),
-            fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
+            fontSize: bold ? 17 : 13,
+            color: bold ? _kOrange : _kTextDark,
+            fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
           ),
         ),
       ],
@@ -405,73 +482,249 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _CheckoutButton extends StatelessWidget {
-  const _CheckoutButton({
-    required this.onPressed,
+// ─── Action Button (COD) ──────────────────────────────────────────────────────
+
+class _ActionButton extends StatefulWidget {
+  const _ActionButton({
     required this.label,
-    required this.processing,
+    required this.icon,
+    required this.loading,
+    required this.enabled,
+    required this.onTap,
   });
 
-  final VoidCallback? onPressed;
   final String label;
-  final bool processing;
+  final IconData icon;
+  final bool loading;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 110),
+  );
+  late final Animation<double> _scale =
+      Tween<double>(begin: 1.0, end: 0.96).animate(
+    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8541A),
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFE8541A).withValues(alpha: 0.35),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    final active = widget.enabled && !widget.loading;
+
+    return GestureDetector(
+      onTapDown: active ? (_) => _c.forward() : null,
+      onTapUp: active
+          ? (_) {
+              _c.reverse();
+              widget.onTap();
+            }
+          : null,
+      onTapCancel: () => _c.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 54,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(
+                    colors: [Color(0xFFF26522), Color(0xFFE8401A)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  )
+                : null,
+            color: active ? null : const Color(0xFFE0E0E0),
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: _kOrange.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [],
           ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: processing ? null : onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
+          child: Center(
+            child: widget.loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(widget.icon,
+                          size: 18,
+                          color: active ? Colors.white : Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: active ? Colors.white : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          child: processing
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
         ),
       ),
     );
   }
 }
 
-class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard({
+// ─── Cashfree Button (outlined) ───────────────────────────────────────────────
+
+class _CashfreeButton extends StatefulWidget {
+  const _CashfreeButton({required this.enabled, required this.onTap});
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  State<_CashfreeButton> createState() => _CashfreeButtonState();
+}
+
+class _CashfreeButtonState extends State<_CashfreeButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 110),
+  );
+  late final Animation<double> _scale =
+      Tween<double>(begin: 1.0, end: 0.96).animate(
+    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.enabled ? (_) => _c.forward() : null,
+      onTapUp: widget.enabled
+          ? (_) {
+              _c.reverse();
+              widget.onTap();
+            }
+          : null,
+      onTapCancel: () => _c.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 54,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: widget.enabled ? _kOrange : _kBorder,
+              width: 1.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.payment_rounded,
+                size: 20,
+                color: widget.enabled ? _kOrange : _kTextMid,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pay with Cashfree',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: widget.enabled ? _kOrange : _kTextMid,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Delivery address chip ────────────────────────────────────────────────────
+
+class _DeliveryAddressChip extends StatelessWidget {
+  const _DeliveryAddressChip({required this.address});
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _kOrangeLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_shipping_rounded,
+              size: 16, color: _kOrange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Delivering to: $address',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: _kOrange,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Info Card ────────────────────────────────────────────────────────────────
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
     required this.title,
     required this.subtitle,
   });
 
+  final IconData icon;
   final String title;
   final String subtitle;
 
@@ -482,28 +735,37 @@ class _EmptyStateCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8E8E8)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFFE8541A)),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _kOrangeLight,
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, color: _kOrange, size: 20),
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF666666),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _kTextDark,
+                    )),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF666666),
+                    )),
+              ],
             ),
           ),
         ],
