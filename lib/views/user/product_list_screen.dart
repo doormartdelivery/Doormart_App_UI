@@ -429,268 +429,146 @@ class _ProductFeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.58),
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(22),
+                  ),
+                  child: SizedBox(
+                    width: 120,
+                    height: 180,
+                    child: _ImageThumb(imageUrl: product.imageUrl),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _RatingChip(rating: product.rating.toStringAsFixed(1)),
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: SizedBox(
-                      width: 132,
-                      height: 132,
-                      child: _ImageThumb(imageUrl: product.imageUrl),
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: _BadgeButton(
-                      active: isFavorite,
-                      child: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: isFavorite ? const Color(0xFFFF5C7A) : Colors.white,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A1A1A),
+                        height: 1.25,
                       ),
-                      onTap: onFavoriteToggle,
                     ),
-                  ),
-                  Positioned(
-                    left: 10,
-                    bottom: 10,
-                    child: _TextChip(
-                      'ITEMS',
-                      subText: 'AT Rs ${product.price.toStringAsFixed(0)}',
+                    const SizedBox(height: 4),
+                    Text(
+                      product.category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF9E9E9E),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF17211B),
-                          height: 1.05,
-                        ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Fresh, handpicked and ready to add to your basket.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.2,
+                        color: Colors.black.withValues(alpha: 0.58),
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Fresh, handpicked and ready to add to your basket.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 1.2,
-                          color: Colors.black.withValues(alpha: 0.58),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, size: 18, color: Color(0xFF0F9D58)),
-                          const SizedBox(width: 4),
-                          Text(
-                            product.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF17211B),
-                            ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Rs ${product.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '(4.2K+)',
+                        ),
+                        const Spacer(),
+                        _BadgeButton(
+                          active: isFavorite,
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            size: 16,
+                            color: isFavorite
+                                ? const Color(0xFFE8541A)
+                                : const Color(0xFFAAAAAA),
+                          ),
+                          onTap: onFavoriteToggle,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8541A),
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFE8541A).withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: SizedBox(
+                        width: 230,
+                        child: FilledButton.icon(
+                          onPressed: onAddToCart,
+                          icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                          label: const Text(
+                            'Add to Cart',
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black.withValues(alpha: 0.55),
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFB8C2B6),
-                              shape: BoxShape.circle,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            '${product.stock > 20 ? 10 : 18} min',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF17211B),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        product.category,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black.withValues(alpha: 0.52),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Vegetable / Grocery product',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: Colors.black.withValues(alpha: 0.48),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Rs ${product.price.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF16A34A),
-                              ),
-                            ),
-                          ),
-                          _AnimatedAddButton(
-                            onTap: onAddToCart,
-                            child: const Text(
-                              'Add to Cart',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TextChip extends StatelessWidget {
-  const _TextChip(this.title, {required this.subText});
-
-  final String title;
-  final String subText;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.40),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          Text(
-            subText,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnimatedAddButton extends StatefulWidget {
-  const _AnimatedAddButton({required this.onTap, required this.child});
-
-  final Future<void> Function() onTap;
-  final Widget child;
-
-  @override
-  State<_AnimatedAddButton> createState() => _AnimatedAddButtonState();
-}
-
-class _AnimatedAddButtonState extends State<_AnimatedAddButton> {
-  bool _pressed = false;
-
-  Future<void> _handleTap() async {
-    setState(() => _pressed = true);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    if (!mounted) return;
-    setState(() => _pressed = false);
-    await widget.onTap();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _handleTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16A34A),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: widget.child,
+          ],
         ),
       ),
     );
@@ -710,19 +588,56 @@ class _BadgeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: active ? Colors.black.withValues(alpha: 0.28) : Colors.black.withValues(alpha: 0.22),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.20)),
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE8541A).withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: child,
-        ),
+        customBorder: const CircleBorder(),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _RatingChip extends StatelessWidget {
+  const _RatingChip({required this.rating});
+
+  final String rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFD54F)),
+          const SizedBox(width: 3),
+          Text(
+            rating,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -742,9 +657,9 @@ class _ImageThumb extends StatelessWidget {
       return Image.network(imageUrl, fit: BoxFit.cover);
     }
     return Container(
-      color: const Color(0xFFF1F5F0),
+      color: const Color(0xFFF1F1F1),
       alignment: Alignment.center,
-      child: const Icon(Icons.shopping_bag_outlined),
+      child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF999999)),
     );
   }
 }

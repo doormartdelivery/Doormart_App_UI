@@ -1041,7 +1041,7 @@ class _ProductRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = state.products.take(6).toList();
+        final products = state.products;
         return SizedBox(
           height: 320,
           child: ListView.separated(
@@ -1471,7 +1471,7 @@ class _EssentialsGrid extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: products.take(20).length,
+          itemCount: products.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 12,
