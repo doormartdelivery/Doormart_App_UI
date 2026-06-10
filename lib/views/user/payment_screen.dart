@@ -1,14 +1,16 @@
-import 'dart:convert';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../features/customer/services/payment_service.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/toast_widget.dart';
 import 'order_success_screen.dart';
+
+// Stripe brand colour
+const _kStripe = Color(0xFF635BFF);
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -23,17 +25,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
   WebViewController? _controller;
   bool _loading = true;
   String? _error;
-  Map<String, dynamic>? _cashfreeOrder;
+  String? _checkoutUrl;
+  bool _launchedWebCheckout = false;
+
+  /// The success URL prefix we detect in the WebView navigation.
+  static const _successPath = '/api/payments/stripe/success';
+  static const _cancelPath = '/api/payments/stripe/cancel';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startCashfreeCheckout());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startStripeCheckout());
   }
 
-  Future<void> _startCashfreeCheckout() async {
+  Future<void> _startStripeCheckout() async {
     final state = context.read<AppState>();
-    final address = state.selectedAddress?.fullAddress ?? '';
+
     if (state.token == null) {
       if (mounted) showToast(context, 'Please login first');
       if (mounted) Navigator.pop(context);
@@ -47,59 +54,74 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     setState(() => _loading = true);
     try {
-      final order = await _paymentService.createCashfreeOrder(
+      // Create Stripe Checkout Session via the backend
+      final result = await _paymentService.createStripeCheckoutSession(
         amountInPaise: (state.total * 100).round(),
         token: state.token!,
+        currency: 'inr',
         receipt: 'dm_${DateTime.now().millisecondsSinceEpoch}',
         email: state.user?.email,
         contact: state.user?.phone,
-        address: address,
+        address: state.selectedAddress?.fullAddress,
+        description: 'Doormart Delivery Order',
       );
-      _cashfreeOrder = order;
-      final paymentSessionId = order['paymentSessionId'] as String? ??
-          order['payment_session_id'] as String? ??
-          '';
-      final orderId = order['orderId'] as String? ?? order['order_id'] as String? ?? '';
-      if (paymentSessionId.isEmpty || orderId.isEmpty) {
-        throw StateError('Cashfree order was not created correctly');
+
+      final stripeUrl = result['url'] as String? ?? '';
+      if (stripeUrl.isEmpty) {
+        throw StateError('Stripe did not return a checkout URL.');
       }
 
-      final mode = (dotenv.env['CASHFREE_MODE'] ?? 'sandbox').trim();
-      final returnUrlTemplate =
-          dotenv.env['CASHFREE_RETURN_URL'] ??
-          'http://10.0.2.2:5000/api/payments/cashfree-return?order_id={order_id}';
-      final returnUrl = returnUrlTemplate.replaceAll('{order_id}', orderId);
-      final html = _buildCheckoutHtml(
-        mode: mode,
-        paymentSessionId: paymentSessionId,
-        returnUrl: returnUrl,
-      );
+      _checkoutUrl = stripeUrl;
 
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onNavigationRequest: (request) {
-              final url = request.url;
-              if (url.startsWith(returnUrl.split('?').first)) {
-                _handlePaymentReturn(orderId);
-                return NavigationDecision.prevent;
-              }
-              return NavigationDecision.navigate;
-            },
-            onWebResourceError: (error) {
-              if (mounted) {
-                setState(() {
-                  _error = error.description;
-                  _loading = false;
-                });
-              }
-            },
-          ),
-        )
-        ..loadHtmlString(html, baseUrl: 'https://cashfree.local');
+      if (kIsWeb) {
+        // For Web, open Stripe in a new window/tab as WebViews are blocked by Stripe's X-Frame-Options headers.
+        final uri = Uri.parse(stripeUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          setState(() {
+            _launchedWebCheckout = true;
+            _loading = false;
+          });
+        } else {
+          throw StateError('Could not launch secure payment page. Please allow popups.');
+        }
+      } else {
+        // For Mobile, run within the embedded WebView.
+        _controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onNavigationRequest: (request) {
+                final url = request.url;
+                // Detect Stripe success redirect
+                if (url.contains(_successPath)) {
+                  _handleSuccess();
+                  return NavigationDecision.prevent;
+                }
+                // Detect Stripe cancel redirect
+                if (url.contains(_cancelPath)) {
+                  _handleCancel();
+                  return NavigationDecision.prevent;
+                }
+                return NavigationDecision.navigate;
+              },
+              onWebResourceError: (err) {
+                if (mounted) {
+                  setState(() {
+                    _error = err.description;
+                    _loading = false;
+                  });
+                }
+              },
+              onPageFinished: (_) {
+                if (mounted) setState(() => _loading = false);
+              },
+            ),
+          )
+          ..loadRequest(Uri.parse(stripeUrl));
 
-      if (mounted) setState(() => _loading = false);
+        if (mounted) setState(() => _loading = false);
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -110,71 +132,38 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  String _buildCheckoutHtml({
-    required String mode,
-    required String paymentSessionId,
-    required String returnUrl,
-  }) {
-    final escapedReturnUrl = HtmlEscape(HtmlEscapeMode.element).convert(returnUrl);
-    return '''
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cashfree Checkout</title>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
-    <style>
-      body { font-family: Arial, sans-serif; padding: 24px; background: #f6f6f6; color: #1a1a1a; }
-      .card { background: white; border-radius: 18px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,.08); }
-      .btn { margin-top: 18px; background: #e8541a; color: white; border: none; border-radius: 14px; padding: 14px 18px; font-size: 16px; font-weight: 700; width: 100%; }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h2>Cashfree Payment</h2>
-      <p>Redirecting you to secure checkout...</p>
-      <button class="btn" onclick="openCheckout()">Pay Now</button>
-    </div>
-    <script>
-      const cashfree = Cashfree({ mode: "${mode == 'production' ? 'production' : 'sandbox'}" });
-      function openCheckout() {
-        cashfree.checkout({
-          paymentSessionId: "$paymentSessionId",
-          redirectTarget: "_self"
-        });
-      }
-      window.addEventListener('load', openCheckout);
-    </script>
-  </body>
-</html>
-''';
-  }
-
-  Future<void> _handlePaymentReturn(String orderId) async {
+  Future<void> _handleSuccess() async {
     final state = context.read<AppState>();
     try {
-      final status = await _paymentService.cashfreeOrderStatus(
-        token: state.token!,
-        orderId: orderId,
+      await state.checkout(
+        address: state.selectedAddress?.fullAddress ?? '',
+        paymentMethod: 'stripe',
       );
-      final orderStatus = (status['order_status'] ?? status['status'] ?? '').toString().toUpperCase();
-      if (orderStatus == 'PAID') {
-        await state.checkout(
-          address: state.selectedAddress?.fullAddress ?? '',
-          paymentMethod: 'cashfree',
-          paymentId: orderId,
-        );
-        if (!mounted) return;
-        showToast(context, 'Payment successful');
-        Navigator.pushReplacementNamed(context, OrderSuccessScreen.routeName);
-        return;
-      }
       if (!mounted) return;
-      showToast(context, 'Payment not completed yet: $orderStatus');
+      showToast(context, '✅ Payment successful!');
+      Navigator.pushReplacementNamed(context, OrderSuccessScreen.routeName);
     } catch (error) {
       if (!mounted) return;
       showToast(context, error.toString());
+    }
+  }
+
+  void _handleCancel() {
+    if (!mounted) return;
+    showToast(context, 'Payment cancelled. Please try again.');
+    Navigator.pop(context);
+  }
+
+  Future<void> _launchWebUrlAgain() async {
+    if (_checkoutUrl != null) {
+      final uri = Uri.parse(_checkoutUrl!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          showToast(context, 'Could not open payment window. Please check popup blockers.');
+        }
+      }
     }
   }
 
@@ -183,25 +172,222 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
-        title: const Text('Cashfree Payment'),
+        title: const Text('Secure Payment'),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE8541A)))
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: _loading
+              ? const LinearProgressIndicator(
+                  backgroundColor: Color(0xFFE8E8E8),
+                  valueColor: AlwaysStoppedAnimation<Color>(_kStripe),
                 )
-              : WebViewWidget(controller: _controller!),
+              : const SizedBox.shrink(),
+        ),
+      ),
+      body: _error != null
+          ? _ErrorView(
+              message: _error!,
+              onRetry: () {
+                setState(() {
+                  _error = null;
+                  _loading = true;
+                  _launchedWebCheckout = false;
+                });
+                _startStripeCheckout();
+              },
+            )
+          : _launchedWebCheckout
+              ? _WebConfirmationView(
+                  onConfirm: _handleSuccess,
+                  onCancel: _handleCancel,
+                  onLaunchAgain: _launchWebUrlAgain,
+                )
+              : _controller == null
+                  ? const Center(
+                      child: CircularProgressIndicator(color: _kStripe),
+                    )
+                  : WebViewWidget(controller: _controller!),
+    );
+  }
+}
+
+// ─── Web Confirmation View ───────────────────────────────────────────────────
+
+class _WebConfirmationView extends StatelessWidget {
+  const _WebConfirmationView({
+    required this.onConfirm,
+    required this.onCancel,
+    required this.onLaunchAgain,
+  });
+
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+  final VoidCallback onLaunchAgain;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFEFF6FF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.open_in_new_rounded,
+                color: _kStripe,
+                size: 44,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Checkout Opened',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Stripe Checkout has been opened in a new tab. Please complete your transaction there and return here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF666666),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kStripe,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'I Have Paid Successfully',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: onLaunchAgain,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF4B5563),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                'Launch Payment Page Again',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: onCancel,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                'Cancel & Go Back',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Error View ───────────────────────────────────────────────────────────────
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFEEEE),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded,
+                  color: Color(0xFFE53935), size: 40),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Payment Error',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kStripe,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999)),
+                textStyle: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

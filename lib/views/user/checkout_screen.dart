@@ -76,8 +76,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  // ── Cashfree — set address then navigate ──────────────────────────────────
-  Future<void> _goToCashfree(
+  // ── Stripe — set address then navigate ─────────────────────────────────────
+  Future<void> _goToStripe(
     AppState state,
     AddressModel selectedAddress,
   ) async {
@@ -196,10 +196,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                         const SizedBox(height: 12),
 
-                        // Cashfree button (outlined style)
-                        _CashfreeButton(
+                        // Stripe button
+                        _StripeButton(
                           enabled: canOrder,
-                          onTap: () => _goToCashfree(state, selectedAddress!),
+                          onTap: () => _goToStripe(state, selectedAddress!),
                         ),
 
                         const SizedBox(height: 16),
@@ -593,18 +593,20 @@ class _ActionButtonState extends State<_ActionButton>
   }
 }
 
-// ─── Cashfree Button (outlined) ───────────────────────────────────────────────
+// ─── Stripe Button ───────────────────────────────────────────────────────────
 
-class _CashfreeButton extends StatefulWidget {
-  const _CashfreeButton({required this.enabled, required this.onTap});
+const _kStripe = Color(0xFF635BFF);
+
+class _StripeButton extends StatefulWidget {
+  const _StripeButton({required this.enabled, required this.onTap});
   final bool enabled;
   final VoidCallback onTap;
 
   @override
-  State<_CashfreeButton> createState() => _CashfreeButtonState();
+  State<_StripeButton> createState() => _StripeButtonState();
 }
 
-class _CashfreeButtonState extends State<_CashfreeButton>
+class _StripeButtonState extends State<_StripeButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
@@ -639,35 +641,40 @@ class _CashfreeButtonState extends State<_CashfreeButton>
           height: 54,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.white,
+            gradient: widget.enabled
+                ? const LinearGradient(
+                    colors: [Color(0xFF7B73FF), Color(0xFF5851DB)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  )
+                : null,
+            color: widget.enabled ? null : const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: widget.enabled ? _kOrange : _kBorder,
-              width: 1.8,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: widget.enabled
+                ? [
+                    BoxShadow(
+                      color: _kStripe.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.payment_rounded,
-                size: 20,
-                color: widget.enabled ? _kOrange : _kTextMid,
+                Icons.lock_rounded,
+                size: 18,
+                color: widget.enabled ? Colors.white : Colors.grey,
               ),
               const SizedBox(width: 8),
               Text(
-                'Pay with Cashfree',
+                'Pay with Stripe',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: widget.enabled ? _kOrange : _kTextMid,
+                  color: widget.enabled ? Colors.white : Colors.grey,
                 ),
               ),
             ],

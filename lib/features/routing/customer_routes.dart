@@ -10,6 +10,7 @@ import '../../views/user/order_success_screen.dart';
 import '../../views/user/product_category_screen.dart';
 import '../../views/user/product_list_screen.dart';
 import '../../views/user/search_screen.dart';
+import '../../views/user/payment_screen.dart';
 import '../../views/user/profile_screen.dart';
 import '../../views/user/scheduled_order_screen.dart';
 import '../../views/user/signup_screen.dart';
@@ -28,6 +29,7 @@ class CustomerRoutes {
     ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
     CartScreen.routeName: (_) => const CartScreen(),
     CheckoutScreen.routeName: (_) => const CheckoutScreen(),
+    PaymentScreen.routeName: (_) => const PaymentScreen(),
     OrderSuccessScreen.routeName: (_) => const OrderSuccessScreen(),
     ScheduledOrderScreen.routeName: (_) => const ScheduledOrderScreen(),
     MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
@@ -37,3 +39,4 @@ class CustomerRoutes {
     WishlistScreen.routeName: (_) => const WishlistScreen(),
   };
 }
+
