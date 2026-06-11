@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -65,13 +66,20 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen>
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final isDeliveryPerson =
+        context.select<AppState, bool>(
+          (state) => state.user?.role == UserRoles.deliveryPerson,
+        );
+    final bottomNavPadding = isDeliveryPerson ? 0.0 : kBottomNavigationBarHeight;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F2EA),
-      bottomNavigationBar: BottomNavBar(
-        index: 2,
-        onTap: (index) => BottomNavBar.navigate(context, index),
-      ),
+      bottomNavigationBar: isDeliveryPerson
+          ? null
+          : BottomNavBar(
+              index: 2,
+              onTap: (index) => BottomNavBar.navigate(context, index),
+            ),
       body: SafeArea(
         child: RefreshIndicator(
           color: const Color(0xFF103D32),
@@ -87,7 +95,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen>
                   16,
                   12,
                   16,
-                  22 + bottomInset + kBottomNavigationBarHeight,
+                  22 + bottomInset + bottomNavPadding,
                 ),
                 children: [
                   _DashboardHeader(

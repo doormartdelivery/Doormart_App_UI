@@ -76,8 +76,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  // ── Stripe — set address then navigate ─────────────────────────────────────
-  Future<void> _goToStripe(
+  // ── Cashfree — set address then navigate ───────────────────────────────────
+  Future<void> _goToCashfree(
     AppState state,
     AddressModel selectedAddress,
   ) async {
@@ -196,10 +196,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                         const SizedBox(height: 12),
 
-                        // Stripe button
-                        _StripeButton(
+                        // Cashfree button
+                        _CashfreeButton(
                           enabled: canOrder,
-                          onTap: () => _goToStripe(state, selectedAddress!),
+                          onTap: () => _goToCashfree(state, selectedAddress!),
                         ),
 
                         const SizedBox(height: 16),
@@ -593,20 +593,18 @@ class _ActionButtonState extends State<_ActionButton>
   }
 }
 
-// ─── Stripe Button ───────────────────────────────────────────────────────────
+// ─── Cashfree Button ──────────────────────────────────────────────────────────
 
-const _kStripe = Color(0xFF635BFF);
-
-class _StripeButton extends StatefulWidget {
-  const _StripeButton({required this.enabled, required this.onTap});
+class _CashfreeButton extends StatefulWidget {
+  const _CashfreeButton({required this.enabled, required this.onTap});
   final bool enabled;
   final VoidCallback onTap;
 
   @override
-  State<_StripeButton> createState() => _StripeButtonState();
+  State<_CashfreeButton> createState() => _CashfreeButtonState();
 }
 
-class _StripeButtonState extends State<_StripeButton>
+class _CashfreeButtonState extends State<_CashfreeButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
@@ -653,7 +651,7 @@ class _StripeButtonState extends State<_StripeButton>
             boxShadow: widget.enabled
                 ? [
                     BoxShadow(
-                      color: _kStripe.withValues(alpha: 0.35),
+                      color: _kOrange.withValues(alpha: 0.35),
                       blurRadius: 14,
                       offset: const Offset(0, 6),
                     ),
@@ -670,7 +668,7 @@ class _StripeButtonState extends State<_StripeButton>
               ),
               const SizedBox(width: 8),
               Text(
-                'Pay with Stripe',
+                'Pay with Cashfree',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/constants.dart';
 import '../providers/app_state.dart';
 import '../views/user/cart_screen.dart';
 import '../views/user/notification_screen.dart';
@@ -34,6 +35,10 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, state, _) {
+        if (state.user?.role == UserRoles.deliveryPerson) {
+          return const SizedBox.shrink();
+        }
+
         return Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.topCenter,
