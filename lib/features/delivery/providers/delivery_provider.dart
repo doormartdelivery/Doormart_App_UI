@@ -64,17 +64,26 @@ class DeliveryProvider extends ChangeNotifier {
   Future<void> loadDashboard() async {
     if (deliveryPerson == null) return;
     await _run(() async {
-      activeOrder = await apiService.fetchActiveOrder(deliveryPersonId: deliveryPerson!.id);
+      activeOrder = await apiService.fetchActiveOrder(
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
       history
         ..clear()
-        ..addAll(await apiService.fetchHistory(deliveryPersonId: deliveryPerson!.id));
+        ..addAll(await apiService.fetchHistory(
+          deliveryPersonId: deliveryPerson!.id,
+          token: authToken,
+        ));
     });
   }
 
   Future<void> goOnline() async {
     if (deliveryPerson == null) return;
     await _run(() async {
-      final person = await apiService.goOnline(deliveryPerson!.id);
+      final person = await apiService.goOnline(
+        deliveryPerson!.id,
+        token: authToken,
+      );
       deliveryPerson = person;
       online = true;
       socketService.connect(
@@ -92,7 +101,10 @@ class DeliveryProvider extends ChangeNotifier {
   Future<void> goOffline() async {
     if (deliveryPerson == null) return;
     await _run(() async {
-      await apiService.goOffline(deliveryPerson!.id);
+      await apiService.goOffline(
+        deliveryPerson!.id,
+        token: authToken,
+      );
       online = false;
       socketService.emitDeliveryOffline(deliveryPersonId: deliveryPerson!.id);
       socketService.disconnect();
@@ -103,7 +115,11 @@ class DeliveryProvider extends ChangeNotifier {
   Future<String?> acceptOrder(DeliveryOrderModel order) async {
     if (deliveryPerson == null) return 'Login required';
     try {
-      await apiService.acceptOrder(orderId: order.id, deliveryPersonId: deliveryPerson!.id);
+      await apiService.acceptOrder(
+        orderId: order.id,
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
       socketService.emitAcceptOrder(orderId: order.id, deliveryPersonId: deliveryPerson!.id);
       pendingRequests.removeWhere((item) => item.id == order.id);
       notifyListeners();
@@ -126,7 +142,11 @@ class DeliveryProvider extends ChangeNotifier {
   Future<String?> rejectOrder(DeliveryOrderModel order) async {
     if (deliveryPerson == null) return 'Login required';
     try {
-      await apiService.rejectOrder(orderId: order.id, deliveryPersonId: deliveryPerson!.id);
+      await apiService.rejectOrder(
+        orderId: order.id,
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
       pendingRequests.removeWhere((item) => item.id == order.id);
       notifyListeners();
       return null;
@@ -138,7 +158,11 @@ class DeliveryProvider extends ChangeNotifier {
   Future<String?> markPickedUp() async {
     if (deliveryPerson == null || activeOrder == null) return 'No active order';
     try {
-      activeOrder = await apiService.markPickedUp(orderId: activeOrder!.id, deliveryPersonId: deliveryPerson!.id);
+      activeOrder = await apiService.markPickedUp(
+        orderId: activeOrder!.id,
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
       notifyListeners();
       return null;
     } catch (e) {
@@ -153,6 +177,7 @@ class DeliveryProvider extends ChangeNotifier {
         orderId: activeOrder!.id,
         deliveryPersonId: deliveryPerson!.id,
         otp: otp,
+        token: authToken,
       );
       await loadDashboard();
       notifyListeners();

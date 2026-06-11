@@ -22,24 +22,26 @@ class DeliveryApiService {
     return {'user': user, 'token': response['token']};
   }
 
-  Future<DeliveryPersonModel> goOnline(String deliveryPersonId) async {
+  Future<DeliveryPersonModel> goOnline(String deliveryPersonId, {String? token}) async {
     final response = await _apiService.post(
       '/delivery/go-online',
       body: {'deliveryPersonId': deliveryPersonId},
+      token: token,
     ) as Map<String, dynamic>;
     return DeliveryPersonModel.fromJson((response['deliveryPerson'] as Map<String, dynamic>?) ?? response);
   }
 
-  Future<DeliveryPersonModel> goOffline(String deliveryPersonId) async {
+  Future<DeliveryPersonModel> goOffline(String deliveryPersonId, {String? token}) async {
     final response = await _apiService.post(
       '/delivery/go-offline',
       body: {'deliveryPersonId': deliveryPersonId},
+      token: token,
     ) as Map<String, dynamic>;
     return DeliveryPersonModel.fromJson((response['deliveryPerson'] as Map<String, dynamic>?) ?? response);
   }
 
-  Future<DeliveryOrderModel?> fetchActiveOrder({required String deliveryPersonId}) async {
-    final response = await _apiService.get('/delivery/active-order?deliveryPersonId=$deliveryPersonId');
+  Future<DeliveryOrderModel?> fetchActiveOrder({required String deliveryPersonId, String? token}) async {
+    final response = await _apiService.get('/delivery/active-order?deliveryPersonId=$deliveryPersonId', token: token);
     if (response == null) return null;
     if (response is Map<String, dynamic> && response['order'] is Map<String, dynamic>) {
       return DeliveryOrderModel.fromJson(response['order'] as Map<String, dynamic>);
@@ -50,8 +52,8 @@ class DeliveryApiService {
     return null;
   }
 
-  Future<List<DeliveryOrderModel>> fetchHistory({required String deliveryPersonId}) async {
-    final response = await _apiService.get('/delivery/order-history?deliveryPersonId=$deliveryPersonId') as List<dynamic>;
+  Future<List<DeliveryOrderModel>> fetchHistory({required String deliveryPersonId, String? token}) async {
+    final response = await _apiService.get('/delivery/order-history?deliveryPersonId=$deliveryPersonId', token: token) as List<dynamic>;
     return response
         .whereType<Map<String, dynamic>>()
         .map(DeliveryOrderModel.fromJson)
@@ -61,10 +63,12 @@ class DeliveryApiService {
   Future<DeliveryOrderModel> acceptOrder({
     required String orderId,
     required String deliveryPersonId,
+    String? token,
   }) async {
     final response = await _apiService.post(
       '/delivery/orders/$orderId/accept',
       body: {'deliveryPersonId': deliveryPersonId},
+      token: token,
     ) as Map<String, dynamic>;
     return DeliveryOrderModel.fromJson((response['order'] as Map<String, dynamic>?) ?? response);
   }
@@ -72,20 +76,24 @@ class DeliveryApiService {
   Future<void> rejectOrder({
     required String orderId,
     required String deliveryPersonId,
+    String? token,
   }) async {
     await _apiService.post(
       '/delivery/orders/$orderId/reject',
       body: {'deliveryPersonId': deliveryPersonId},
+      token: token,
     );
   }
 
   Future<DeliveryOrderModel> markPickedUp({
     required String orderId,
     required String deliveryPersonId,
+    String? token,
   }) async {
     final response = await _apiService.post(
       '/delivery/orders/$orderId/picked-up',
       body: {'deliveryPersonId': deliveryPersonId},
+      token: token,
     ) as Map<String, dynamic>;
     return DeliveryOrderModel.fromJson((response['order'] as Map<String, dynamic>?) ?? response);
   }
@@ -94,10 +102,12 @@ class DeliveryApiService {
     required String orderId,
     required String deliveryPersonId,
     required String otp,
+    String? token,
   }) async {
     final response = await _apiService.post(
       '/delivery/orders/$orderId/delivered',
       body: {'deliveryPersonId': deliveryPersonId, 'otp': otp},
+      token: token,
     ) as Map<String, dynamic>;
     return DeliveryOrderModel.fromJson((response['order'] as Map<String, dynamic>?) ?? response);
   }
