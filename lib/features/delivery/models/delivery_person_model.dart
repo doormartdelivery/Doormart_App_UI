@@ -8,6 +8,7 @@ class DeliveryPersonModel {
     required this.active,
     required this.completedOrders,
     required this.todayEarnings,
+    this.avatarUrl,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class DeliveryPersonModel {
   final bool active;
   final int completedOrders;
   final double todayEarnings;
+  final String? avatarUrl;
 
   bool get isOnline => status.toLowerCase() == 'online';
 
@@ -31,6 +33,7 @@ class DeliveryPersonModel {
       active: json['active'] as bool? ?? (json['status'] as String? ?? 'offline').toLowerCase() == 'active',
       completedOrders: (json['completedOrders'] as num? ?? json['todayCompletedOrders'] as num? ?? 0).toInt(),
       todayEarnings: (json['todayEarnings'] as num? ?? 0).toDouble(),
+      avatarUrl: json['avatarUrl'] as String? ?? json['avatar'] as String?,
     );
   }
 }

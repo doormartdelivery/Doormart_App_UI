@@ -84,6 +84,7 @@ class DeliveryOrderModel {
 
 DeliveryOrderStatus _statusFromJson(String? value) {
   return switch (value) {
+    'WAITING_FOR_ACCEPT' || 'waiting_for_accept' || 'placed' => DeliveryOrderStatus.waitingForAccept,
     'ACCEPTED' || 'accepted' => DeliveryOrderStatus.accepted,
     'PICKED_UP' || 'picked_up' => DeliveryOrderStatus.pickedUp,
     'OUT_FOR_DELIVERY' || 'out_for_delivery' => DeliveryOrderStatus.outForDelivery,
