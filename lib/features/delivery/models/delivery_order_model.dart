@@ -63,17 +63,27 @@ class DeliveryOrderModel {
     final itemsJson = (json['items'] as List<dynamic>? ?? json['products'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
+    final user = json['user'];
+    final userMap = user is Map<String, dynamic> ? user : null;
+    final address = json['address'];
+    final addressMap = address is Map<String, dynamic> ? address : null;
+    final addressText = [
+      addressMap?['line1'] ?? addressMap?['addressLine1'] ?? addressMap?['street'],
+      addressMap?['city'],
+      addressMap?['pincode'],
+    ].where((part) => part != null && part.toString().trim().isNotEmpty).map((part) => part.toString().trim()).join(', ');
 
     return DeliveryOrderModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',
       orderId: json['orderId'] as String? ?? json['order_id'] as String?,
-      customerName: json['customerName'] as String? ?? json['userName'] as String? ?? 'Customer',
-      customerPhone: json['customerPhone'] as String? ?? json['phone'] as String? ?? '',
-      customerAddress: json['customerAddress'] as String? ?? json['address'] as String? ?? '',
-      customerArea: json['customerArea'] as String? ?? json['area'] as String? ?? 'Unknown area',
+      customerName: json['customerName'] as String? ?? userMap?['name'] as String? ?? json['userName'] as String? ?? 'Customer',
+      customerPhone: json['customerPhone'] as String? ?? userMap?['phone'] as String? ?? json['phone'] as String? ?? '',
+      customerAddress: json['customerAddress'] as String? ??
+          (addressText.isNotEmpty ? addressText : (json['address']?.toString() ?? '')),
+      customerArea: json['customerArea'] as String? ?? addressMap?['area'] as String? ?? addressMap?['city'] as String? ?? json['area'] as String? ?? 'Unknown area',
       items: itemsJson.map(DeliveryOrderItem.fromJson).toList(),
       totalAmount: (json['totalAmount'] as num? ?? json['total'] as num? ?? 0).toDouble(),
-      paymentType: json['paymentType'] as String? ?? json['payment_method'] as String? ?? 'Online',
+      paymentType: json['paymentType'] as String? ?? json['paymentMethod'] as String? ?? json['payment_method'] as String? ?? 'Online',
       status: _statusFromJson(json['status'] as String?),
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
       codAmount: (json['codAmount'] as num?)?.toDouble(),
