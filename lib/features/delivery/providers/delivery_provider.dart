@@ -70,10 +70,13 @@ class DeliveryProvider extends ChangeNotifier {
       pendingRequests
         ..clear()
         ..addAll(available);
-      activeOrder = await apiService.fetchActiveOrder(
+      final fetchedActive = await apiService.fetchActiveOrder(
         deliveryPersonId: deliveryPerson!.id,
         token: authToken,
       );
+      if (fetchedActive != null) {
+        activeOrder = _forceAccepted(fetchedActive);
+      }
       history
         ..clear()
         ..addAll(await apiService.fetchHistory(
@@ -122,13 +125,16 @@ class DeliveryProvider extends ChangeNotifier {
   Future<String?> acceptOrder(DeliveryOrderModel order) async {
     if (deliveryPerson == null) return 'Login required';
     try {
-      await apiService.acceptOrder(
+      final accepted = await apiService.acceptOrder(
         orderId: order.id,
         deliveryPersonId: deliveryPerson!.id,
         token: authToken,
       );
+      activeOrder = _forceAccepted(accepted);
       socketService.emitAcceptOrder(orderId: order.id, deliveryPersonId: deliveryPerson!.id);
       pendingRequests.removeWhere((item) => item.id == order.id);
+      await loadDashboard();
+      activeOrder = _forceAccepted(activeOrder ?? accepted);
       notifyListeners();
       return null;
     } on ApiException catch (e) {
@@ -223,8 +229,9 @@ class DeliveryProvider extends ChangeNotifier {
   void _handleOrderAssigned(dynamic data) {
     final map = _normalize(data);
     if (map == null) return;
-    activeOrder = DeliveryOrderModel.fromJson(map);
+    activeOrder = _forceAccepted(DeliveryOrderModel.fromJson(map));
     pendingRequests.removeWhere((item) => item.id == activeOrder!.id);
+    history.removeWhere((item) => item.id == activeOrder!.id);
     notifyListeners();
   }
 
@@ -268,6 +275,39 @@ class DeliveryProvider extends ChangeNotifier {
       return data;
     }
     return null;
+  }
+
+  DeliveryOrderModel _forceAccepted(DeliveryOrderModel order) {
+    if (order.status == DeliveryOrderStatus.accepted ||
+        order.status == DeliveryOrderStatus.pickedUp ||
+        order.status == DeliveryOrderStatus.outForDelivery ||
+        order.status == DeliveryOrderStatus.delivered) {
+      return order;
+    }
+    return DeliveryOrderModel.fromJson({
+      '_id': order.id,
+      'orderId': order.orderId,
+      'customerName': order.customerName,
+      'customerPhone': order.customerPhone,
+      'customerAddress': order.customerAddress,
+      'customerArea': order.customerArea,
+      'items': order.items
+          .map(
+            (item) => {
+              'imageUrl': item.imageUrl,
+              'name': item.name,
+              'quantity': item.quantity,
+              'price': item.unitPrice,
+            },
+          )
+          .toList(),
+      'totalAmount': order.totalAmount,
+      'paymentType': order.paymentType,
+      'status': 'ACCEPTED',
+      'createdAt': order.createdAt.toIso8601String(),
+      'codAmount': order.codAmount,
+      'deliveryEarning': order.deliveryEarning,
+    });
   }
 
   String? _extractOrderId(dynamic data) {

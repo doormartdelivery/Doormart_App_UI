@@ -232,7 +232,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
               )
             else
               SizedBox(
-                height: 220,
+                height: 320,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: provider.pendingRequests.length,
@@ -593,11 +593,11 @@ class _NewRequestCardState extends State<_NewRequestCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header: restaurant + timer ───────────────────────────────
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
                 decoration: BoxDecoration(
                   color: _kOrangeLight,
                   borderRadius: BorderRadius.circular(14),
@@ -619,39 +619,45 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                       ),
                     ),
                     Text(
-                      '${_itemCount(widget.order)} items • ${_text(widget.order.customerArea, fallback: 'Unknown area')}',
+                      '${_requestItems(widget.order).length} items • ${_text(widget.order.customerArea, fallback: 'Unknown area')}',
                       style: const TextStyle(fontSize: 12, color: _kTextMid),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => _showItemsSheet(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kOrange,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'View Items',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+
+            _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
+            _detailLine('Phone', _text(widget.order.customerPhone, fallback: '—')),
+            _detailLine('Address', _text(widget.order.customerAddress, fallback: '—')),
+            _detailLine('Order Amount', '₹${_amount(widget.order).toStringAsFixed(2)}'),
+            _detailLine('Payment', _text(widget.order.paymentType, fallback: 'Online')),
 
           // ── Pickup ────────────────────────────────────────────────────
-          _RouteRow(
-            icon: Icons.location_on_rounded,
-            iconColor: _kOrange,
-            label: 'Pickup:',
-            line1: _text(widget.order.customerAddress, fallback: '—'),
-            line2: _text(widget.order.customerArea),
-          ),
+          const SizedBox(height: 12),
 
-          const SizedBox(height: 16),
-
-          // ── Price + Accept ────────────────────────────────────────────
           Row(
             children: [
-              Text(
-                '₹${_amount(widget.order).toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: _kOrange,
-                ),
-              ),
               const Spacer(),
               // Accept button
               _SpringButton(
@@ -692,20 +698,264 @@ class _NewRequestCardState extends State<_NewRequestCard> {
       ),
     );
   }
+
+  Future<void> _showItemsSheet(BuildContext context) {
+    final items = _requestItems(widget.order);
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.72,
+          minChildSize: 0.45,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Order Details',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: _kTextDark,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  _detailLine('Customer', _text(widget.order.customerName, fallback: '—')),
+                  _detailLine('Phone', _text(widget.order.customerPhone, fallback: '—')),
+                  _detailLine('Address', _text(widget.order.customerAddress, fallback: '—')),
+                  _detailLine('Area', _text(widget.order.customerArea, fallback: '—')),
+                  _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
+                  _detailLine('Order Amount', '₹${_amount(widget.order).toStringAsFixed(2)}'),
+                  _detailLine('Payment', _text(widget.order.paymentType, fallback: 'Online')),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Ordered Items',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No item details available',
+                        style: TextStyle(color: _kTextMid),
+                      ),
+                    )
+                  else
+                    ...items.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _RequestItemRow(item: item),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+List<dynamic> _requestItems(dynamic order) {
+  try {
+    final items = order.items;
+    if (items is List) return items;
+  } catch (_) {}
+  try {
+    final products = order.products;
+    if (products is List) return products;
+  } catch (_) {}
+  return const [];
+}
+
+DateTime _orderCreatedAt(dynamic order) {
+  try {
+    final value = order.createdAt;
+    if (value is DateTime) return value;
+  } catch (_) {}
+  return DateTime.now();
+}
+
+String _formatDate(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final year = local.year;
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$day/$month/$year, $hour:$minute';
+}
+
+Widget _detailLine(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 4,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: _kTextMid,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 6,
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: _kTextDark,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _RequestItemRow extends StatelessWidget {
+  const _RequestItemRow({required this.item});
+
+  final dynamic item;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = _text(_value(item, 'name'), fallback: 'Item');
+    final qty = (_value(item, 'quantity') as num?)?.toInt() ?? 1;
+    final price = (_value(item, 'unitPrice') as num?)?.toDouble() ??
+        (_value(item, 'price') as num?)?.toDouble() ??
+        0.0;
+    final imageUrl = _text(_value(item, 'imageUrl'));
+    final total = qty * price;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE9EEF5)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 48,
+              height: 48,
+              color: _kOrangeLight,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.shopping_bag_outlined,
+                        color: _kOrange,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: _kOrange,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: _kTextDark,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Qty: $qty • ₹${price.toStringAsFixed(2)} each',
+                  style: const TextStyle(
+                    color: _kTextMid,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '₹${total.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: _kOrange,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+dynamic _value(dynamic item, String key) {
+  try {
+    if (item is Map<String, dynamic>) return item[key];
+    final dynamic result = (item as dynamic);
+    switch (key) {
+      case 'name':
+        return result.name;
+      case 'quantity':
+        return result.quantity;
+      case 'imageUrl':
+        return result.imageUrl;
+      case 'price':
+        return result.price;
+      case 'unitPrice':
+        return result.unitPrice;
+    }
+  } catch (_) {}
+  return null;
 }
 
 String _text(dynamic value, {String fallback = ''}) {
   if (value == null) return fallback;
   final text = value.toString().trim();
   return text.isEmpty ? fallback : text;
-}
-
-int _itemCount(dynamic order) {
-  try {
-    return (order.itemCount as int?) ?? 0;
-  } catch (_) {
-    return 0;
-  }
 }
 
 double _amount(dynamic order) {
