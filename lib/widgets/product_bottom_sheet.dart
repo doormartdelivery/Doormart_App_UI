@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
 
 Future<void> showProductBottomSheet(
@@ -198,7 +199,7 @@ class _ProductBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = product.imageUrl;
+    final imageUrl = NetworkImageUrl.normalize(product.imageUrl);
     if (imageUrl.startsWith('assets/')) {
       return Image.asset(
         imageUrl,

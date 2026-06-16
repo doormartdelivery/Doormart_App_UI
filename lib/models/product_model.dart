@@ -1,3 +1,5 @@
+import '../core/utils/network_image_url.dart';
+
 class ProductModel {
   const ProductModel({
     required this.id,
@@ -29,7 +31,7 @@ class ProductModel {
       price: (json['price'] as num).toDouble(),
       cost: (json['cost'] as num? ?? 0).toDouble(),
       stock: json['stock'] as int,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       rating: (json['rating'] as num? ?? 4.5).toDouble(),
       unit: json['unit'] as String? ?? 'item',
     );

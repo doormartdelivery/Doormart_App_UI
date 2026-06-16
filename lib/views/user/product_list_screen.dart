@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/network_image_url.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/gradient_background.dart';
@@ -650,11 +651,12 @@ class _ImageThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('assets/')) {
-      return Image.asset(imageUrl, fit: BoxFit.cover);
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(normalized, fit: BoxFit.cover);
     }
-    if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, fit: BoxFit.cover);
+    if (normalized.startsWith('http')) {
+      return Image.network(normalized, fit: BoxFit.cover);
     }
     return Container(
       color: const Color(0xFFF1F1F1),

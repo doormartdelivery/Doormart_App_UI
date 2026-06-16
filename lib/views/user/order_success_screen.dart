@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/network_image_url.dart';
 import '../../providers/app_state.dart';
 import '../user/user_home_screen.dart';
 
@@ -312,9 +313,10 @@ class _OrderImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('http')) {
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('http')) {
       return Image.network(
-        imageUrl,
+        normalized,
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Icon(
           Icons.delivery_dining,
@@ -323,9 +325,9 @@ class _OrderImage extends StatelessWidget {
         ),
       );
     }
-    if (imageUrl.startsWith('assets/')) {
+    if (normalized.startsWith('assets/')) {
       return Image.asset(
-        imageUrl,
+        normalized,
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Icon(
           Icons.delivery_dining,
@@ -349,11 +351,12 @@ class _OrderThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, fit: BoxFit.cover, width: 48, height: 48);
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('http')) {
+      return Image.network(normalized, fit: BoxFit.cover, width: 48, height: 48);
     }
-    if (imageUrl.startsWith('assets/')) {
-      return Image.asset(imageUrl, fit: BoxFit.cover, width: 48, height: 48);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(normalized, fit: BoxFit.cover, width: 48, height: 48);
     }
     return const ColoredBox(
       color: Color(0xFFF1F1F1),

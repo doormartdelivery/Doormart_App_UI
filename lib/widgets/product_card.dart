@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
@@ -170,7 +171,7 @@ class _ProductImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final path = product.imageUrl;
+    final path = NetworkImageUrl.normalize(product.imageUrl);
     if (path.startsWith('assets/')) {
       return Image.asset(
         path,

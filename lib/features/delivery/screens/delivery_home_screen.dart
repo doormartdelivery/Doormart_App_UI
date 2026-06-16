@@ -39,6 +39,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
+    final canSeeRequests = provider.online && (person?.active ?? false);
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -176,103 +177,113 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           const SizedBox(height: 24),
 
           // ── New Requests ──────────────────────────────────────────────
-          Row(
-            children: [
-              const Text(
-                'New Requests',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: _kTextDark,
-                ),
-              ),
-              const SizedBox(width: 10),
-              if (provider.pendingRequests.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _kOrangeLight,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${provider.pendingRequests.length} Nearby',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _kOrange,
-                    ),
+          if (canSeeRequests) ...[
+            Row(
+              children: [
+                const Text(
+                  'New Requests',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _kTextDark,
                   ),
                 ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: _kOrange,
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'View All',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          if (provider.pendingRequests.isEmpty)
-            _EmptyState(
-              icon: Icons.inbox_rounded,
-              message: 'No new requests right now',
-            )
-          else
-            SizedBox(
-              height: 260,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: provider.pendingRequests.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, i) {
-                  final order = provider.pendingRequests[i];
-                  return SizedBox(
-                    width: MediaQuery.of(context).size.width - 64,
-                    child: _NewRequestCard(
-                      order: order,
-                      onAccept: () {
-                        HapticFeedback.mediumImpact();
-                        provider.acceptOrder(order);
-                      },
-                      onReject: () => provider.rejectOrder(order),
-                      onExpired: () => provider.removePendingOrder(order.id),
+                const SizedBox(width: 10),
+                if (provider.pendingRequests.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _kOrangeLight,
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                  );
-                },
-              ),
+                    child: Text(
+                      '${provider.pendingRequests.length} Nearby',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _kOrange,
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kOrange,
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'View All',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ),
+
+            const SizedBox(height: 15),
+
+            if (provider.pendingRequests.isEmpty)
+              _EmptyState(
+                icon: Icons.inbox_rounded,
+                message: 'No new requests right now',
+              )
+            else
+              SizedBox(
+                height: 220,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: provider.pendingRequests.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, i) {
+                    final order = provider.pendingRequests[i];
+                    return SizedBox(
+                      width: MediaQuery.of(context).size.width - 64,
+                      child: _NewRequestCard(
+                        order: order,
+                        onAccept: () {
+                          HapticFeedback.mediumImpact();
+                          provider.acceptOrder(order);
+                        },
+                        onReject: () => provider.rejectOrder(order),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ] else ...[
+            const _EmptyState(
+              icon: Icons.lock_outline_rounded,
+              message: 'Request cards are hidden until you go active',
+            ),
+          ],
 
           const SizedBox(height: 24),
 
           // ── Active Order ──────────────────────────────────────────────
-          if (provider.activeOrder != null) ...[
-            const Text(
-              'Active Order',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: _kTextDark,
-              ),
+          const Text(
+            'Active Order',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: _kTextDark,
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
+          if (provider.activeOrder == null)
+            const _EmptyState(
+              icon: Icons.local_shipping_outlined,
+              message: 'No active order yet',
+            )
+          else
             GestureDetector(
               onTap: () => Navigator.of(context)
                   .pushNamed(ActiveOrderScreen.routeName),
               child: _ActiveOrderCard(order: provider.activeOrder!),
             ),
-            const SizedBox(height: 24),
-          ],
+          const SizedBox(height: 24),
         ],
       ),
 
@@ -551,45 +562,17 @@ class _NewRequestCard extends StatefulWidget {
     required this.order,
     required this.onAccept,
     required this.onReject,
-    required this.onExpired,
   });
 
   final dynamic order;
   final VoidCallback onAccept;
   final VoidCallback onReject;
-  final VoidCallback onExpired;
 
   @override
   State<_NewRequestCard> createState() => _NewRequestCardState();
 }
 
-class _NewRequestCardState extends State<_NewRequestCard>
-    with SingleTickerProviderStateMixin {
-  late int _seconds;
-  late final AnimationController _timerCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _seconds = 20;
-    _timerCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 20),
-    )..addListener(() {
-        final remaining = (20 * (1 - _timerCtrl.value)).ceil();
-        if (remaining != _seconds && mounted) {
-          setState(() => _seconds = remaining);
-          if (remaining <= 0) widget.onExpired();
-        }
-      })
-      ..forward();
-  }
-
-  @override
-  void dispose() {
-    _timerCtrl.dispose();
-    super.dispose();
-  }
+class _NewRequestCardState extends State<_NewRequestCard> {
 
   @override
   Widget build(BuildContext context) {
@@ -642,31 +625,6 @@ class _NewRequestCardState extends State<_NewRequestCard>
                   ],
                 ),
               ),
-              // Countdown badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _kTextDark,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.timer_rounded,
-                        size: 13, color: Colors.white),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_seconds}s',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
 
@@ -677,15 +635,6 @@ class _NewRequestCardState extends State<_NewRequestCard>
             icon: Icons.location_on_rounded,
             iconColor: _kOrange,
             label: 'Pickup:',
-            line1: _text(widget.order.customerAddress, fallback: '—'),
-            line2: _text(widget.order.customerArea),
-          ),
-          const SizedBox(height: 10),
-          // ── Drop-off ──────────────────────────────────────────────────
-          _RouteRow(
-            icon: Icons.navigation_rounded,
-            iconColor: const Color(0xFF6366F1),
-            label: 'Drop-off:',
             line1: _text(widget.order.customerAddress, fallback: '—'),
             line2: _text(widget.order.customerArea),
           ),
@@ -739,23 +688,6 @@ class _NewRequestCardState extends State<_NewRequestCard>
             ],
           ),
 
-          // Timer progress bar
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: AnimatedBuilder(
-              animation: _timerCtrl,
-              builder: (_, __) => LinearProgressIndicator(
-                value: 1 - _timerCtrl.value,
-                minHeight: 4,
-                backgroundColor: const Color(0xFFEEEEEE),
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(_seconds <= 5
-                        ? Colors.red
-                        : _kOrange),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -868,46 +800,28 @@ class _ActiveOrderCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _kBg,
-                    borderRadius: BorderRadius.circular(8),
+                    color: _kOrangeLight,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    'ORDER #${order.id ?? '0000'}',
-                    style: const TextStyle(
+                  child: const Text(
+                    'ACTIVE ORDER',
+                    style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: _kTextMid,
-                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.w900,
+                      color: _kOrange,
+                      letterSpacing: 0.4,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: _kGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Text(
-                  'In Transit',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _kGreen,
                   ),
                 ),
                 const Spacer(),
@@ -917,101 +831,71 @@ class _ActiveOrderCard extends StatelessWidget {
                     color: _kOrangeLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.navigation_rounded,
+                  child: const Icon(Icons.delivery_dining_rounded,
                       color: _kOrange, size: 18),
                 ),
               ],
             ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              _text(order.customerName, fallback: 'Customer'),
+            const SizedBox(height: 14),
+            Text(
+              _text(order.customerName, fallback: 'Customer Name'),
               style: const TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.w900,
                 color: _kTextDark,
-                height: 1.2,
+                height: 1.1,
               ),
             ),
-          ),
-
-          // Map placeholder
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            height: 110,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: const Color(0xFF1A2C3D),
+            const SizedBox(height: 8),
+            _detailRow('Customer phone', _text(order.customerPhone, fallback: '—')),
+            _detailRow('Customer address', _text(order.customerAddress, fallback: '—')),
+            _detailRow('Customer area', _text(order.customerArea, fallback: '—')),
+            _detailRow('Payment method', _text(order.paymentType, fallback: '—')),
+            _detailRow(
+              'Total amount',
+              '₹${_amount(order).toStringAsFixed(2)}',
+              valueColor: _kOrange,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  // Map grid lines
-                  CustomPaint(
-                    size: const Size(double.infinity, 110),
-                    painter: _MapGridPainter(),
-                  ),
-                  // Route line
-                  Center(
-                    child: Container(
-                      height: 3,
-                      margin: const EdgeInsets.symmetric(horizontal: 40),
-                      decoration: BoxDecoration(
-                        color: _kOrange,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  // Pin icons
-                  const Positioned(
-                    left: 36,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Icon(Icons.location_on_rounded,
-                          color: _kOrange, size: 22),
-                    ),
-                  ),
-                  const Positioned(
-                    right: 36,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Icon(Icons.flag_rounded,
-                          color: _kGreen, size: 22),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Row(
-              children: [
-                _ActiveOrderStat(
-                  label: 'TIME TO DROP-OFF',
-                  value: '~ 8 minutes',
-                ),
-                const Spacer(),
-                _ActiveOrderStat(
-                  label: 'EARNINGS POTENTIAL',
-                  value:
-                      '₹${_amount(order).toStringAsFixed(2)}',
-                  valueColor: _kOrange,
-                  alignRight: true,
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+Widget _detailRow(String label, String value, {Color valueColor = _kTextDark}) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 4,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: _kTextMid,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 6,
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: valueColor,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ActiveOrderStat extends StatelessWidget {

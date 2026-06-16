@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/product_bottom_sheet.dart';
@@ -525,12 +526,13 @@ class _Thumb extends StatelessWidget {
   Widget build(BuildContext context) {
     const width = 130.0;
     const height = 176.0;
+    final normalized = NetworkImageUrl.normalize(imageUrl);
 
-    if (imageUrl.startsWith('assets/')) {
-      return Image.asset(imageUrl, width: width, height: height, fit: BoxFit.cover);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(normalized, width: width, height: height, fit: BoxFit.cover);
     }
-    if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, width: width, height: height, fit: BoxFit.cover);
+    if (normalized.startsWith('http')) {
+      return Image.network(normalized, width: width, height: height, fit: BoxFit.cover);
     }
     return Container(
       width: width,

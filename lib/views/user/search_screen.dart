@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/network_image_url.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -459,11 +460,12 @@ class _ImageThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('assets/')) {
-      return Image.asset(imageUrl, fit: BoxFit.cover);
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(normalized, fit: BoxFit.cover);
     }
-    if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl, fit: BoxFit.cover);
+    if (normalized.startsWith('http')) {
+      return Image.network(normalized, fit: BoxFit.cover);
     }
     return const ColoredBox(
       color: Color(0xFFF1F5F9),

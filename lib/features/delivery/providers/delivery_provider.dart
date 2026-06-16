@@ -28,7 +28,6 @@ class DeliveryProvider extends ChangeNotifier {
   final List<DeliveryOrderModel> pendingRequests = [];
   final List<DeliveryOrderModel> history = [];
   bool online = false;
-  Timer? _requestTimer;
 
   Future<bool> login({
     required String email,
@@ -64,6 +63,13 @@ class DeliveryProvider extends ChangeNotifier {
   Future<void> loadDashboard() async {
     if (deliveryPerson == null) return;
     await _run(() async {
+      final available = await apiService.fetchAvailableOrders(
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
+      pendingRequests
+        ..clear()
+        ..addAll(available);
       activeOrder = await apiService.fetchActiveOrder(
         deliveryPersonId: deliveryPerson!.id,
         token: authToken,
@@ -95,6 +101,7 @@ class DeliveryProvider extends ChangeNotifier {
         onOrderPickedUp: _handleOrderPickedUp,
         onOrderDelivered: _handleOrderDelivered,
       );
+      await loadDashboard();
     });
   }
 
@@ -202,13 +209,13 @@ class DeliveryProvider extends ChangeNotifier {
     final order = DeliveryOrderModel.fromJson(map);
     if (pendingRequests.every((item) => item.id != order.id)) {
       pendingRequests.insert(0, order);
-      _restartRequestTimer(order.id);
       notifyListeners();
     }
   }
 
   void _handleOrderTaken(dynamic data) {
-    final orderId = _extractOrderId(data);
+    final map = _normalize(data);
+    final orderId = _extractOrderId(data) ?? map?['_id'] as String?;
     if (orderId == null) return;
     removePendingOrder(orderId);
   }
@@ -237,14 +244,6 @@ class DeliveryProvider extends ChangeNotifier {
       activeOrder = null;
     }
     notifyListeners();
-  }
-
-  void _restartRequestTimer(String orderId) {
-    _requestTimer?.cancel();
-    _requestTimer = Timer(const Duration(seconds: 30), () {
-      pendingRequests.removeWhere((item) => item.id == orderId);
-      notifyListeners();
-    });
   }
 
   Future<T> _run<T>(FutureOr<T> Function() fn) async {

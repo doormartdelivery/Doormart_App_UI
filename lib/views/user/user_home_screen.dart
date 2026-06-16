@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../mascot/walking_mascot_widget.dart';
+import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -720,12 +721,13 @@ class _BannerImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(path);
     Widget img;
-    if (path.startsWith('http')) {
-      img = Image.network(path, fit: BoxFit.cover,
+    if (normalized.startsWith('http')) {
+      img = Image.network(normalized, fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _BannerFallback(title: title));
     } else {
-      img = Image.asset(path, fit: BoxFit.cover,
+      img = Image.asset(normalized, fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _BannerFallback(title: title));
     }
     return img;
@@ -981,13 +983,14 @@ class _CategoryImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('assets/')) {
-      return Image.asset(imageUrl,
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(normalized,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const _CategoryFallback());
     }
-    if (imageUrl.startsWith('http')) {
-      return Image.network(imageUrl,
+    if (normalized.startsWith('http')) {
+      return Image.network(normalized,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const _CategoryFallback());
     }
@@ -1365,14 +1368,15 @@ class _HomeFeedImage extends StatelessWidget {
   final String imageUrl;
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.startsWith('assets/')) {
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    if (normalized.startsWith('assets/')) {
       return SizedBox.expand(
-        child: Image.asset(imageUrl, fit: BoxFit.cover),
+        child: Image.asset(normalized, fit: BoxFit.cover),
       );
     }
-    if (imageUrl.startsWith('http')) {
+    if (normalized.startsWith('http')) {
       return SizedBox.expand(
-        child: Image.network(imageUrl, fit: BoxFit.cover),
+        child: Image.network(normalized, fit: BoxFit.cover),
       );
     }
     return const ColoredBox(

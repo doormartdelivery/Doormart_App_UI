@@ -1,3 +1,5 @@
+import '../core/utils/network_image_url.dart';
+
 class CategoryModel {
   const CategoryModel({
     required this.id,
@@ -15,7 +17,7 @@ class CategoryModel {
       id: json['_id'] as String? ?? json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
     );
   }
 }

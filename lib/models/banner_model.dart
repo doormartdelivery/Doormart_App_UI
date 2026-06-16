@@ -1,3 +1,5 @@
+import '../core/utils/network_image_url.dart';
+
 class BannerModel {
   const BannerModel({
     required this.id,
@@ -14,7 +16,7 @@ class BannerModel {
     return BannerModel(
       id: json['_id'] as String? ?? json['id'] as String,
       title: json['title'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       active: json['active'] as bool? ?? true,
     );
   }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/toast_widget.dart';
+import 'add_edit_address_screen.dart';
 import 'payment_screen.dart';
 import 'order_success_screen.dart';
 
@@ -82,7 +83,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     AddressModel selectedAddress,
   ) async {
     state.selectedAddress = selectedAddress;
-    state.notifyListeners();
     if (!mounted) return;
     Navigator.pushNamed(context, PaymentScreen.routeName);
   }
@@ -137,11 +137,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const _SectionLabel('📍  Delivery address'),
                         const SizedBox(height: 12),
                         if (addresses.isEmpty)
-                          const _InfoCard(
+                          _InfoCard(
                             icon: Icons.location_off_rounded,
                             title: 'No saved addresses',
                             subtitle:
-                                'Add an address from your profile to continue.',
+                                'Add an address now to continue checkout.',
+                            actionLabel: 'Add address',
+                            onAction: () async {
+                              final appState = context.read<AppState>();
+                              final result = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AddEditAddressScreen(),
+                                ),
+                              );
+                              if (result == true && mounted) {
+                                await appState.loadAddresses();
+                              }
+                            },
                           )
                         else
                           SizedBox(
@@ -727,11 +740,15 @@ class _InfoCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -770,6 +787,13 @@ class _InfoCard extends StatelessWidget {
                       fontSize: 12,
                       color: Color(0xFF666666),
                     )),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: onAction,
+                    child: Text(actionLabel!),
+                  ),
+                ],
               ],
             ),
           ),

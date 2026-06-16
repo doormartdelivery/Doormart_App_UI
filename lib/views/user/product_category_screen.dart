@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/network_image_url.dart';
 import '../../models/category_model.dart';
 import '../../providers/app_state.dart';
 import '../app_page.dart';
@@ -56,11 +57,11 @@ class ProductCategoryScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Center(
-                              child: category.imageUrl.startsWith('assets/')
-                                  ? Image.asset(category.imageUrl, fit: BoxFit.contain)
-                                  : category.imageUrl.startsWith('http')
+                              child: NetworkImageUrl.normalize(category.imageUrl).startsWith('assets/')
+                                  ? Image.asset(NetworkImageUrl.normalize(category.imageUrl), fit: BoxFit.contain)
+                                  : NetworkImageUrl.normalize(category.imageUrl).startsWith('http')
                                       ? Image.network(
-                                          category.imageUrl,
+                                          NetworkImageUrl.normalize(category.imageUrl),
                                           fit: BoxFit.contain,
                                         )
                                       : const Icon(

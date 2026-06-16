@@ -34,7 +34,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   }
 
   Future<List<OrderModel>> _loadOrders() {
-    return context.read<AppState>().allOrdersForRole(UserRoles.admin);
+    final state = context.read<AppState>();
+    if (state.adminOrders.isNotEmpty) {
+      return Future.value(state.adminOrders);
+    }
+    return state.allOrdersForRole(UserRoles.admin);
   }
 
   @override
@@ -103,6 +107,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
         IconButton(
           tooltip: 'Refresh orders',
           onPressed: () {
+            context.read<AppState>().loadAdminOrders();
             setState(() {
               _animationController
                 ..reset()

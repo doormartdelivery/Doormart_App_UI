@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../core/role_access.dart';
+import '../core/utils/network_image_url.dart';
 import '../models/address_model.dart';
 import '../models/banner_model.dart';
 import '../models/category_model.dart';
@@ -10,6 +11,7 @@ import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../services/socket_service.dart';
 
 class CartLine {
   CartLine({required this.product, this.quantity = 1});
@@ -28,9 +30,12 @@ class CartLine {
 }
 
 class AppState extends ChangeNotifier {
-  AppState({ApiService? apiService}) : apiService = apiService ?? ApiService();
+  AppState({ApiService? apiService, SocketService? socketService})
+      : apiService = apiService ?? ApiService(),
+        socketService = socketService ?? SocketService();
 
   final ApiService apiService;
+  final SocketService socketService;
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
 
@@ -44,6 +49,7 @@ class AppState extends ChangeNotifier {
   List<BannerModel> banners = [];
   List<ProductModel> favorites = [];
   List<OrderModel> orders = [];
+  List<OrderModel> adminOrders = [];
   List<AddressModel> savedAddresses = [];
   AddressModel? selectedAddress;
   final List<CartLine> cart = [];
@@ -65,6 +71,10 @@ class AppState extends ChangeNotifier {
     await Future.wait([loadProducts(), loadCategories(), loadBanners(), _restoreSession()]);
     if (token != null) {
       await loadFavorites();
+      _connectSocket();
+      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        await loadAdminOrders();
+      }
     }
     initialized = true;
     notifyListeners();
@@ -95,6 +105,10 @@ class AppState extends ChangeNotifier {
       await loadCart();
       await loadAddresses();
       await loadFavorites();
+      _connectSocket();
+      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        await loadAdminOrders();
+      }
     }, silent: silent);
   }
 
@@ -122,6 +136,10 @@ class AppState extends ChangeNotifier {
       await loadCart();
       await loadAddresses();
       await loadFavorites();
+      _connectSocket();
+      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        await loadAdminOrders();
+      }
     }, silent: silent);
   }
 
@@ -151,6 +169,7 @@ class AppState extends ChangeNotifier {
     user = UserModel.fromJson(userJson);
     await _persistSession();
     notifyListeners();
+    _connectSocket();
 
     if ((addressLine1 ?? '').isNotEmpty &&
         (city ?? '').isNotEmpty &&
@@ -184,10 +203,12 @@ class AppState extends ChangeNotifier {
     token = null;
     user = null;
     orders = [];
+    adminOrders = [];
     savedAddresses = [];
     selectedAddress = null;
     cart.clear();
     favorites = [];
+    socketService.disconnect();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
@@ -326,7 +347,7 @@ class AppState extends ChangeNotifier {
       fieldName: 'image',
     ) as Map<String, dynamic>;
 
-    return data['url'] as String? ?? '';
+    return NetworkImageUrl.normalize(data['url'] as String?);
   }
 
   Future<String> uploadProductImage(String filePath) async {
@@ -342,7 +363,7 @@ class AppState extends ChangeNotifier {
       fieldName: 'image',
     ) as Map<String, dynamic>;
 
-    return data['url'] as String? ?? '';
+    return NetworkImageUrl.normalize(data['url'] as String?);
   }
 
   Future<ProductModel> createProduct({
@@ -534,6 +555,19 @@ class AppState extends ChangeNotifier {
     }
     final data = await apiService.get('/orders', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
+  }
+
+  Future<void> loadAdminOrders() async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      return;
+    }
+    final data = await apiService.get('/orders', token: token) as List<dynamic>;
+    adminOrders = data
+        .cast<Map<String, dynamic>>()
+        .map(OrderModel.fromJson)
+        .toList();
+    notifyListeners();
   }
 
   Future<OrderModel> updateOrderStatus(String orderId, String status) async {
@@ -755,6 +789,63 @@ class AppState extends ChangeNotifier {
     return savedAddresses;
   }
 
+  Future<AddressModel> createAddress({
+    required String label,
+    required String line1,
+    required String city,
+    required String pincode,
+  }) async {
+    if (token == null) throw StateError('Please login first');
+    final data = await apiService.post(
+      '/addresses',
+      token: token,
+      body: {
+        'label': label,
+        'line1': line1,
+        'city': city,
+        'pincode': pincode,
+      },
+    ) as Map<String, dynamic>;
+    final address = AddressModel.fromJson(data);
+    await loadAddresses();
+    return address;
+  }
+
+  Future<AddressModel> updateAddress({
+    required String addressId,
+    required String label,
+    required String line1,
+    required String city,
+    required String pincode,
+  }) async {
+    if (token == null) throw StateError('Please login first');
+    final data = await apiService.put(
+      '/addresses/$addressId',
+      token: token,
+      body: {
+        'label': label,
+        'line1': line1,
+        'city': city,
+        'pincode': pincode,
+      },
+    ) as Map<String, dynamic>;
+    final address = AddressModel.fromJson(data);
+    await loadAddresses();
+    return address;
+  }
+
+  Future<void> deleteAddress(String addressId) async {
+    if (token == null) throw StateError('Please login first');
+    await apiService.delete('/addresses/$addressId', token: token);
+    await loadAddresses();
+  }
+
+  Future<void> setDefaultAddress(String addressId) async {
+    if (token == null) throw StateError('Please login first');
+    await apiService.put('/addresses/default/$addressId', token: token);
+    await loadAddresses();
+  }
+
   Future<List<dynamic>> scheduledOrders() async {
     if (token == null) throw StateError('Please login first');
     return await apiService.get('/orders/scheduled', token: token)
@@ -802,6 +893,10 @@ class AppState extends ChangeNotifier {
         await loadOrders();
         await loadCart();
         await loadAddresses();
+        _connectSocket();
+        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+          await loadAdminOrders();
+        }
       }
     } catch (_) {
       token = null;
@@ -820,6 +915,29 @@ class AppState extends ChangeNotifier {
     if (user != null) {
       await prefs.setString(_userKey, user!.toStorage());
     }
+  }
+
+  void _connectSocket() {
+    if (token == null || socketService.connected) return;
+    socketService.connect(
+      token: token,
+      onOrderCreated: (_) async {
+        await loadOrders();
+        await loadAdminOrders();
+      },
+      onOrderAccepted: (_) async {
+        await loadOrders();
+        await loadAdminOrders();
+      },
+      onOrderPickedUp: (_) async {
+        await loadOrders();
+        await loadAdminOrders();
+      },
+      onOrderDelivered: (_) async {
+        await loadOrders();
+        await loadAdminOrders();
+      },
+    );
   }
 
   Future<void> loadCart() async {

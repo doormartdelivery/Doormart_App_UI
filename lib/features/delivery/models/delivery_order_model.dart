@@ -1,3 +1,5 @@
+import '../../../core/utils/network_image_url.dart';
+
 enum DeliveryOrderStatus {
   waitingForAccept,
   accepted,
@@ -9,17 +11,26 @@ enum DeliveryOrderStatus {
 
 class DeliveryOrderItem {
   const DeliveryOrderItem({
+    required this.imageUrl,
     required this.name,
     required this.quantity,
+    required this.unitPrice,
   });
 
+  final String imageUrl;
   final String name;
   final int quantity;
+  final double unitPrice;
+
+  double get lineTotal => unitPrice * quantity;
 
   factory DeliveryOrderItem.fromJson(Map<String, dynamic> json) {
+    final rawPrice = json['price'] ?? json['unitPrice'] ?? json['amount'] ?? json['rate'];
     return DeliveryOrderItem(
+      imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       name: json['name'] as String? ?? 'Item',
       quantity: (json['quantity'] as num? ?? 1).toInt(),
+      unitPrice: rawPrice is num ? rawPrice.toDouble() : 0,
     );
   }
 }
