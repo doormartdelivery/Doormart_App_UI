@@ -25,7 +25,7 @@ class MyOrdersScreen extends StatelessWidget {
             }
             if (orders.isEmpty) return const Text('No orders yet');
 
-            final currentOrder = _currentOrderFrom(orders);
+            final currentOrders = _currentOrdersFrom(orders);
             final previousOrders = orders.where((order) => order.status == OrderStatus.delivered).toList();
             final totalOrders = orders.length;
             final activeOrders = orders.where((order) => _isActive(order.status)).length;
@@ -42,9 +42,9 @@ class MyOrdersScreen extends StatelessWidget {
                   totalSpent: totalSpent,
                 ),
                 const SizedBox(height: 16),
-                if (currentOrder != null) ...[
+                if (currentOrders.isNotEmpty) ...[
                   const Text(
-                    'Current Order',
+                    'Current Orders',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
@@ -52,7 +52,14 @@ class MyOrdersScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _CurrentOrderCard(order: currentOrder),
+                  ...currentOrders
+                      .map(
+                        (order) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _CurrentOrderCard(order: order),
+                        ),
+                      )
+                      .toList(),
                   const SizedBox(height: 18),
                 ],
                 const Text(
@@ -90,16 +97,14 @@ bool _isActive(OrderStatus status) {
       status == OrderStatus.pickedUp;
 }
 
-OrderModel? _currentOrderFrom(List<OrderModel> orders) {
-  for (final order in orders) {
-    if (_isActive(order.status)) return order;
-  }
-  for (final order in orders) {
-    if (order.status != OrderStatus.delivered && order.status != OrderStatus.cancelled) {
-      return order;
-    }
-  }
-  return null;
+List<OrderModel> _currentOrdersFrom(List<OrderModel> orders) {
+  final active = orders.where((order) => _isActive(order.status)).toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  if (active.isNotEmpty) return active;
+  return orders
+      .where((order) => order.status != OrderStatus.delivered && order.status != OrderStatus.cancelled)
+      .toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 }
 
 class _CurrentOrderCard extends StatelessWidget {

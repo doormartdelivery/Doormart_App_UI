@@ -40,10 +40,11 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
-    final canSeeRequests = provider.online && (person?.active ?? false);
+    final canSeeRequests = person?.active ?? false;
     final stats = provider.earningsStats;
-    final completed = _statForRange(stats, _range, fallback: person?.completedOrders ?? 0);
-    final earnings = _earningsForRange(stats, _range, fallback: person?.todayEarnings ?? 0);
+    final completed = _completedOrdersForRange(stats, _range);
+    final earnings = _earningsForRange(stats, _range);
+    final statsLoaded = stats.isNotEmpty;
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -157,6 +158,8 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           const SizedBox(height: 12),
           if (provider.loading)
             const _MetricsSkeleton()
+          else if (!statsLoaded)
+            const _MetricsSkeleton()
           else
           Row(
             children: [
@@ -166,7 +169,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                   iconBg: const Color(0xFFFFF0EB),
                   iconColor: _kOrange,
                   label: 'ORDERS COMPLETED',
-                  value: '$completed',
+                  value: completed == null ? '0' : '$completed',
                   tag: _range.label,
                 ),
               ),
@@ -177,7 +180,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                   iconBg: const Color(0xFFEEF2FF),
                   iconColor: const Color(0xFF6366F1),
                   label: 'EARNINGS EARNED',
-                  value: '₹${earnings.toStringAsFixed(2)}',
+                  value: '₹${(earnings ?? 0).toStringAsFixed(2)}',
                   tag: _range.label,
                   largeValue: true,
                 ),
@@ -236,10 +239,15 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
 
             const SizedBox(height: 15),
 
-            if (provider.pendingRequests.isEmpty)
+            if (provider.online && provider.pendingRequests.isEmpty)
               _EmptyState(
                 icon: Icons.inbox_rounded,
                 message: 'No new requests right now',
+              )
+            else if (!provider.online)
+              const _EmptyState(
+                icon: Icons.wifi_off_rounded,
+                message: 'Go online to receive requests',
               )
             else
               SizedBox(
@@ -267,7 +275,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           ] else ...[
             const _EmptyState(
               icon: Icons.lock_outline_rounded,
-              message: 'Request cards are hidden until you go active',
+              message: 'Inactive delivery persons cannot receive requests',
             ),
           ],
 
@@ -669,22 +677,22 @@ extension on _MetricRange {
       };
 }
 
-int _statForRange(Map<String, dynamic> stats, _MetricRange range, {required int fallback}) {
+int? _completedOrdersForRange(Map<String, dynamic> stats, _MetricRange range) {
   final value = switch (range) {
-    _MetricRange.today => stats['completedOrders'] ?? stats['todayCompletedOrders'] ?? fallback,
-    _MetricRange.weekly => stats['weeklyCompletedOrders'] ?? stats['completedOrders'] ?? fallback,
-    _MetricRange.monthly => stats['monthlyCompletedOrders'] ?? stats['completedOrders'] ?? fallback,
+    _MetricRange.today => stats['todayCompletedOrders'] ?? stats['completedOrders'],
+    _MetricRange.weekly => stats['weeklyCompletedOrders'] ?? stats['completedOrders'],
+    _MetricRange.monthly => stats['monthlyCompletedOrders'] ?? stats['completedOrders'],
   };
-  return (value as num?)?.toInt() ?? fallback;
+  return (value as num?)?.toInt();
 }
 
-double _earningsForRange(Map<String, dynamic> stats, _MetricRange range, {required double fallback}) {
+double? _earningsForRange(Map<String, dynamic> stats, _MetricRange range) {
   final value = switch (range) {
-    _MetricRange.today => stats['today'] ?? stats['todayEarnings'] ?? fallback,
-    _MetricRange.weekly => stats['weekly'] ?? stats['weeklyEarnings'] ?? fallback * 7,
-    _MetricRange.monthly => stats['monthly'] ?? stats['monthlyEarnings'] ?? fallback * 30,
+    _MetricRange.today => stats['today'] ?? stats['todayEarnings'],
+    _MetricRange.weekly => stats['weekly'] ?? stats['weeklyEarnings'],
+    _MetricRange.monthly => stats['monthly'] ?? stats['monthlyEarnings'],
   };
-  return (value as num?)?.toDouble() ?? fallback;
+  return (value as num?)?.toDouble();
 }
 
 

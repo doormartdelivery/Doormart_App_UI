@@ -1478,30 +1478,185 @@ class _EssentialsGrid extends StatelessWidget {
           itemCount: products.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.68,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            childAspectRatio: 0.58,
           ),
-          itemBuilder: (ctx, i) => ProductCard(
-            product: products[i],
-            isFavorite: state.isFavorite(products[i]),
-            onFavoriteToggle: () => state.toggleFavorite(products[i]),
-            onTap: () => showProductBottomSheet(ctx, products[i],
+          itemBuilder: (ctx, i) {
+            final product = products[i];
+            return _PopularStyleProductCard(
+              product: product,
+              isFavorite: state.isFavorite(product),
+              onFavoriteToggle: () => state.toggleFavorite(product),
+              onTap: () => showProductBottomSheet(
+                ctx,
+                product,
                 onAddToCart: (qty) async {
-              final ok = await state.addToCart(products[i], quantity: qty);
-              if (!ctx.mounted) return;
-              showToast(ctx,
-                  ok ? '${products[i].name} added to cart' : state.error ?? 'Please login first');
-            }),
-            onAdd: () async {
-              final ok = await state.addToCart(products[i]);
-              if (!ctx.mounted) return;
-              showToast(ctx,
-                  ok ? '${products[i].name} added to cart' : state.error ?? 'Please login first');
-            },
-          ),
+                  final ok = await state.addToCart(product, quantity: qty);
+                  if (!ctx.mounted) return;
+                  showToast(
+                    ctx,
+                    ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                  );
+                },
+              ),
+              onAdd: () async {
+                final ok = await state.addToCart(product);
+                if (!ctx.mounted) return;
+                showToast(
+                  ctx,
+                  ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                );
+              },
+            );
+          },
         );
       },
+    );
+  }
+}
+
+class _PopularStyleProductCard extends StatelessWidget {
+  const _PopularStyleProductCard({
+    required this.product,
+    required this.isFavorite,
+    required this.onFavoriteToggle,
+    required this.onAdd,
+    required this.onTap,
+  });
+
+  final ProductModel product;
+  final bool isFavorite;
+  final VoidCallback onFavoriteToggle;
+  final VoidCallback onAdd;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              flex: 62,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                    child: _HomeFeedImage(imageUrl: product.imageUrl),
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: _QuantityLikeFavorite(
+                      isFavorite: isFavorite,
+                      onTap: onFavoriteToggle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              flex: 38,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _kTextDark,
+                        height: 1.25,
+                      ),
+                    ),
+                    Text(
+                      product.category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _kTextMid,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'Rs ${product.price.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: _kTextDark,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${product.stock > 20 ? 10 : 18} min',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: _kTextMid,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      height: 36,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: _kGreen,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _kGreen.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: FilledButton(
+                        onPressed: onAdd,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        child: const Text(
+                          'Add to Cart',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -39,11 +39,15 @@ class DeliverySocketService {
         'room': 'available_delivery_persons',
         'deliveryPersonId': deliveryPersonId,
       });
+      _socket!.emit('join_room', {
+        'room': 'available_delivery_persons',
+      });
       onDeliveryOnline?.call();
     });
 
     _socket!.onDisconnect((_) => onDeliveryOffline?.call());
     _socket!.on('new_order_request', onNewOrderRequest);
+    _socket!.on('order:new', onNewOrderRequest);
     _socket!.on('order_taken', onOrderTaken);
     _socket!.on('order_assigned', onOrderAssigned);
     _socket!.on('order_picked_up', onOrderPickedUp);

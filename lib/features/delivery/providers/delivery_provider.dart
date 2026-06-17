@@ -29,6 +29,7 @@ class DeliveryProvider extends ChangeNotifier {
   final List<DeliveryOrderModel> history = [];
   Map<String, dynamic> earningsStats = const {};
   bool online = false;
+  Timer? _requestRefreshTimer;
 
   Future<bool> login({
     required String email,
@@ -89,6 +90,8 @@ class DeliveryProvider extends ChangeNotifier {
         token: authToken,
       );
       earningsStats = earnings;
+      final totalEarnings = (earnings['total'] as num?)?.toDouble() ??
+          history.fold<double>(0, (sum, order) => sum + (order.deliveryEarning ?? 45));
       deliveryPerson = DeliveryPersonModel(
         id: deliveryPerson!.id,
         name: deliveryPerson!.name,
@@ -97,7 +100,7 @@ class DeliveryProvider extends ChangeNotifier {
         status: deliveryPerson!.status,
         active: deliveryPerson!.active,
         completedOrders: (earnings['completedOrders'] as num? ?? history.length).toInt(),
-        todayEarnings: (earnings['today'] as num? ?? 0).toDouble(),
+        todayEarnings: totalEarnings,
         avatarUrl: deliveryPerson!.avatarUrl,
       );
     });
@@ -122,6 +125,7 @@ class DeliveryProvider extends ChangeNotifier {
         onOrderDelivered: _handleOrderDelivered,
       );
       await loadDashboard();
+      _startRequestRefresh();
     });
   }
 
@@ -136,6 +140,7 @@ class DeliveryProvider extends ChangeNotifier {
       socketService.emitDeliveryOffline(deliveryPersonId: deliveryPerson!.id);
       socketService.disconnect();
       pendingRequests.clear();
+      _stopRequestRefresh();
     });
   }
 
@@ -225,6 +230,7 @@ class DeliveryProvider extends ChangeNotifier {
     history.clear();
     pendingRequests.clear();
     earningsStats = const {};
+    _stopRequestRefresh();
     notifyListeners();
   }
 
@@ -236,6 +242,35 @@ class DeliveryProvider extends ChangeNotifier {
       pendingRequests.insert(0, order);
       notifyListeners();
     }
+  }
+
+  void _startRequestRefresh() {
+    _requestRefreshTimer?.cancel();
+    _requestRefreshTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
+      if (!online || deliveryPerson == null) return;
+      try {
+        final available = await apiService.fetchAvailableOrders(
+          deliveryPersonId: deliveryPerson!.id,
+          token: authToken,
+        );
+        final currentIds = pendingRequests.map((item) => item.id).toSet();
+        var changed = false;
+        for (final order in available) {
+          if (!currentIds.contains(order.id)) {
+            pendingRequests.insert(0, order);
+            changed = true;
+          }
+        }
+        if (changed) notifyListeners();
+      } catch (_) {
+        // Keep the live socket flow as the primary source; polling is only a fallback.
+      }
+    });
+  }
+
+  void _stopRequestRefresh() {
+    _requestRefreshTimer?.cancel();
+    _requestRefreshTimer = null;
   }
 
   void _handleOrderTaken(dynamic data) {

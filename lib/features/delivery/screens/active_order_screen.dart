@@ -4,6 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/delivery_order_model.dart';
 import '../providers/delivery_provider.dart';
+import 'delivery_home_screen.dart';
+import 'delivery_history_screen.dart';
+import 'delivery_profile_screen.dart';
 
 class ActiveOrderScreen extends StatefulWidget {
   const ActiveOrderScreen({super.key});
@@ -261,6 +264,27 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: _BottomNav(
+        index: 0,
+        onTap: (i) {
+          if (i == 1) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              DeliveryHistoryScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (i == 3) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              DeliveryProfileScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (i == 0) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              DeliveryHomeScreen.routeName,
+              (route) => route.isFirst,
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -386,6 +410,77 @@ class _DashboardCard extends StatelessWidget {
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _BottomNav extends StatelessWidget {
+  const _BottomNav({required this.index, required this.onTap});
+
+  final int index;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      (Icons.grid_view_rounded, 'Home'),
+      (Icons.history_rounded, 'History'),
+      (Icons.account_balance_wallet_rounded, 'Earnings'),
+      (Icons.person_rounded, 'Profile'),
+    ];
+
+    return Container(
+      height: 76,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: items.asMap().entries.map((e) {
+          final i = e.key;
+          final item = e.value;
+          final selected = i == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onTap(i),
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: selected ? const Color(0xFFE8541A) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      item.$1,
+                      size: 22,
+                      color: selected ? Colors.white : const Color(0xFF888888),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.$2,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? const Color(0xFFE8541A) : const Color(0xFF888888),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
