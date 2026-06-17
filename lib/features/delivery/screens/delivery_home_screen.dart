@@ -26,6 +26,7 @@ class DeliveryHomeScreen extends StatefulWidget {
 
 class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   int _navIndex = 0;
+  _MetricRange _range = _MetricRange.today;
 
   @override
   void initState() {
@@ -40,6 +41,9 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
     final canSeeRequests = provider.online && (person?.active ?? false);
+    final stats = provider.earningsStats;
+    final completed = _statForRange(stats, _range, fallback: person?.completedOrders ?? 0);
+    final earnings = _earningsForRange(stats, _range, fallback: person?.todayEarnings ?? 0);
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -146,6 +150,14 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           const SizedBox(height: 16),
 
           // ── Metric cards ──────────────────────────────────────────────
+          _MetricRangeToggle(
+            range: _range,
+            onChanged: (range) => setState(() => _range = range),
+          ),
+          const SizedBox(height: 12),
+          if (provider.loading)
+            const _MetricsSkeleton()
+          else
           Row(
             children: [
               Expanded(
@@ -154,8 +166,8 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                   iconBg: const Color(0xFFFFF0EB),
                   iconColor: _kOrange,
                   label: 'ORDERS COMPLETED',
-                  value: '${person?.completedOrders ?? 0}',
-                  tag: 'Today',
+                  value: '$completed',
+                  tag: _range.label,
                 ),
               ),
               const SizedBox(width: 12),
@@ -165,9 +177,8 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                   iconBg: const Color(0xFFEEF2FF),
                   iconColor: const Color(0xFF6366F1),
                   label: 'EARNINGS EARNED',
-                  value:
-                      '\$${person?.todayEarnings.toStringAsFixed(2) ?? '0.00'}',
-                  tag: 'Today',
+                  value: '₹${earnings.toStringAsFixed(2)}',
+                  tag: _range.label,
                   largeValue: true,
                 ),
               ),
@@ -554,6 +565,128 @@ class _MetricCard extends StatelessWidget {
     );
   }
 }
+
+class _MetricRangeToggle extends StatelessWidget {
+  const _MetricRangeToggle({required this.range, required this.onChanged});
+
+  final _MetricRange range;
+  final ValueChanged<_MetricRange> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _MetricRange.values.map((item) {
+        final selected = item == range;
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(item.label),
+            selected: selected,
+            onSelected: (_) => onChanged(item),
+            labelStyle: TextStyle(
+              color: selected ? Colors.white : _kTextDark,
+              fontWeight: FontWeight.w800,
+            ),
+            selectedColor: _kOrange,
+            backgroundColor: Colors.white,
+            side: BorderSide(color: selected ? _kOrange : const Color(0xFFE5E7EB)),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MetricsSkeleton extends StatelessWidget {
+  const _MetricsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(child: _SkeletonCard()),
+        SizedBox(width: 12),
+        Expanded(child: _SkeletonCard()),
+      ],
+    );
+  }
+}
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ShimmerBar(width: 24),
+            SizedBox(height: 14),
+            _ShimmerBar(width: 80),
+            SizedBox(height: 10),
+            _ShimmerBar(width: 54, height: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerBar extends StatelessWidget {
+  const _ShimmerBar({required this.width, this.height = 14});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5E7EB),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
+  }
+}
+
+enum _MetricRange { today, weekly, monthly }
+
+extension on _MetricRange {
+  String get label => switch (this) {
+        _MetricRange.today => 'Today',
+        _MetricRange.weekly => 'Weekly',
+        _MetricRange.monthly => 'Monthly',
+      };
+}
+
+int _statForRange(Map<String, dynamic> stats, _MetricRange range, {required int fallback}) {
+  final value = switch (range) {
+    _MetricRange.today => stats['completedOrders'] ?? stats['todayCompletedOrders'] ?? fallback,
+    _MetricRange.weekly => stats['weeklyCompletedOrders'] ?? stats['completedOrders'] ?? fallback,
+    _MetricRange.monthly => stats['monthlyCompletedOrders'] ?? stats['completedOrders'] ?? fallback,
+  };
+  return (value as num?)?.toInt() ?? fallback;
+}
+
+double _earningsForRange(Map<String, dynamic> stats, _MetricRange range, {required double fallback}) {
+  final value = switch (range) {
+    _MetricRange.today => stats['today'] ?? stats['todayEarnings'] ?? fallback,
+    _MetricRange.weekly => stats['weekly'] ?? stats['weeklyEarnings'] ?? fallback * 7,
+    _MetricRange.monthly => stats['monthly'] ?? stats['monthlyEarnings'] ?? fallback * 30,
+  };
+  return (value as num?)?.toDouble() ?? fallback;
+}
+
 
 // ─── New Request Card ─────────────────────────────────────────────────────────
 

@@ -27,6 +27,7 @@ class DeliveryProvider extends ChangeNotifier {
   DeliveryOrderModel? activeOrder;
   final List<DeliveryOrderModel> pendingRequests = [];
   final List<DeliveryOrderModel> history = [];
+  Map<String, dynamic> earningsStats = const {};
   bool online = false;
 
   Future<bool> login({
@@ -83,6 +84,22 @@ class DeliveryProvider extends ChangeNotifier {
           deliveryPersonId: deliveryPerson!.id,
           token: authToken,
         ));
+      final earnings = await apiService.fetchEarnings(
+        deliveryPersonId: deliveryPerson!.id,
+        token: authToken,
+      );
+      earningsStats = earnings;
+      deliveryPerson = DeliveryPersonModel(
+        id: deliveryPerson!.id,
+        name: deliveryPerson!.name,
+        phone: deliveryPerson!.phone,
+        vehicleNumber: deliveryPerson!.vehicleNumber,
+        status: deliveryPerson!.status,
+        active: deliveryPerson!.active,
+        completedOrders: (earnings['completedOrders'] as num? ?? history.length).toInt(),
+        todayEarnings: (earnings['today'] as num? ?? 0).toDouble(),
+        avatarUrl: deliveryPerson!.avatarUrl,
+      );
     });
   }
 
@@ -176,6 +193,7 @@ class DeliveryProvider extends ChangeNotifier {
         deliveryPersonId: deliveryPerson!.id,
         token: authToken,
       );
+      await loadDashboard();
       notifyListeners();
       return null;
     } catch (e) {
@@ -206,6 +224,7 @@ class DeliveryProvider extends ChangeNotifier {
     activeOrder = null;
     history.clear();
     pendingRequests.clear();
+    earningsStats = const {};
     notifyListeners();
   }
 

@@ -82,13 +82,14 @@ class OrderModel {
 
 OrderStatus _statusFromJson(String? status) {
   return switch (status) {
-    'accepted' => OrderStatus.accepted,
-    'packed' => OrderStatus.packed,
-    'assigned' => OrderStatus.assigned,
-    'delivery_accepted' => OrderStatus.deliveryAccepted,
-    'picked_up' => OrderStatus.pickedUp,
-    'delivered' => OrderStatus.delivered,
-    'cancelled' => OrderStatus.cancelled,
+    'WAITING_FOR_ACCEPT' || 'placed' => OrderStatus.placed,
+    'ACCEPTED' || 'accepted' => OrderStatus.accepted,
+    'PACKED' || 'packed' => OrderStatus.packed,
+    'ASSIGNED' || 'assigned' => OrderStatus.assigned,
+    'DELIVERY_ACCEPTED' || 'delivery_accepted' => OrderStatus.deliveryAccepted,
+    'PICKED_UP' || 'picked_up' => OrderStatus.pickedUp,
+    'DELIVERED' || 'delivered' => OrderStatus.delivered,
+    'CANCELLED' || 'cancelled' => OrderStatus.cancelled,
     _ => OrderStatus.placed,
   };
 }

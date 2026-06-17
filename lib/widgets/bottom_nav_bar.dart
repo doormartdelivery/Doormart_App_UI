@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/constants.dart';
 import '../providers/app_state.dart';
 import '../views/user/cart_screen.dart';
-import '../views/user/notification_screen.dart';
+import '../views/user/my_orders_screen.dart';
 import '../views/user/wishlist_screen.dart';
 import '../views/user/profile_screen.dart';
 import '../views/user/user_home_screen.dart';
@@ -17,7 +17,7 @@ class BottomNavBar extends StatelessWidget {
   static void navigate(BuildContext context, int index) {
     final routeName = switch (index) {
       0 => UserHomeScreen.routeName,
-      1 => NotificationScreen.routeName,
+      1 => MyOrdersScreen.routeName,
       2 => CartScreen.routeName,
       3 => WishlistScreen.routeName,
       4 => ProfileScreen.routeName,
@@ -70,8 +70,8 @@ class BottomNavBar extends StatelessWidget {
                         onTap: () => onTap(0),
                       ),
                       _NavItem(
-                        icon: Icons.notifications_none_rounded,
-                        label: 'Alerts',
+                        icon: Icons.receipt_long_rounded,
+                        label: 'My Orders',
                         isSelected: index == 1,
                         onTap: () => onTap(1),
                       ),
