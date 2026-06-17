@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/delivery_order_model.dart';
 import '../providers/delivery_provider.dart';
 import 'delivery_home_screen.dart';
+import 'delivery_earnings_screen.dart';
 import 'delivery_profile_screen.dart';
 
 class DeliveryHistoryScreen extends StatefulWidget {
@@ -48,6 +49,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           'Delivery History',
           style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
@@ -65,10 +67,10 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
             ),
             const SizedBox(height: 14),
-            _MonthSelector(
-              value: 'October',
-              onTap: () {},
-            ),
+            // _MonthSelector(
+            //   value: 'October',
+            //   onTap: () {},
+            // ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -144,9 +146,10 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               (route) => route.isFirst,
             );
           } else if (i == 2) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryHomeScreen.routeName,
-              (route) => route.isFirst,
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DeliveryEarningsScreen(),
+              ),
             );
           } else if (i == 3) {
             Navigator.of(context).pushNamedAndRemoveUntil(
@@ -367,30 +370,257 @@ class _HistoryOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showOrderDetails(context, order),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFEDEDED)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  color: const Color(0xFFFFF0EB),
+                  child: const Icon(Icons.local_shipping_rounded, color: Color(0xFFE8541A)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            order.displayOrderId,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ),
+                        _PaymentPill(type: order.paymentType),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      order.customerName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF444444),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_formatDate(_historyDate(order))} • ${order.customerArea}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF777777)),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _MiniInfoChip(
+                          icon: Icons.shopping_bag_rounded,
+                          label: '${order.itemCount} items',
+                        ),
+                        _MiniInfoChip(
+                          icon: Icons.payments_rounded,
+                          label: '₹${order.totalAmount.toStringAsFixed(2)}',
+                        ),
+                        _MiniInfoChip(
+                          icon: Icons.account_balance_wallet_rounded,
+                          label: 'Earned ₹${(order.deliveryEarning ?? 0).toStringAsFixed(2)}',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _showOrderDetails(BuildContext context, DeliveryOrderModel order) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.82,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        builder: (context, controller) {
+          return Container(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF7F7F7),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: ListView(
+              controller: controller,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8D8D8),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  order.displayOrderId,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  order.customerName,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF555555)),
+                ),
+                const SizedBox(height: 16),
+                _DetailTile(
+                  icon: Icons.location_on_rounded,
+                  title: 'Delivered Address',
+                  value: order.customerAddress.isNotEmpty ? order.customerAddress : order.customerArea,
+                ),
+                const SizedBox(height: 12),
+                _DetailTile(
+                  icon: Icons.payments_rounded,
+                  title: 'Amount',
+                  value: '₹${order.totalAmount.toStringAsFixed(2)}',
+                ),
+                const SizedBox(height: 12),
+                _DetailTile(
+                  icon: Icons.calendar_month_rounded,
+                  title: 'Delivered Time',
+                  value: _formatDate(_historyDate(order)),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Items',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                ),
+                const SizedBox(height: 12),
+                ...order.items.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _OrderItemTile(item: item),
+                  ),
+                ),
+                if (order.items.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'No item details available',
+                      style: TextStyle(color: Color(0xFF777777)),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+class _DetailTile extends StatelessWidget {
+  const _DetailTile({required this.icon, required this.title, required this.value});
+
+  final IconData icon;
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFEDEDED)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 56,
-              height: 56,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
               color: const Color(0xFFFFF0EB),
-              child: const Icon(Icons.local_shipping_rounded, color: Color(0xFFE8541A)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: const Color(0xFFE8541A)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF777777))),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderItemTile extends StatelessWidget {
+  const _OrderItemTile({required this.item});
+
+  final DeliveryOrderItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDEDED)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: 54,
+              height: 54,
+              color: const Color(0xFFFFF0EB),
+              child: item.imageUrl.isNotEmpty
+                  ? Image.network(item.imageUrl, fit: BoxFit.cover)
+                  : const Icon(Icons.image_rounded, color: Color(0xFFE8541A)),
             ),
           ),
           const SizedBox(width: 12),
@@ -398,56 +628,16 @@ class _HistoryOrderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        order.displayOrderId,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                    ),
-                    _PaymentPill(type: order.paymentType),
-                  ],
-                ),
+                Text(item.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text(
-                  order.customerName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF444444),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${_formatDate(order.createdAt)} • ${order.customerArea}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF777777)),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _MiniInfoChip(
-                      icon: Icons.shopping_bag_rounded,
-                      label: '${order.itemCount} items',
-                    ),
-                    _MiniInfoChip(
-                      icon: Icons.payments_rounded,
-                      label: '₹${order.totalAmount.toStringAsFixed(2)}',
-                    ),
-                    _MiniInfoChip(
-                      icon: Icons.account_balance_wallet_rounded,
-                      label: 'Earned ₹${(order.deliveryEarning ?? 0).toStringAsFixed(2)}',
-                    ),
-                  ],
-                ),
+                Text('Qty: ${item.quantity}  •  ₹${item.unitPrice.toStringAsFixed(2)} each',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF666666))),
               ],
             ),
+          ),
+          Text(
+            '₹${item.lineTotal.toStringAsFixed(2)}',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFFE8541A)),
           ),
         ],
       ),
@@ -675,7 +865,7 @@ class _BottomNav extends StatelessWidget {
 int _countToday(List<DeliveryOrderModel> orders) {
   final now = DateTime.now();
   return orders.where((order) {
-    final created = order.createdAt;
+    final created = _historyDate(order);
     return created.year == now.year && created.month == now.month && created.day == now.day;
   }).length;
 }
@@ -692,10 +882,10 @@ List<DeliveryOrderModel> _applyFilters(List<DeliveryOrderModel> orders, String q
         ].any((value) => value.toLowerCase().contains(needle));
     final matchesFilter = switch (filter) {
       _HistoryFilter.all => true,
-      _HistoryFilter.today => _isSameDay(order.createdAt, DateTime.now()),
-      _HistoryFilter.yesterday => _isSameDay(order.createdAt, DateTime.now().subtract(const Duration(days: 1))),
-      _HistoryFilter.thisWeek => _isSameWeek(order.createdAt, DateTime.now()),
-      _HistoryFilter.thisMonth => _isSameMonth(order.createdAt, DateTime.now()),
+      _HistoryFilter.today => _isSameDay(_historyDate(order), DateTime.now()),
+      _HistoryFilter.yesterday => _isSameDay(_historyDate(order), DateTime.now().subtract(const Duration(days: 1))),
+      _HistoryFilter.thisWeek => _isSameWeek(_historyDate(order), DateTime.now()),
+      _HistoryFilter.thisMonth => _isSameMonth(_historyDate(order), DateTime.now()),
     };
     return matchesSearch && matchesFilter;
   }).toList();
@@ -708,11 +898,12 @@ Map<String, List<DeliveryOrderModel>> _groupedOrders(List<DeliveryOrderModel> or
   final earlier = <DeliveryOrderModel>[];
 
   for (final order in orders) {
-    if (_isSameDay(order.createdAt, DateTime.now())) {
+    final historyDate = _historyDate(order);
+    if (_isSameDay(historyDate, DateTime.now())) {
       today.add(order);
-    } else if (_isSameDay(order.createdAt, DateTime.now().subtract(const Duration(days: 1)))) {
+    } else if (_isSameDay(historyDate, DateTime.now().subtract(const Duration(days: 1)))) {
       yesterday.add(order);
-    } else if (_isSameWeek(order.createdAt, DateTime.now())) {
+    } else if (_isSameWeek(historyDate, DateTime.now())) {
       thisWeek.add(order);
     } else {
       earlier.add(order);
@@ -768,7 +959,7 @@ extension on _HistoryFilter {
 int _countYesterday(List<DeliveryOrderModel> orders) {
   final yesterday = DateTime.now().subtract(const Duration(days: 1));
   return orders.where((order) {
-    final created = order.createdAt;
+    final created = _historyDate(order);
     return created.year == yesterday.year &&
         created.month == yesterday.month &&
         created.day == yesterday.day;
@@ -778,7 +969,7 @@ int _countYesterday(List<DeliveryOrderModel> orders) {
 List<DeliveryOrderModel> _todayOrders(List<DeliveryOrderModel> orders) {
   final now = DateTime.now();
   return orders.where((order) {
-    final created = order.createdAt;
+    final created = _historyDate(order);
     return created.year == now.year && created.month == now.month && created.day == now.day;
   }).toList();
 }
@@ -786,14 +977,19 @@ List<DeliveryOrderModel> _todayOrders(List<DeliveryOrderModel> orders) {
 List<DeliveryOrderModel> _yesterdayOrders(List<DeliveryOrderModel> orders) {
   final yesterday = DateTime.now().subtract(const Duration(days: 1));
   return orders.where((order) {
-    final created = order.createdAt;
+    final created = _historyDate(order);
     return created.year == yesterday.year &&
         created.month == yesterday.month &&
         created.day == yesterday.day;
   }).toList();
 }
 
+DateTime _historyDate(DeliveryOrderModel order) {
+  return order.deliveredAt ?? order.createdAt;
+}
+
 String _formatDate(DateTime date) {
+  final local = date.toLocal();
   const months = [
     'Jan',
     'Feb',
@@ -808,8 +1004,8 @@ String _formatDate(DateTime date) {
     'Nov',
     'Dec',
   ];
-  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-  final minute = date.minute.toString().padLeft(2, '0');
-  final suffix = date.hour >= 12 ? 'PM' : 'AM';
-  return '${date.day} ${months[date.month - 1]} ${date.year}, $hour:$minute $suffix';
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final suffix = local.hour >= 12 ? 'PM' : 'AM';
+  return '${local.day} ${months[local.month - 1]} ${local.year}, $hour:$minute $suffix';
 }

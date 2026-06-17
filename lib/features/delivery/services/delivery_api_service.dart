@@ -16,10 +16,11 @@ class DeliveryApiService {
       body: {'email': email, 'password': password},
     ) as Map<String, dynamic>;
     final user = response['user'] as Map<String, dynamic>?;
+    final deliveryPerson = response['deliveryPerson'] as Map<String, dynamic>?;
     if (user == null) {
       throw StateError('Invalid login response');
     }
-    return {'user': user, 'token': response['token']};
+    return {'user': user, 'deliveryPerson': deliveryPerson, 'token': response['token']};
   }
 
   Future<DeliveryPersonModel> goOnline(String deliveryPersonId, {String? token}) async {
@@ -38,6 +39,32 @@ class DeliveryApiService {
       token: token,
     ) as Map<String, dynamic>;
     return DeliveryPersonModel.fromJson((response['deliveryPerson'] as Map<String, dynamic>?) ?? response);
+  }
+
+  Future<Map<String, dynamic>> fetchProfile({String? token}) async {
+    final response = await _apiService.get('/delivery/profile', token: token);
+    return response as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? token,
+    String? phone,
+    String? vehicleNumber,
+  }) async {
+    final response = await _apiService.put(
+      '/delivery/profile',
+      token: token,
+      body: {
+        if (phone != null) 'phone': phone,
+        if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
+      },
+    );
+    return response as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchStatusDetails({String? token}) async {
+    final response = await _apiService.get('/delivery/status-details', token: token) as List<dynamic>;
+    return response.whereType<Map<String, dynamic>>().toList();
   }
 
   Future<DeliveryOrderModel?> fetchActiveOrder({required String deliveryPersonId, String? token}) async {

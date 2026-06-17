@@ -55,6 +55,11 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                   children: [
                     Row(
                       children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                          tooltip: 'Back',
+                        ),
                         const Icon(Icons.delivery_dining_rounded, color: Colors.white),
                         const SizedBox(width: 10),
                         Expanded(

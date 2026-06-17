@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/delivery_provider.dart';
 import 'active_order_screen.dart';
 import 'delivery_history_screen.dart';
+import 'delivery_earnings_screen.dart';
 import 'delivery_profile_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -54,16 +55,13 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        leadingWidth: 48,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: Icon(Icons.menu_rounded, color: _kOrange, size: 26),
-        ),
+        leadingWidth: 16,
+        leading: const SizedBox.shrink(),
         title: RichText(
           text: const TextSpan(
             children: [
               TextSpan(
-                text: 'Delivery ',
+                text: 'Door ',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -71,7 +69,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                 ),
               ),
               TextSpan(
-                text: 'Pro',
+                text: 'Mart',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -314,6 +312,13 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           if (i == 1) {
             Navigator.of(context)
                 .pushNamed(DeliveryHistoryScreen.routeName);
+          }
+          if (i == 2) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DeliveryEarningsScreen(),
+              ),
+            );
           }
           if (i == 3) {
             Navigator.of(context)

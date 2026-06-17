@@ -50,6 +50,7 @@ class DeliveryOrderModel {
     this.codAmount,
     this.orderId,
     this.deliveryEarning,
+    this.deliveredAt,
   });
 
   final String id;
@@ -63,6 +64,7 @@ class DeliveryOrderModel {
   final String paymentType;
   final DeliveryOrderStatus status;
   final DateTime createdAt;
+  final DateTime? deliveredAt;
   final double? codAmount;
   final double? deliveryEarning;
 
@@ -96,11 +98,17 @@ class DeliveryOrderModel {
       totalAmount: (json['totalAmount'] as num? ?? json['total'] as num? ?? 0).toDouble(),
       paymentType: json['paymentType'] as String? ?? json['paymentMethod'] as String? ?? json['payment_method'] as String? ?? 'Online',
       status: _statusFromJson(json['status'] as String?),
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
+      createdAt: _parseDate(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
+      deliveredAt: _parseDate(json['deliveredAt'] as String? ?? json['completedAt'] as String? ?? json['deliveryCompletedAt'] as String? ?? ''),
       codAmount: (json['codAmount'] as num?)?.toDouble(),
       deliveryEarning: (json['deliveryEarning'] as num?)?.toDouble(),
     );
   }
+}
+
+DateTime? _parseDate(String value) {
+  if (value.trim().isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
 }
 
 DeliveryOrderStatus _statusFromJson(String? value) {

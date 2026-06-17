@@ -10,12 +10,14 @@ class AppPage extends StatelessWidget {
     required this.children,
     this.actions,
     this.bottomNavIndex,
+    this.leading,
   });
 
   final String title;
   final List<Widget> children;
   final List<Widget>? actions;
   final int? bottomNavIndex;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +27,12 @@ class AppPage extends StatelessWidget {
         : kBottomNavigationBarHeight;
 
     return Scaffold(
-      appBar: AppBar(toolbarHeight: 48, title: Text(title), actions: actions),
+      appBar: AppBar(
+        toolbarHeight: 48,
+        title: Text(title),
+        actions: actions,
+        leading: leading,
+      ),
       body: SafeArea(
         child: ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

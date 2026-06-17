@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/api_service.dart';
 import '../../../core/constants.dart';
@@ -28,8 +29,16 @@ class DeliveryProvider extends ChangeNotifier {
   final List<DeliveryOrderModel> pendingRequests = [];
   final List<DeliveryOrderModel> history = [];
   Map<String, dynamic> earningsStats = const {};
+  List<Map<String, dynamic>> statusDetails = [];
   bool online = false;
   Timer? _requestRefreshTimer;
+  static const _deliveryTokenKey = 'delivery_auth_token';
+  static const _deliveryUserKey = 'delivery_auth_user';
+
+  Future<void> bootstrap() async {
+    final prefs = await SharedPreferences.getInstance();
+    authToken ??= prefs.getString(_deliveryTokenKey);
+  }
 
   Future<bool> login({
     required String email,
@@ -38,6 +47,7 @@ class DeliveryProvider extends ChangeNotifier {
     return _run(() async {
       final response = await apiService.login(email: email, password: password);
       final user = response['user'] as Map<String, dynamic>;
+      final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
       authToken = response['token'] as String?;
       authUser = user;
       final role = (user['role'] as String? ?? '').toLowerCase();
@@ -52,12 +62,14 @@ class DeliveryProvider extends ChangeNotifier {
         id: user['_id'] as String? ?? user['id'] as String? ?? '',
         name: user['name'] as String? ?? 'Delivery Person',
         phone: user['phone'] as String? ?? '',
-        vehicleNumber: user['vehicleNumber'] as String? ?? '',
+        vehicleNumber: delivery?['vehicleNumber'] as String? ?? user['vehicleNumber'] as String? ?? '',
         status: status,
         active: true,
         completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
         todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_deliveryTokenKey, authToken ?? '');
       return true;
     });
   }
@@ -106,6 +118,68 @@ class DeliveryProvider extends ChangeNotifier {
     });
   }
 
+  Future<void> refreshProfile() async {
+    if (authToken == null) return;
+    final response = await apiService.fetchProfile(token: authToken);
+    final user = response['user'] as Map<String, dynamic>?;
+    final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
+    if (user == null) return;
+    authUser = user;
+    deliveryPerson = DeliveryPersonModel(
+      id: user['_id'] as String? ?? user['id'] as String? ?? deliveryPerson?.id ?? '',
+      name: user['name'] as String? ?? deliveryPerson?.name ?? 'Delivery Person',
+      phone: user['phone'] as String? ?? deliveryPerson?.phone ?? '',
+      vehicleNumber: delivery?['vehicleNumber'] as String? ?? deliveryPerson?.vehicleNumber ?? '',
+      status: user['status'] as String? ?? deliveryPerson?.status ?? 'active',
+      active: deliveryPerson?.active ?? true,
+      completedOrders: deliveryPerson?.completedOrders ?? 0,
+      todayEarnings: deliveryPerson?.todayEarnings ?? 0,
+      avatarUrl: deliveryPerson?.avatarUrl,
+    );
+    notifyListeners();
+  }
+
+  Future<String?> updateProfile({
+    String? phone,
+    String? vehicleNumber,
+  }) async {
+    if (deliveryPerson == null) return 'Login required';
+    try {
+      final response = await apiService.updateProfile(
+        token: authToken,
+        phone: phone,
+        vehicleNumber: vehicleNumber,
+      );
+      final user = response['user'] as Map<String, dynamic>?;
+      final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
+      if (user != null) {
+        authUser = user;
+      }
+      deliveryPerson = DeliveryPersonModel(
+        id: user?['_id'] as String? ?? user?['id'] as String? ?? deliveryPerson!.id,
+        name: user?['name'] as String? ?? deliveryPerson!.name,
+        phone: user?['phone'] as String? ?? deliveryPerson!.phone,
+        vehicleNumber: delivery?['vehicleNumber'] as String? ?? deliveryPerson!.vehicleNumber,
+        status: user?['status'] as String? ?? deliveryPerson!.status,
+        active: deliveryPerson!.active,
+        completedOrders: deliveryPerson!.completedOrders,
+        todayEarnings: deliveryPerson!.todayEarnings,
+        avatarUrl: deliveryPerson!.avatarUrl,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<void> loadStatusDetails() async {
+    if (deliveryPerson == null || authToken == null) return;
+    statusDetails = await apiService.fetchStatusDetails(token: authToken);
+    notifyListeners();
+  }
+
   Future<void> goOnline() async {
     if (deliveryPerson == null) return;
     await _run(() async {
@@ -113,7 +187,17 @@ class DeliveryProvider extends ChangeNotifier {
         deliveryPerson!.id,
         token: authToken,
       );
-      deliveryPerson = person;
+      deliveryPerson = DeliveryPersonModel(
+        id: person.id,
+        name: person.name,
+        phone: person.phone,
+        vehicleNumber: person.vehicleNumber,
+        status: person.status,
+        active: person.active,
+        completedOrders: person.completedOrders,
+        todayEarnings: person.todayEarnings,
+        avatarUrl: person.avatarUrl,
+      );
       online = true;
       socketService.connect(
         deliveryPersonId: deliveryPerson!.id,
@@ -141,6 +225,8 @@ class DeliveryProvider extends ChangeNotifier {
       socketService.disconnect();
       pendingRequests.clear();
       _stopRequestRefresh();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_deliveryTokenKey);
     });
   }
 

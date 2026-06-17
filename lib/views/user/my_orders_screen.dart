@@ -16,6 +16,32 @@ class MyOrdersScreen extends StatelessWidget {
     return AppPage(
       title: 'My Orders',
       bottomNavIndex: 1,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: GestureDetector(
+          onTap: () => Navigator.maybePop(context),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.07),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.chevron_left_rounded,
+              size: 26,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+        ),
+      ),
       children: [
         Consumer<AppState>(
           builder: (context, state, _) {
@@ -42,44 +68,84 @@ class MyOrdersScreen extends StatelessWidget {
                   totalSpent: totalSpent,
                 ),
                 const SizedBox(height: 16),
-                if (currentOrders.isNotEmpty) ...[
-                  const Text(
-                    'Current Orders',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...currentOrders
-                      .map(
-                        (order) => Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: _CurrentOrderCard(order: order),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: Column(
+                    key: ValueKey(currentOrders.length),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(title: 'Current Orders', count: currentOrders.length),
+                      const SizedBox(height: 12),
+                      if (currentOrders.isEmpty)
+                        const Text('No active orders right now')
+                      else
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = constraints.maxWidth;
+                            final columns = width >= 1100
+                                ? 2
+                                : width >= 700
+                                    ? 2
+                                    : 1;
+                            final cardWidth = columns == 1 ? width : (width - 14) / 2;
+                            return Wrap(
+                              spacing: 14,
+                              runSpacing: 14,
+                              children: currentOrders
+                                  .map(
+                                    (order) => SizedBox(
+                                      width: cardWidth,
+                                      child: AnimatedSwitcher(
+                                        duration: const Duration(milliseconds: 220),
+                                        child: _CurrentOrderCard(
+                                          key: ValueKey('current-${order.id}-${order.status.name}'),
+                                          order: order,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
                         ),
-                      )
-                      .toList(),
-                  const SizedBox(height: 18),
-                ],
-                const Text(
-                  'Previous Orders',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF111827),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 22),
+                _SectionHeader(title: 'Previous Orders', count: previousOrders.length),
                 const SizedBox(height: 12),
                 if (previousOrders.isEmpty)
                   const Text('No previous orders yet')
                 else
-                  ...previousOrders
-                      .map((order) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _PreviousOrderCard(order: order),
-                          ))
-                      .toList(),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final columns = width >= 1100
+                          ? 2
+                          : width >= 700
+                              ? 2
+                              : 1;
+                      final cardWidth = columns == 1 ? width : (width - 14) / 2;
+                      return Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: previousOrders
+                            .map(
+                              (order) => SizedBox(
+                                width: cardWidth,
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: _PreviousOrderCard(
+                                    key: ValueKey('previous-${order.id}-${order.status.name}'),
+                                    order: order,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
+                  ),
               ],
             );
           },
@@ -98,9 +164,6 @@ bool _isActive(OrderStatus status) {
 }
 
 List<OrderModel> _currentOrdersFrom(List<OrderModel> orders) {
-  final active = orders.where((order) => _isActive(order.status)).toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  if (active.isNotEmpty) return active;
   return orders
       .where((order) => order.status != OrderStatus.delivered && order.status != OrderStatus.cancelled)
       .toList()
@@ -108,7 +171,7 @@ List<OrderModel> _currentOrdersFrom(List<OrderModel> orders) {
 }
 
 class _CurrentOrderCard extends StatelessWidget {
-  const _CurrentOrderCard({required this.order});
+  const _CurrentOrderCard({super.key, required this.order});
 
   final OrderModel order;
 
@@ -275,7 +338,7 @@ class _CurrentOrderCard extends StatelessWidget {
 }
 
 class _PreviousOrderCard extends StatelessWidget {
-  const _PreviousOrderCard({required this.order});
+  const _PreviousOrderCard({super.key, required this.order});
 
   final OrderModel order;
 
@@ -567,12 +630,20 @@ class _StatusTimeline extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      step.title,
-                      style: TextStyle(
-                        color: step.done ? const Color(0xFFE8541A) : const Color(0xFF111827),
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            step.title,
+                            style: TextStyle(
+                              color: step.done ? const Color(0xFFE8541A) : const Color(0xFF111827),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (step.isLive)
+                          const _LiveBadge(),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -593,11 +664,56 @@ class _StatusTimeline extends StatelessWidget {
   }
 }
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF111827),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF0EB),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count',
+            style: const TextStyle(
+              color: Color(0xFFE8541A),
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _TimelineStep {
-  const _TimelineStep({required this.title, required this.subtitle, required this.done});
+  const _TimelineStep({
+    required this.title,
+    required this.subtitle,
+    required this.done,
+    this.isLive = false,
+  });
   final String title;
   final String subtitle;
   final bool done;
+  final bool isLive;
 }
 
 List<_TimelineStep> _timelineFor(OrderStatus status) {
@@ -611,6 +727,7 @@ List<_TimelineStep> _timelineFor(OrderStatus status) {
         status == OrderStatus.deliveryAccepted ||
         status == OrderStatus.pickedUp ||
         status == OrderStatus.delivered,
+    isLive: status != OrderStatus.delivered && status != OrderStatus.cancelled,
   );
   final inTransit = _TimelineStep(
     title: 'In Transit',
@@ -625,6 +742,63 @@ List<_TimelineStep> _timelineFor(OrderStatus status) {
     done: status == OrderStatus.delivered,
   );
   return [placed, processing, inTransit, delivered];
+}
+
+class _LiveBadge extends StatefulWidget {
+  const _LiveBadge();
+
+  @override
+  State<_LiveBadge> createState() => _LiveBadgeState();
+}
+
+class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final scale = 0.95 + (_controller.value * 0.08);
+        final opacity = 0.62 + (_controller.value * 0.38);
+        return Transform.scale(
+          scale: scale,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8541A).withValues(alpha: opacity),
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE8541A).withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: const Text(
+              'LIVE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.7,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _ItemRow extends StatelessWidget {
