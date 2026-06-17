@@ -151,8 +151,8 @@ class _StatusLogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (log['status'] as String? ?? 'offline').toUpperCase();
-    final startedAt = DateTime.tryParse(log['startedAt'] as String? ?? '') ?? DateTime.now();
-    final endedAt = DateTime.tryParse(log['endedAt'] as String? ?? '');
+    final startedAt = _parseLocalDate(log['startedAt'] as String?) ?? DateTime.now();
+    final endedAt = _parseLocalDate(log['endedAt'] as String?);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -199,24 +199,28 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-enum _StatusFilter { all, today, month, year }
+enum _StatusFilter { all, today, yesterday, week, month, year }
 
 extension on _StatusFilter {
   String get label => switch (this) {
-        _StatusFilter.all => 'All',
-        _StatusFilter.today => 'Today',
-        _StatusFilter.month => 'Month',
-        _StatusFilter.year => 'Year',
-      };
+      _StatusFilter.all => 'All',
+      _StatusFilter.today => 'Today',
+      _StatusFilter.yesterday => 'Yesterday',
+      _StatusFilter.week => 'Week',
+      _StatusFilter.month => 'Month',
+      _StatusFilter.year => 'Year',
+    };
 }
 
 bool _matches(Map<String, dynamic> log, _StatusFilter filter) {
   if (filter == _StatusFilter.all) return true;
-  final startedAt = DateTime.tryParse(log['startedAt'] as String? ?? '');
+  final startedAt = _parseLocalDate(log['startedAt'] as String?);
   if (startedAt == null) return false;
   final now = DateTime.now();
   return switch (filter) {
     _StatusFilter.today => startedAt.year == now.year && startedAt.month == now.month && startedAt.day == now.day,
+    _StatusFilter.yesterday => _isSameDay(startedAt, now.subtract(const Duration(days: 1))),
+    _StatusFilter.week => _isSameWeek(startedAt, now),
     _StatusFilter.month => startedAt.year == now.year && startedAt.month == now.month,
     _StatusFilter.year => startedAt.year == now.year,
     _StatusFilter.all => true,
@@ -224,12 +228,34 @@ bool _matches(Map<String, dynamic> log, _StatusFilter filter) {
 }
 
 String _formatDateTime(DateTime d) {
-  final day = d.day.toString().padLeft(2, '0');
-  final month = d.month.toString().padLeft(2, '0');
-  final year = d.year;
-  final hour = d.hour.toString().padLeft(2, '0');
-  final minute = d.minute.toString().padLeft(2, '0');
-  return '$day/$month/$year, $hour:$minute';
+  final local = d.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final year = local.year;
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final suffix = local.hour >= 12 ? 'PM' : 'AM';
+  return '$day/$month/$year, $hour:$minute $suffix';
 }
 
-String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+String _formatDate(DateTime d) {
+  final local = d.toLocal();
+  return '${local.day}/${local.month}/${local.year}';
+}
+
+DateTime? _parseLocalDate(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+bool _isSameWeek(DateTime a, DateTime b) {
+  final aDate = DateTime(a.year, a.month, a.day);
+  final bDate = DateTime(b.year, b.month, b.day);
+  final mondayA = aDate.subtract(Duration(days: aDate.weekday - 1));
+  final mondayB = bDate.subtract(Duration(days: bDate.weekday - 1));
+  return mondayA.year == mondayB.year && mondayA.month == mondayB.month && mondayA.day == mondayB.day;
+}
