@@ -8,6 +8,7 @@ import '../features/routing/shared_routes.dart';
 import '../features/routing/super_admin_routes.dart';
 import '../providers/app_state.dart';
 import '../views/access_denied_screen.dart';
+import '../views/delivery/new_order_request_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
@@ -32,6 +33,13 @@ class AppRoutes {
 
     final state = context.read<AppState>();
     final routeName = settings.name ?? '';
+    if (routeName == NewOrderRequestScreen.routeName) {
+      final orderId = settings.arguments as String? ?? '';
+      return MaterialPageRoute(
+        builder: (_) => NewOrderRequestScreen(orderId: orderId),
+        settings: settings,
+      );
+    }
     if (!state.canAccessRoute(routeName)) {
       return MaterialPageRoute(
         builder: (_) => const AccessDeniedScreen(),

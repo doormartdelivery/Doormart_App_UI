@@ -18,12 +18,15 @@ class NetworkImageUrl {
 
     final isLocalHost =
         uri.host == 'localhost' || uri.host == '127.0.0.1';
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && isLocalHost) {
-      return uri.replace(host: '10.0.2.2').toString();
+    if (isLocalHost) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        return uri.replace(host: '10.0.2.2').toString();
+      }
+      return uri.toString();
     }
 
     if (value.startsWith('/uploads/')) {
-      final baseUri = Uri.parse(ApiConstants.baseUrl);
+      final baseUri = Uri.parse(ApiConstants.publicBaseUrl);
       final origin = baseUri.replace(path: '', query: '', fragment: '');
       return origin.resolve(value).toString();
     }

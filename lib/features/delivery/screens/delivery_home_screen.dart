@@ -32,9 +32,14 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<DeliveryProvider>().loadDashboard(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = context.read<DeliveryProvider>();
+      await provider.loadDashboard();
+      if (!mounted) return;
+      if (!provider.online && provider.deliveryPerson != null) {
+        await provider.goOnline();
+      }
+    });
   }
 
   @override

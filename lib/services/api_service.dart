@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/constants.dart';
@@ -72,6 +72,9 @@ class ApiService {
     String? token,
     Map<String, String>? fields,
   }) async {
+    if (kIsWeb) {
+      throw UnsupportedError('Image upload is not supported on web.');
+    }
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl$path'),

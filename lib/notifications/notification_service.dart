@@ -1,7 +1,2 @@
-class NotificationService {
-  Future<void> sendPush({
-    required String userId,
-    required String title,
-    required String body,
-  }) async {}
-}
+export 'notification_service_stub.dart'
+    if (dart.library.io) 'notification_service_io.dart';

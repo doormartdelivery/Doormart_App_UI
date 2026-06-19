@@ -19,13 +19,13 @@ class DeliveryLoginScreen extends StatefulWidget {
 
 class _DeliveryLoginScreenState extends State<DeliveryLoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _identifier = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
 
   @override
   void dispose() {
-    _email.dispose();
+    _identifier.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -46,10 +46,10 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen> {
                 Text('Delivery Login', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 28),
                 TextFormField(
-                  controller: _email,
-                  decoration: const InputDecoration(labelText: 'Email address'),
+                  controller: _identifier,
+                  decoration: const InputDecoration(labelText: 'Email or phone'),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) => (value == null || value.isEmpty) ? 'Enter email address' : null,
+                  validator: (value) => (value == null || value.isEmpty) ? 'Enter email or phone' : null,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
@@ -76,7 +76,12 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen> {
     setState(() => _loading = true);
     final provider = context.read<DeliveryProvider>();
     try {
-      await provider.login(email: _email.text.trim(), password: _password.text.trim());
+      final value = _identifier.text.trim();
+      await provider.login(
+        email: value.contains('@') ? value : null,
+        phone: value.contains('@') ? null : value,
+        password: _password.text.trim(),
+      );
       if (!mounted) return;
       final appState = context.read<AppState>();
       final authUser = provider.authUser;

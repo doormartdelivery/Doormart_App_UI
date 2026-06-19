@@ -365,7 +365,7 @@ class _HomeHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Delivery in 20 minutes',
+                        'Door Mart',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 16,

@@ -8,12 +8,17 @@ class DeliveryApiService {
   final ApiService _apiService;
 
   Future<Map<String, dynamic>> login({
-    required String email,
+    String? email,
+    String? phone,
     required String password,
   }) async {
     final response = await _apiService.post(
-      '/auth/login',
-      body: {'email': email, 'password': password},
+      '/delivery/login',
+      body: {
+        if (email != null) 'email': email,
+        if (phone != null) 'phone': phone,
+        'password': password,
+      },
     ) as Map<String, dynamic>;
     final user = response['user'] as Map<String, dynamic>?;
     final deliveryPerson = response['deliveryPerson'] as Map<String, dynamic>?;

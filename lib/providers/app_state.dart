@@ -10,6 +10,7 @@ import '../models/category_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
+import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 
@@ -36,6 +37,7 @@ class AppState extends ChangeNotifier {
 
   final ApiService apiService;
   final SocketService socketService;
+  final FirebaseMessagingService _messagingService = FirebaseMessagingService();
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
 
@@ -62,22 +64,33 @@ class AppState extends ChangeNotifier {
   bool get signedIn => token != null;
 
   Future<void> bootstrap() async {
-    final prefs = await SharedPreferences.getInstance();
-    token = prefs.getString(_tokenKey);
-    final storedUser = prefs.getString(_userKey);
-    if (storedUser != null && storedUser.isNotEmpty) {
-      user = UserModel.fromStorage(storedUser);
-    }
-    await Future.wait([loadProducts(), loadCategories(), loadBanners(), _restoreSession()]);
-    if (token != null) {
-      await loadFavorites();
-      _connectSocket();
-      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
-        await loadAdminOrders();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      token = prefs.getString(_tokenKey);
+      final storedUser = prefs.getString(_userKey);
+      if (storedUser != null && storedUser.isNotEmpty) {
+        user = UserModel.fromStorage(storedUser);
       }
+      await Future.wait([
+        loadProducts(),
+        loadCategories(),
+        loadBanners(),
+        _restoreSession(),
+      ]);
+      if (token != null) {
+        await loadFavorites();
+        _connectSocket();
+        await _syncDeliveryToken();
+        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+          await loadAdminOrders();
+        }
+      }
+    } catch (error) {
+      debugPrint('App bootstrap continued after recoverable error: $error');
+    } finally {
+      initialized = true;
+      notifyListeners();
     }
-    initialized = true;
-    notifyListeners();
   }
 
   Future<void> loginWithPassword({
@@ -106,6 +119,7 @@ class AppState extends ChangeNotifier {
       await loadAddresses();
       await loadFavorites();
       _connectSocket();
+      await _syncDeliveryToken();
       if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
         await loadAdminOrders();
       }
@@ -170,6 +184,7 @@ class AppState extends ChangeNotifier {
     await _persistSession();
     notifyListeners();
     _connectSocket();
+    await _syncDeliveryToken();
 
     if ((addressLine1 ?? '').isNotEmpty &&
         (city ?? '').isNotEmpty &&
@@ -213,6 +228,11 @@ class AppState extends ChangeNotifier {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
     notifyListeners();
+  }
+
+  Future<void> _syncDeliveryToken() async {
+    if (user?.role != UserRoles.deliveryPerson || token == null) return;
+    await _messagingService.registerTokenSync(authToken: token!);
   }
 
   bool isFavorite(ProductModel product) =>
@@ -264,12 +284,16 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadCategories() async {
-    final data = await apiService.get('/categories') as List<dynamic>;
-    categoryCatalog = data
-        .cast<Map<String, dynamic>>()
-        .map(CategoryModel.fromJson)
-        .toList();
-    notifyListeners();
+    try {
+      final data = await apiService.get('/categories') as List<dynamic>;
+      categoryCatalog = data
+          .cast<Map<String, dynamic>>()
+          .map(CategoryModel.fromJson)
+          .toList();
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Category load skipped: $error');
+    }
   }
 
   Future<void> loadBanners() async {

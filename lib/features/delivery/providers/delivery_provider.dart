@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/api_service.dart';
 import '../../../core/constants.dart';
+import '../../../notifications/firebase_messaging_service.dart';
 import '../models/delivery_order_model.dart';
 import '../models/delivery_person_model.dart';
 import '../services/delivery_api_service.dart';
@@ -19,6 +20,7 @@ class DeliveryProvider extends ChangeNotifier {
 
   final DeliveryApiService apiService;
   final DeliverySocketService socketService;
+  final FirebaseMessagingService _messagingService = FirebaseMessagingService();
 
   bool loading = false;
   String? error;
@@ -41,11 +43,16 @@ class DeliveryProvider extends ChangeNotifier {
   }
 
   Future<bool> login({
-    required String email,
+    String? email,
+    String? phone,
     required String password,
   }) async {
     return _run(() async {
-      final response = await apiService.login(email: email, password: password);
+      final response = await apiService.login(
+        email: email,
+        phone: phone,
+        password: password,
+      );
       final user = response['user'] as Map<String, dynamic>;
       final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
       authToken = response['token'] as String?;
@@ -70,6 +77,9 @@ class DeliveryProvider extends ChangeNotifier {
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_deliveryTokenKey, authToken ?? '');
+      if (authToken != null && authToken!.isNotEmpty) {
+        await _messagingService.registerTokenSync(authToken: authToken!);
+      }
       return true;
     });
   }
@@ -208,6 +218,9 @@ class DeliveryProvider extends ChangeNotifier {
         onOrderPickedUp: _handleOrderPickedUp,
         onOrderDelivered: _handleOrderDelivered,
       );
+      if (authToken != null && authToken!.isNotEmpty) {
+        await _messagingService.registerTokenSync(authToken: authToken!);
+      }
       await loadDashboard();
       _startRequestRefresh();
     });

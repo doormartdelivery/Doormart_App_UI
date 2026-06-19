@@ -1,0 +1,111 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import 'notification_payload.dart';
+
+class NotificationService {
+  NotificationService._();
+
+  static final NotificationService instance = NotificationService._();
+
+  static const String channelId = 'delivery_orders_v2';
+  static const String channelName = 'Delivery Order Alerts';
+  static const String channelDescription = 'Alerts for new delivery requests';
+  static const String soundName = 'new_order';
+
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+
+  bool _initialized = false;
+  void Function(NotificationPayload payload)? _onTap;
+
+  Future<void> initialize({
+    required void Function(NotificationPayload payload) onTap,
+  }) async {
+    if (_initialized) {
+      _onTap = onTap;
+      return;
+    }
+
+    _onTap = onTap;
+
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidInit);
+
+    await _plugin.initialize(
+      settings: initSettings,
+      onDidReceiveNotificationResponse: _handleResponse,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
+
+    final androidImplementation = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImplementation?.requestNotificationsPermission();
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        channelId,
+        channelName,
+        description: channelDescription,
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(soundName),
+      ),
+    );
+
+    _initialized = true;
+  }
+
+  Future<void> showDeliveryRequest({
+    required String orderId,
+    required String title,
+    required String body,
+  }) async {
+    final payload = NotificationPayload(
+      orderId: orderId,
+      title: title,
+      body: body,
+    );
+
+    const androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound(soundName),
+      category: AndroidNotificationCategory.message,
+      visibility: NotificationVisibility.public,
+      enableVibration: true,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+
+    await _plugin.show(
+      id: orderId.hashCode,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: jsonEncode(payload.toMap()),
+    );
+  }
+
+  Future<void> handleNotificationTap(String? payload) async {
+    if (payload == null || payload.isEmpty) return;
+    final data = jsonDecode(payload);
+    if (data is Map<String, dynamic>) {
+      _onTap?.call(NotificationPayload.fromMap(data));
+    }
+  }
+
+  void _handleResponse(NotificationResponse response) {
+    unawaited(handleNotificationTap(response.payload));
+  }
+}
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) {
+  // Background tap callback required by flutter_local_notifications.
+}
