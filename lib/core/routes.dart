@@ -23,6 +23,15 @@ class AppRoutes {
     BuildContext context,
     RouteSettings settings,
   ) {
+    final routeName = settings.name ?? '';
+    if (routeName == NewOrderRequestScreen.routeName) {
+      final orderId = settings.arguments as String? ?? '';
+      return MaterialPageRoute(
+        builder: (_) => NewOrderRequestScreen(orderId: orderId),
+        settings: settings,
+      );
+    }
+
     final builder = routes[settings.name];
     if (builder == null) {
       return MaterialPageRoute(
@@ -32,14 +41,6 @@ class AppRoutes {
     }
 
     final state = context.read<AppState>();
-    final routeName = settings.name ?? '';
-    if (routeName == NewOrderRequestScreen.routeName) {
-      final orderId = settings.arguments as String? ?? '';
-      return MaterialPageRoute(
-        builder: (_) => NewOrderRequestScreen(orderId: orderId),
-        settings: settings,
-      );
-    }
     if (!state.canAccessRoute(routeName)) {
       return MaterialPageRoute(
         builder: (_) => const AccessDeniedScreen(),

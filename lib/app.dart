@@ -8,6 +8,7 @@ import 'notifications/firebase_messaging_service.dart';
 import 'notifications/notification_payload.dart';
 import 'providers/app_state.dart';
 import 'features/delivery/providers/delivery_provider.dart';
+import 'features/delivery/screens/delivery_home_screen.dart';
 import 'views/user/splash_screen.dart';
 import 'views/select_role_screen.dart';
 
@@ -24,6 +25,7 @@ class DoormartDeliveryApp extends StatefulWidget {
 class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
   final FirebaseMessagingService _messagingService = FirebaseMessagingService();
   bool _notificationReady = false;
+  NotificationPayload? _pendingNotification;
 
   @override
   void initState() {
@@ -31,15 +33,32 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _notificationReady) return;
       await _messagingService.initialize(
-        onTap: (NotificationPayload payload) async {
-          DoormartDeliveryApp.navigatorKey.currentState?.pushNamed(
-            '/delivery/new-order-request',
-            arguments: payload.orderId,
-          );
-        },
+        onTap: _handleNotificationTap,
       );
       _notificationReady = true;
+      _flushPendingNotification();
     });
+  }
+
+  Future<void> _handleNotificationTap(NotificationPayload payload) async {
+    if (DoormartDeliveryApp.navigatorKey.currentState == null) {
+      _pendingNotification = payload;
+      return;
+    }
+    DoormartDeliveryApp.navigatorKey.currentState!.pushNamedAndRemoveUntil(
+      DeliveryHomeScreen.routeName,
+      (route) => route.isFirst,
+    );
+  }
+
+  void _flushPendingNotification() {
+    final payload = _pendingNotification;
+    if (payload == null) return;
+    _pendingNotification = null;
+    DoormartDeliveryApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      DeliveryHomeScreen.routeName,
+      (route) => route.isFirst,
+    );
   }
 
   @override

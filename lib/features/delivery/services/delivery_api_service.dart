@@ -111,6 +111,17 @@ class DeliveryApiService {
         .toList();
   }
 
+  Future<Map<String, dynamic>> fetchOrderById({
+    required String orderId,
+    String? token,
+  }) async {
+    final response = await _apiService.get(
+      '/delivery/orders/$orderId',
+      token: token,
+    );
+    return response as Map<String, dynamic>;
+  }
+
   Future<DeliveryOrderModel> acceptOrder({
     required String orderId,
     required String deliveryPersonId,
