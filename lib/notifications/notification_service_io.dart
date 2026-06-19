@@ -10,7 +10,7 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  static const String channelId = 'delivery_orders_v3';
+  static const String channelId = 'delivery_orders_v4';
   static const String channelName = 'Delivery Order Alerts';
   static const String channelDescription = 'Alerts for new delivery requests';
   static const String soundName = 'new_order';
@@ -48,6 +48,9 @@ class NotificationService {
     );
     await androidImplementation?.deleteNotificationChannel(
       channelId: 'delivery_orders_v1',
+    );
+    await androidImplementation?.deleteNotificationChannel(
+      channelId: 'delivery_orders_v3',
     );
     await androidImplementation?.createNotificationChannel(
       const AndroidNotificationChannel(

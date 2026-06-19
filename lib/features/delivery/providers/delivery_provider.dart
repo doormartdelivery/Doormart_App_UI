@@ -311,7 +311,7 @@ class DeliveryProvider extends ChangeNotifier {
       activeOrder = await apiService.markDelivered(
         orderId: activeOrder!.id,
         deliveryPersonId: deliveryPerson!.id,
-        otp: otp,
+        otp: otp.trim(),
         token: authToken,
       );
       await loadDashboard();

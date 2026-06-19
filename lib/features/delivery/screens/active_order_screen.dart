@@ -17,6 +17,15 @@ class ActiveOrderScreen extends StatefulWidget {
 }
 
 class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
+  final TextEditingController _otpController = TextEditingController();
+  String? _otpError;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DeliveryProvider>();
@@ -30,6 +39,8 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
 
     final status = _statusLabel(order.status);
     final isCod = order.isCod;
+    final otpMatches = _otpController.text.trim().isNotEmpty &&
+        _otpController.text.trim() == (order.deliveryOtp ?? '');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
@@ -177,6 +188,61 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if ((order.deliveryOtp ?? '').isNotEmpty) ...[
+                              const Text(
+                                'Delivery OTP',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                order.deliveryOtp!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 22,
+                                  letterSpacing: 4,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _otpController,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  hintText: 'Enter OTP to unlock delivery',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white.withValues(alpha: 0.08),
+                                  errorText: _otpError,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: const BorderSide(color: Color(0xFFFFA142)),
+                                  ),
+                                ),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _otpError = null;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             Row(
                               children: [
                                 Container(
@@ -249,13 +315,22 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               subtitle: 'Complete the delivery flow',
                               accent: const Color(0xFFE8541A),
                               isPrimary: true,
-                              onTap: () async {
-                                final message = await provider.markDelivered('');
-                                if (!context.mounted) return;
-                                if (message != null && message.isNotEmpty) {
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(SnackBar(content: Text(message)));
-                                }
+                              onTap: otpMatches
+                                  ? () async {
+                                      final message = await provider.markDelivered(_otpController.text);
+                                      if (!context.mounted) return;
+                                      if (message != null && message.isNotEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(content: Text(message)));
+                                      }
+                                    }
+                                  : null,
+                              disabled: (order.deliveryOtp ?? '').isNotEmpty && !otpMatches,
+                              disabledLabel: 'Enter valid OTP to deliver',
+                              onDisabledTap: () {
+                                setState(() {
+                                  _otpError = 'OTP does not match';
+                                });
                               },
                             ),
                           ],
@@ -708,6 +783,9 @@ class _ActionTile extends StatelessWidget {
     required this.accent,
     required this.onTap,
     this.isPrimary = false,
+    this.disabled = false,
+    this.disabledLabel,
+    this.onDisabledTap,
   });
 
   final IconData icon;
@@ -716,13 +794,16 @@ class _ActionTile extends StatelessWidget {
   final Color accent;
   final VoidCallback? onTap;
   final bool isPrimary;
+  final bool disabled;
+  final String? disabledLabel;
+  final VoidCallback? onDisabledTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: disabled ? onDisabledTap : onTap,
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -745,13 +826,15 @@ class _ActionTile extends StatelessWidget {
             border: Border.all(
               color: isPrimary ? accent.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: isPrimary ? 0.34 : 0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: disabled
+                ? []
+                : [
+                    BoxShadow(
+                      color: accent.withValues(alpha: isPrimary ? 0.34 : 0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
           ),
           child: Row(
             children: [
@@ -771,7 +854,7 @@ class _ActionTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      disabled && disabledLabel != null ? disabledLabel! : title,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -792,7 +875,7 @@ class _ActionTile extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Icon(
-                Icons.arrow_forward_rounded,
+                disabled ? Icons.lock_rounded : Icons.arrow_forward_rounded,
                 color: Colors.white.withValues(alpha: 0.85),
               ),
             ],

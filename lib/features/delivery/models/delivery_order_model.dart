@@ -51,6 +51,7 @@ class DeliveryOrderModel {
     this.orderId,
     this.deliveryEarning,
     this.deliveredAt,
+    this.deliveryOtp,
   });
 
   final String id;
@@ -67,6 +68,7 @@ class DeliveryOrderModel {
   final DateTime? deliveredAt;
   final double? codAmount;
   final double? deliveryEarning;
+  final String? deliveryOtp;
 
   int get itemCount => items.fold<int>(0, (sum, item) => sum + item.quantity);
   bool get isCod => paymentType.toLowerCase() == 'cod';
@@ -112,6 +114,7 @@ class DeliveryOrderModel {
       deliveredAt: _parseDate(json['deliveredAt'] as String? ?? json['completedAt'] as String? ?? json['deliveryCompletedAt'] as String? ?? ''),
       codAmount: (json['codAmount'] as num?)?.toDouble(),
       deliveryEarning: (json['deliveryEarning'] as num?)?.toDouble(),
+      deliveryOtp: json['deliveryOtp'] as String?,
     );
   }
 }

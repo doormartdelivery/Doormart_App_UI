@@ -231,6 +231,37 @@ class _CurrentOrderCard extends StatelessWidget {
             _info('Address', order.address.isEmpty ? '—' : order.address),
             if (order.deliveryPersonName != null)
               _info('Delivery partner', order.deliveryPersonName!),
+            if ((order.deliveryOtp ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'OTP',
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        order.deliveryOtp!,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Color(0xFFE8541A),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _info('Total', '₹${order.total.toStringAsFixed(2)}'),
             const SizedBox(height: 14),
             const Text(
@@ -397,6 +428,37 @@ class _PreviousOrderCard extends StatelessWidget {
             _info('Address', order.address.isEmpty ? '—' : order.address),
             if (order.deliveryPersonName != null)
               _info('Delivery partner', order.deliveryPersonName!),
+            if ((order.deliveryOtp ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Delivery OTP',
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        order.deliveryOtp!,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Color(0xFFE8541A),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 20,
+                          letterSpacing: 3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _info('Total', '₹${order.total.toStringAsFixed(2)}'),
             const SizedBox(height: 14),
             const Text(

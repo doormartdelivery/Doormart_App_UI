@@ -23,6 +23,7 @@ class OrderModel {
     this.deliveryPersonId,
     this.deliveryPersonName,
     this.deliveryAcceptedAt,
+    this.deliveryOtp,
   });
 
   final String id;
@@ -35,6 +36,7 @@ class OrderModel {
   final String? deliveryPersonId;
   final String? deliveryPersonName;
   final DateTime? deliveryAcceptedAt;
+  final String? deliveryOtp;
 
   String get displayOrderId {
     final source = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
@@ -88,6 +90,7 @@ class OrderModel {
       deliveryPersonName: deliveryPersonMap?['name'] as String?,
       deliveryAcceptedAt:
           DateTime.tryParse(json['deliveryAcceptedAt'] as String? ?? ''),
+      deliveryOtp: json['deliveryOtp'] as String?,
     );
   }
 }
