@@ -738,7 +738,7 @@ class _RouteCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        '#${order.id.length > 6 ? order.id.substring(0, 6) : order.id}',
+                        order.displayOrderId,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF16231F),

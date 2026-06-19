@@ -206,7 +206,7 @@ class _CurrentOrderCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    'ORDER #${order.id.substring(order.id.length - 5).toUpperCase()}',
+                                          'ORDER #${order.displayOrderId}',
                     style: const TextStyle(
                       color: Color(0xFFE8541A),
                       fontWeight: FontWeight.w900,
@@ -372,7 +372,7 @@ class _PreviousOrderCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    'ORDER #${order.id.substring(order.id.length - 5).toUpperCase()}',
+                    'ORDER #${order.displayOrderId}',
                     style: const TextStyle(
                       color: Color(0xFF6B7280),
                       fontWeight: FontWeight.w900,

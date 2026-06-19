@@ -88,7 +88,7 @@ class _NewOrderRequestScreenState extends State<NewOrderRequestScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Order #${order.id}'),
+                Text('Order #${order.displayOrderId}'),
                 const SizedBox(height: 8),
                 Text('Amount ₹${order.totalAmount.toStringAsFixed(0)}'),
                 const SizedBox(height: 24),

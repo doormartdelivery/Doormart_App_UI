@@ -36,6 +36,18 @@ class OrderModel {
   final String? deliveryPersonName;
   final DateTime? deliveryAcceptedAt;
 
+  String get displayOrderId {
+    final source = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+    if (source.isEmpty) return 'DMD-000-000';
+
+    final tail = source.length >= 6
+        ? source.substring(source.length - 6)
+        : source.padLeft(6, '0');
+    final first = tail.substring(0, 3);
+    final second = tail.substring(3, 6);
+    return 'DMD-$first-$second';
+  }
+
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final productsJson = (json['products'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();

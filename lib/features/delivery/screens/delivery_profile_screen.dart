@@ -36,6 +36,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
       final provider = context.read<DeliveryProvider>();
       await provider.bootstrap();
       await provider.refreshProfile();
+      await provider.loadStatusDetails();
     });
   }
 
@@ -89,6 +90,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
     final earnings = provider.earningsStats;
     final totalEarnings = (earnings['total'] as num?)?.toDouble() ?? person?.todayEarnings ?? 0;
     final completedOrders = (earnings['completedOrders'] as num?)?.toInt() ?? person?.completedOrders ?? 0;
+    final activeSince = _activeSinceLabel(provider.statusDetails);
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -111,7 +113,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
                   // ── Shift status card ──────────────────────────────────
                   _ShiftStatusCard(
                     online: provider.online,
-                    activeSince: '8:00 AM',
+                    activeSince: activeSince,
                   ),
 
                   const SizedBox(height: 16),
@@ -168,6 +170,25 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
       ),
     );
   }
+}
+
+String _activeSinceLabel(List<Map<String, dynamic>> logs) {
+  final onlineLog = logs
+      .where((log) => (log['status']?.toString().toLowerCase() ?? '') == 'online')
+      .where((log) => log['startedAt'] != null)
+      .toList();
+  if (onlineLog.isEmpty) {
+    return 'Just now';
+  }
+  final latest = onlineLog.first;
+  final startedAt = DateTime.tryParse(latest['startedAt'].toString())?.toLocal();
+  if (startedAt == null) {
+    return 'Just now';
+  }
+  final hour = startedAt.hour % 12 == 0 ? 12 : startedAt.hour % 12;
+  final minute = startedAt.minute.toString().padLeft(2, '0');
+  final period = startedAt.hour >= 12 ? 'PM' : 'AM';
+  return '$hour:$minute $period';
 }
 
 // ─── App Bar ──────────────────────────────────────────────────────────────────

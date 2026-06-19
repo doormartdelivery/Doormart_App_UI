@@ -35,10 +35,6 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<DeliveryProvider>();
       await provider.loadDashboard();
-      if (!mounted) return;
-      if (!provider.online && provider.deliveryPerson != null) {
-        await provider.goOnline();
-      }
     });
   }
 
@@ -224,19 +220,19 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                     ),
                   ),
                 const Spacer(),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    foregroundColor: _kOrange,
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'View All',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
+                // TextButton(
+                //   onPressed: () {},
+                //   style: TextButton.styleFrom(
+                //     foregroundColor: _kOrange,
+                //     padding: EdgeInsets.zero,
+                //     minimumSize: Size.zero,
+                //     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                //   ),
+                //   child: const Text(
+                //     'View All',
+                //     style: TextStyle(fontWeight: FontWeight.w700),
+                //   ),
+                // ),
               ],
             ),
 
@@ -254,7 +250,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
               )
             else
               SizedBox(
-                height: 320,
+                height: 350,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: provider.pendingRequests.length,

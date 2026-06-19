@@ -70,7 +70,17 @@ class DeliveryOrderModel {
 
   int get itemCount => items.fold<int>(0, (sum, item) => sum + item.quantity);
   bool get isCod => paymentType.toLowerCase() == 'cod';
-  String get displayOrderId => orderId ?? id;
+  String get displayOrderId {
+    final source = (orderId ?? id).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+    if (source.isEmpty) return 'DMD-000-000';
+
+    final tail = source.length >= 6
+        ? source.substring(source.length - 6)
+        : source.padLeft(6, '0');
+    final first = tail.substring(0, 3);
+    final second = tail.substring(3, 6);
+    return 'DMD-$first-$second';
+  }
 
   factory DeliveryOrderModel.fromJson(Map<String, dynamic> json) {
     final itemsJson = (json['items'] as List<dynamic>? ?? json['products'] as List<dynamic>? ?? [])
