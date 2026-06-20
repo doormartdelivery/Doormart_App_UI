@@ -172,10 +172,12 @@ class _ProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = NetworkImageUrl.normalize(product.imageUrl);
+    debugPrint('Cloudinary Image URL (product card): $path');
     if (path.startsWith('assets/')) {
       return Image.asset(
         path,
         fit: BoxFit.cover,
+        gaplessPlayback: true,
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (_, _, _) =>
@@ -186,8 +188,13 @@ class _ProductImage extends StatelessWidget {
       return Image.network(
         path,
         fit: BoxFit.cover,
+        gaplessPlayback: true,
         width: double.infinity,
         height: double.infinity,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        },
         errorBuilder: (_, _, _) =>
             _fallbackProductImage(product),
       );
@@ -217,6 +224,7 @@ Widget _fallbackProductImage(ProductModel product) {
   return Image.asset(
     asset,
     fit: BoxFit.cover,
+    gaplessPlayback: true,
     width: double.infinity,
     height: double.infinity,
     errorBuilder: (_, _, _) => _fallbackIcon(product.category),

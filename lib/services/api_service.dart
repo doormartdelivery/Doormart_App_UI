@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -9,13 +10,20 @@ class ApiService {
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? AppConstants.apiBaseUrl;
 
   final String baseUrl;
+  static const Duration _requestTimeout = Duration(seconds: 15);
 
   Future<dynamic> get(String path, {String? token}) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(token),
-    );
-    return _decode(response);
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(token),
+          )
+          .timeout(_requestTimeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please check the backend URL.', 408);
+    }
   }
 
   Future<dynamic> post(
@@ -23,12 +31,18 @@ class ApiService {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(token),
-      body: jsonEncode(body ?? {}),
-    );
-    return _decode(response);
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(token),
+            body: jsonEncode(body ?? {}),
+          )
+          .timeout(_requestTimeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please check the backend URL.', 408);
+    }
   }
 
   Future<dynamic> patch(
@@ -36,12 +50,18 @@ class ApiService {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(token),
-      body: jsonEncode(body ?? {}),
-    );
-    return _decode(response);
+    try {
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(token),
+            body: jsonEncode(body ?? {}),
+          )
+          .timeout(_requestTimeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please check the backend URL.', 408);
+    }
   }
 
   Future<dynamic> put(
@@ -49,20 +69,32 @@ class ApiService {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(token),
-      body: jsonEncode(body ?? {}),
-    );
-    return _decode(response);
+    try {
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(token),
+            body: jsonEncode(body ?? {}),
+          )
+          .timeout(_requestTimeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please check the backend URL.', 408);
+    }
   }
 
   Future<dynamic> delete(String path, {String? token}) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl$path'),
-      headers: _headers(token),
-    );
-    return _decode(response);
+    try {
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers(token),
+          )
+          .timeout(_requestTimeout);
+      return _decode(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please check the backend URL.', 408);
+    }
   }
 
   Future<dynamic> uploadImage(

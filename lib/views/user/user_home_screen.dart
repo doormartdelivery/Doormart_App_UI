@@ -724,10 +724,10 @@ class _BannerImage extends StatelessWidget {
     final normalized = NetworkImageUrl.normalize(path);
     Widget img;
     if (normalized.startsWith('http')) {
-      img = Image.network(normalized, fit: BoxFit.cover,
+      img = Image.network(normalized, fit: BoxFit.cover, gaplessPlayback: true,
           errorBuilder: (_, __, ___) => _BannerFallback(title: title));
     } else {
-      img = Image.asset(normalized, fit: BoxFit.cover,
+      img = Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true,
           errorBuilder: (_, __, ___) => _BannerFallback(title: title));
     }
     return img;
@@ -766,8 +766,17 @@ class _BannerFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Icon(_bannerIconFor(title), size: 80, color: Colors.white70),
+    final lower = title.toLowerCase();
+    final asset = lower.contains('dairy')
+        ? 'assets/images/banners/coupon_basket.png'
+        : 'assets/images/banners/grocery_bag.png';
+    return Image.asset(
+      asset,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => Center(
+        child: Icon(_bannerIconFor(title), size: 80, color: Colors.white70),
+      ),
     );
   }
 }
@@ -987,11 +996,13 @@ class _CategoryImage extends StatelessWidget {
     if (normalized.startsWith('assets/')) {
       return Image.asset(normalized,
           fit: BoxFit.cover,
+          gaplessPlayback: true,
           errorBuilder: (_, __, ___) => const _CategoryFallback());
     }
     if (normalized.startsWith('http')) {
       return Image.network(normalized,
           fit: BoxFit.cover,
+          gaplessPlayback: true,
           errorBuilder: (_, __, ___) => const _CategoryFallback());
     }
     return const _CategoryFallback();
@@ -1002,8 +1013,13 @@ class _CategoryFallback extends StatelessWidget {
   const _CategoryFallback();
 
   @override
-  Widget build(BuildContext context) => const Center(
-        child: Icon(Icons.category_rounded, size: 34, color: _kGreen),
+  Widget build(BuildContext context) => Image.asset(
+        'assets/images/categories/vegetables.png',
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const Center(
+          child: Icon(Icons.category_rounded, size: 34, color: _kGreen),
+        ),
       );
 }
 
@@ -1369,20 +1385,38 @@ class _HomeFeedImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
+    debugPrint('Cloudinary Image URL (home feed): $normalized');
     if (normalized.startsWith('assets/')) {
       return SizedBox.expand(
-        child: Image.asset(normalized, fit: BoxFit.cover),
+        child: Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true),
       );
     }
     if (normalized.startsWith('http')) {
       return SizedBox.expand(
-        child: Image.network(normalized, fit: BoxFit.cover),
+        child: Image.network(
+          normalized,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          },
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Image Load Error (home feed): $error');
+            return const Center(
+              child: Icon(Icons.broken_image_outlined, color: Color(0xFF64748B)),
+            );
+          },
+        ),
       );
     }
-    return const ColoredBox(
-      color: Color(0xFFF1F5F9),
-      child: Center(
-        child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF64748B)),
+    return SizedBox.expand(
+      child: Image.asset(
+        imageUrl.toLowerCase().contains('banner')
+            ? 'assets/images/banners/grocery_bag.png'
+            : 'assets/images/products/tomato.png',
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
       ),
     );
   }

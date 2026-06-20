@@ -273,9 +273,9 @@ class AppState extends ChangeNotifier {
         if (category != null && category != 'All') 'category=$category',
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
-      final data =
-          await apiService.get('/products${query.isEmpty ? '' : '?$query'}')
-              as List<dynamic>;
+      final data = await apiService
+              .get('/products${query.isEmpty ? '' : '?$query'}')
+              .timeout(const Duration(seconds: 8)) as List<dynamic>;
       products = data
           .cast<Map<String, dynamic>>()
           .map(ProductModel.fromJson)
@@ -285,7 +285,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> loadCategories() async {
     try {
-      final data = await apiService.get('/categories') as List<dynamic>;
+      final data = await apiService
+          .get('/categories')
+          .timeout(const Duration(seconds: 8)) as List<dynamic>;
       categoryCatalog = data
           .cast<Map<String, dynamic>>()
           .map(CategoryModel.fromJson)
@@ -297,13 +299,19 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadBanners() async {
-    final data = await apiService.get('/banners') as List<dynamic>;
-    banners = data
-        .cast<Map<String, dynamic>>()
-        .where((item) => item['active'] != false)
-        .map(BannerModel.fromJson)
-        .toList();
-    notifyListeners();
+    try {
+      final data = await apiService
+          .get('/banners')
+          .timeout(const Duration(seconds: 8)) as List<dynamic>;
+      banners = data
+          .cast<Map<String, dynamic>>()
+          .where((item) => item['active'] != false)
+          .map(BannerModel.fromJson)
+          .toList();
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Banner load skipped: $error');
+    }
   }
 
   Future<void> createCategory({

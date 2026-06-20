@@ -21,7 +21,7 @@ class SocketService {
     _socket = io.io(
       AppConstants.socketUrl,
       io.OptionBuilder()
-          .setTransports(['websocket'])
+          .setTransports(['polling', 'websocket'])
           .enableAutoConnect()
           .enableReconnection()
           .setAuth({'token': token})
@@ -29,6 +29,14 @@ class SocketService {
     );
 
     _socket?.onConnect((_) {});
+    _socket?.onConnectError((error) {
+      // ignore: avoid_print
+      print('[socket] connect error: $error');
+    });
+    _socket?.onError((error) {
+      // ignore: avoid_print
+      print('[socket] socket error: $error');
+    });
     if (onOrderCreated != null) {
       _socket?.on('order_created', onOrderCreated);
       _socket?.on('new_order_request', onOrderCreated);

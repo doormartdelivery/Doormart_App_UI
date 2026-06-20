@@ -84,6 +84,13 @@ class DeliveryOrderModel {
     return 'DMD-$first-$second';
   }
 
+  String get deliveryOtpDisplay {
+    if ((deliveryOtp ?? '').isNotEmpty) return deliveryOtp!;
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    final tail = digits.length >= 6 ? digits.substring(digits.length - 6) : digits.padLeft(6, '0');
+    return tail;
+  }
+
   factory DeliveryOrderModel.fromJson(Map<String, dynamic> json) {
     final itemsJson = (json['items'] as List<dynamic>? ?? json['products'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()

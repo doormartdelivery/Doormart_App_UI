@@ -290,12 +290,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          if (provider.activeOrder == null)
-            const _EmptyState(
-              icon: Icons.local_shipping_outlined,
-              message: 'No active order yet',
-            )
-          else
+          if (provider.activeOrder != null)
             GestureDetector(
               onTap: () => Navigator.of(context)
                   .pushNamed(ActiveOrderScreen.routeName),

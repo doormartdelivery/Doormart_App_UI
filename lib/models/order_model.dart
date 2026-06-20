@@ -50,6 +50,15 @@ class OrderModel {
     return 'DMD-$first-$second';
   }
 
+  String get deliveryOtpDisplay {
+    if ((deliveryOtp ?? '').isNotEmpty) return deliveryOtp!;
+    return id.replaceAll(RegExp(r'[^0-9]'), '').substring(
+      id.replaceAll(RegExp(r'[^0-9]'), '').length >= 6
+          ? id.replaceAll(RegExp(r'[^0-9]'), '').length - 6
+          : 0,
+    ).padLeft(6, '0');
+  }
+
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final productsJson = (json['products'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();

@@ -57,17 +57,7 @@ class ProductCategoryScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Center(
-                              child: NetworkImageUrl.normalize(category.imageUrl).startsWith('assets/')
-                                  ? Image.asset(NetworkImageUrl.normalize(category.imageUrl), fit: BoxFit.contain)
-                                  : NetworkImageUrl.normalize(category.imageUrl).startsWith('http')
-                                      ? Image.network(
-                                          NetworkImageUrl.normalize(category.imageUrl),
-                                          fit: BoxFit.contain,
-                                        )
-                                      : const Icon(
-                                          Icons.category,
-                                          size: 44,
-                                        ),
+                              child: _CategoryImage(imageUrl: category.imageUrl),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -97,5 +87,56 @@ class ProductCategoryScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _CategoryImage extends StatelessWidget {
+  const _CategoryImage({required this.imageUrl});
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(imageUrl);
+    debugPrint('Cloudinary Image URL: $normalized');
+
+    if (normalized.isEmpty) {
+      return const Icon(Icons.category, size: 44);
+    }
+
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(
+        normalized,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Image Load Error (asset): $error');
+          return const Icon(Icons.broken_image, size: 44);
+        },
+      );
+    }
+
+    if (normalized.startsWith('http')) {
+      return Image.network(
+        normalized.trim(),
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Image Load Error: $error');
+          debugPrint('Image URL Failed: $normalized');
+          return const Icon(Icons.broken_image, size: 44);
+        },
+      );
+    }
+
+    debugPrint('Malformed image URL: $normalized');
+    return const Icon(Icons.broken_image, size: 44);
   }
 }

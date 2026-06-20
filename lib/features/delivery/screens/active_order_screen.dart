@@ -19,6 +19,7 @@ class ActiveOrderScreen extends StatefulWidget {
 class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   final TextEditingController _otpController = TextEditingController();
   String? _otpError;
+  bool _otpVerified = false;
 
   @override
   void dispose() {
@@ -26,21 +27,109 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     super.dispose();
   }
 
+  void _verifyOtp(DeliveryOrderModel order) {
+    final entered = _otpController.text.trim();
+    if (entered.isEmpty) {
+      setState(() {
+        _otpVerified = false;
+        _otpError = 'Enter OTP first';
+      });
+      return;
+    }
+
+    final expected = order.deliveryOtpDisplay;
+    if (entered == expected) {
+      setState(() {
+        _otpVerified = true;
+        _otpError = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('OTP matched successfully')),
+      );
+      return;
+    }
+
+    setState(() {
+      _otpVerified = false;
+      _otpError = 'OTP does not match';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('OTP does not match')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DeliveryProvider>();
     final order = provider.activeOrder;
     if (order == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Color(0xFFF6F7FB),
-        body: Center(child: Text('No active order')),
+        body: SafeArea(
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+                border: Border.all(color: const Color(0xFFF0F2F5)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0EB),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Icon(
+                      Icons.inbox_rounded,
+                      size: 44,
+                      color: Color(0xFFE8541A),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'There is no active orders',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'New delivery requests will appear here once assigned.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
 
     final status = _statusLabel(order.status);
     final isCod = order.isCod;
-    final otpMatches = _otpController.text.trim().isNotEmpty &&
-        _otpController.text.trim() == (order.deliveryOtp ?? '');
+    final otpMatches = _otpVerified &&
+        _otpController.text.trim() == order.deliveryOtpDisplay;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
@@ -188,61 +277,61 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if ((order.deliveryOtp ?? '').isNotEmpty) ...[
-                              const Text(
-                                'Delivery OTP',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _otpController,
+                              keyboardType: TextInputType.number,
+                              maxLength: 6,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                counterText: '',
+                                hintText: 'Enter OTP to unlock delivery',
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white.withValues(alpha: 0.08),
+                                errorText: _otpError,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: Color(0xFFFFA142)),
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                order.deliveryOtp!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 22,
-                                  letterSpacing: 4,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              TextField(
-                                controller: _otpController,
-                                keyboardType: TextInputType.number,
-                                maxLength: 6,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  counterText: '',
-                                  hintText: 'Enter OTP to unlock delivery',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.45),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white.withValues(alpha: 0.08),
-                                  errorText: _otpError,
-                                  border: OutlineInputBorder(
+                              onChanged: (value) {
+                                setState(() {
+                                  _otpError = null;
+                                  _otpVerified = false;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 2),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: () => _verifyOtp(order),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: Color(0xFFFFA142)),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: const BorderSide(color: Color(0xFFFFA142)),
                                   ),
                                 ),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _otpError = null;
-                                  });
-                                },
+                                child: const Text(
+                                  'Verify OTP',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
                               ),
-                              const SizedBox(height: 10),
-                            ],
+                            ),
+                            const SizedBox(height: 10),
                             Row(
                               children: [
                                 Container(
@@ -323,10 +412,12 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(SnackBar(content: Text(message)));
                                       }
-                                    }
+                                  }
                                   : null,
-                              disabled: (order.deliveryOtp ?? '').isNotEmpty && !otpMatches,
-                              disabledLabel: 'Enter valid OTP to deliver',
+                              disabled: !otpMatches,
+                              disabledLabel: _otpVerified
+                                  ? 'Ready to deliver'
+                                  : 'Verify OTP first',
                               onDisabledTap: () {
                                 setState(() {
                                   _otpError = 'OTP does not match';

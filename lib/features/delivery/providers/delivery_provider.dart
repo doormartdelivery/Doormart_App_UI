@@ -38,8 +38,12 @@ class DeliveryProvider extends ChangeNotifier {
   static const _deliveryUserKey = 'delivery_auth_user';
 
   Future<void> bootstrap() async {
-    final prefs = await SharedPreferences.getInstance();
-    authToken ??= prefs.getString(_deliveryTokenKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      authToken ??= prefs.getString(_deliveryTokenKey);
+    } catch (e) {
+      debugPrint('Delivery bootstrap skipped: $e');
+    }
   }
 
   Future<bool> login({
@@ -47,85 +51,100 @@ class DeliveryProvider extends ChangeNotifier {
     String? phone,
     required String password,
   }) async {
-    return _run(() async {
-      final response = await apiService.login(
+    final response = await _run(() async {
+      return apiService.login(
         email: email,
         phone: phone,
         password: password,
       );
-      final user = response['user'] as Map<String, dynamic>;
-      final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
-      authToken = response['token'] as String?;
-      authUser = user;
-      final role = (user['role'] as String? ?? '').toLowerCase();
-      final status = (user['status'] as String? ?? '').toLowerCase();
-      if (role != UserRoles.deliveryPerson) {
-        throw StateError('Access denied: not a delivery person.');
-      }
-      if (status != 'active') {
-        throw StateError('Access denied: delivery person is inactive.');
-      }
-      deliveryPerson = DeliveryPersonModel(
-        id: user['_id'] as String? ?? user['id'] as String? ?? '',
-        name: user['name'] as String? ?? 'Delivery Person',
-        phone: user['phone'] as String? ?? '',
-        vehicleNumber: delivery?['vehicleNumber'] as String? ?? user['vehicleNumber'] as String? ?? '',
-        status: status,
-        active: true,
-        completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
-        todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
-      );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_deliveryTokenKey, authToken ?? '');
-      if (authToken != null && authToken!.isNotEmpty) {
-        await _messagingService.registerTokenSync(authToken: authToken!);
-      }
-      return true;
     });
+
+    final user = response['user'] as Map<String, dynamic>;
+    final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
+    authToken = response['token'] as String?;
+    authUser = user;
+    final role = (user['role'] as String? ?? '').toLowerCase();
+    final status = (user['status'] as String? ?? '').toLowerCase();
+    if (role != UserRoles.deliveryPerson) {
+      throw StateError('Access denied: not a delivery person.');
+    }
+    if (status != 'active') {
+      throw StateError('Access denied: delivery person is inactive.');
+    }
+    deliveryPerson = DeliveryPersonModel(
+      id: user['_id'] as String? ?? user['id'] as String? ?? '',
+      name: user['name'] as String? ?? 'Delivery Person',
+      phone: user['phone'] as String? ?? '',
+      vehicleNumber: delivery?['vehicleNumber'] as String? ?? user['vehicleNumber'] as String? ?? '',
+      status: status,
+      active: true,
+      completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
+      todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_deliveryTokenKey, authToken ?? '');
+    if (authToken != null && authToken!.isNotEmpty) {
+      unawaited(_messagingService.registerTokenSync(authToken: authToken!));
+    }
+    return true;
   }
 
   Future<void> loadDashboard() async {
     if (deliveryPerson == null) return;
-    await _run(() async {
-      final available = await apiService.fetchAvailableOrders(
-        deliveryPersonId: deliveryPerson!.id,
-        token: authToken,
-      );
-      pendingRequests
-        ..clear()
-        ..addAll(available);
-      final fetchedActive = await apiService.fetchActiveOrder(
-        deliveryPersonId: deliveryPerson!.id,
-        token: authToken,
-      );
-      if (fetchedActive != null) {
-        activeOrder = _forceAccepted(fetchedActive);
-      }
-      history
-        ..clear()
-        ..addAll(await apiService.fetchHistory(
-          deliveryPersonId: deliveryPerson!.id,
-          token: authToken,
-        ));
-      final earnings = await apiService.fetchEarnings(
-        deliveryPersonId: deliveryPerson!.id,
-        token: authToken,
-      );
-      earningsStats = earnings;
-      final totalEarnings = (earnings['total'] as num?)?.toDouble() ??
-          history.fold<double>(0, (sum, order) => sum + (order.deliveryEarning ?? 45));
-      deliveryPerson = DeliveryPersonModel(
-        id: deliveryPerson!.id,
-        name: deliveryPerson!.name,
-        phone: deliveryPerson!.phone,
-        vehicleNumber: deliveryPerson!.vehicleNumber,
-        status: deliveryPerson!.status,
-        active: deliveryPerson!.active,
-        completedOrders: (earnings['completedOrders'] as num? ?? history.length).toInt(),
-        todayEarnings: totalEarnings,
-        avatarUrl: deliveryPerson!.avatarUrl,
-      );
-    });
+    try {
+      await _run(() async {
+        final available = await apiService
+            .fetchAvailableOrders(
+              deliveryPersonId: deliveryPerson!.id,
+              token: authToken,
+            )
+            .timeout(const Duration(seconds: 8));
+        pendingRequests
+          ..clear()
+          ..addAll(available);
+        final fetchedActive = await apiService
+            .fetchActiveOrder(
+              deliveryPersonId: deliveryPerson!.id,
+              token: authToken,
+            )
+            .timeout(const Duration(seconds: 8));
+        if (fetchedActive != null) {
+          activeOrder = _forceAccepted(fetchedActive);
+        }
+        history
+          ..clear()
+          ..addAll(
+            await apiService
+                .fetchHistory(
+                  deliveryPersonId: deliveryPerson!.id,
+                  token: authToken,
+                )
+                .timeout(const Duration(seconds: 8)),
+          );
+        final earnings = await apiService
+            .fetchEarnings(
+              deliveryPersonId: deliveryPerson!.id,
+              token: authToken,
+            )
+            .timeout(const Duration(seconds: 8));
+        earningsStats = earnings;
+        final totalEarnings = (earnings['total'] as num?)?.toDouble() ??
+            history.fold<double>(0, (sum, order) => sum + (order.deliveryEarning ?? 45));
+        deliveryPerson = DeliveryPersonModel(
+          id: deliveryPerson!.id,
+          name: deliveryPerson!.name,
+          phone: deliveryPerson!.phone,
+          vehicleNumber: deliveryPerson!.vehicleNumber,
+          status: deliveryPerson!.status,
+          active: deliveryPerson!.active,
+          completedOrders: (earnings['completedOrders'] as num? ?? history.length).toInt(),
+          todayEarnings: totalEarnings,
+          avatarUrl: deliveryPerson!.avatarUrl,
+        );
+      });
+    } catch (e) {
+      debugPrint('Delivery dashboard load skipped: $e');
+    }
   }
 
   Future<void> refreshProfile() async {
@@ -219,7 +238,7 @@ class DeliveryProvider extends ChangeNotifier {
         onOrderDelivered: _handleOrderDelivered,
       );
       if (authToken != null && authToken!.isNotEmpty) {
-        await _messagingService.registerTokenSync(authToken: authToken!);
+        unawaited(_messagingService.registerTokenSync(authToken: authToken!));
       }
       await loadDashboard();
       _startRequestRefresh();
