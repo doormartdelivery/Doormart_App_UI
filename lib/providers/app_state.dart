@@ -953,23 +953,31 @@ class AppState extends ChangeNotifier {
     if (token == null || socketService.connected) return;
     socketService.connect(
       token: token,
+      userId: user?.id,
       onOrderCreated: (_) async {
+        debugPrint('Socket order created event received; reloading orders.');
         await loadOrders();
         await loadAdminOrders();
       },
       onOrderAccepted: (_) async {
+        debugPrint('Socket order accepted event received; reloading orders.');
         await loadOrders();
         await loadAdminOrders();
       },
       onOrderPickedUp: (_) async {
+        debugPrint('Socket order picked up event received; reloading orders.');
         await loadOrders();
         await loadAdminOrders();
       },
       onOrderDelivered: (_) async {
+        debugPrint('Socket order delivered event received; reloading orders.');
         await loadOrders();
         await loadAdminOrders();
       },
     );
+    if (user?.id.isNotEmpty == true) {
+      debugPrint('Socket connecting for user room: user:${user!.id}');
+    }
   }
 
   Future<void> loadCart() async {

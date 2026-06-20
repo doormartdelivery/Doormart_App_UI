@@ -9,6 +9,7 @@ class SocketService {
 
   void connect({
     String? token,
+    String? userId,
     void Function(dynamic data)? onOrderCreated,
     void Function(dynamic data)? onOrderAccepted,
     void Function(dynamic data)? onOrderPickedUp,
@@ -28,7 +29,11 @@ class SocketService {
           .build(),
     );
 
-    _socket?.onConnect((_) {});
+    _socket?.onConnect((_) {
+      if (userId != null && userId.isNotEmpty) {
+        _socket?.emit('join_room', {'room': 'user:$userId'});
+      }
+    });
     _socket?.onConnectError((error) {
       // ignore: avoid_print
       print('[socket] connect error: $error');
@@ -44,6 +49,7 @@ class SocketService {
     if (onOrderAccepted != null) {
       _socket?.on('order_assigned', onOrderAccepted);
       _socket?.on('order:accepted', onOrderAccepted);
+      _socket?.on('order:assigned', onOrderAccepted);
     }
     if (onOrderPickedUp != null) {
       _socket?.on('order_picked_up', onOrderPickedUp);
