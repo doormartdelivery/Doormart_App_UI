@@ -7,6 +7,7 @@ import '../providers/delivery_provider.dart';
 import 'delivery_home_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_profile_screen.dart';
+import '../../../widgets/toast_widget.dart';
 
 class ActiveOrderScreen extends StatefulWidget {
   const ActiveOrderScreen({super.key});
@@ -20,6 +21,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   final TextEditingController _otpController = TextEditingController();
   String? _otpError;
   bool _otpVerified = false;
+  bool _markingDelivered = false;
 
   @override
   void dispose() {
@@ -128,6 +130,14 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
 
     final status = _statusLabel(order.status);
     final isCod = order.isCod;
+    final canEnterOtp = order.status == DeliveryOrderStatus.pickedUp ||
+        order.status == DeliveryOrderStatus.outForDelivery ||
+        order.status == DeliveryOrderStatus.delivered;
+    final pickupFlowColor = order.status == DeliveryOrderStatus.pickedUp ||
+            order.status == DeliveryOrderStatus.outForDelivery ||
+            order.status == DeliveryOrderStatus.delivered
+        ? const Color(0xFFE8541A)
+        : const Color(0xFFD1D5DB);
     final otpMatches = _otpVerified &&
         _otpController.text.trim() == order.deliveryOtpDisplay;
 
@@ -280,12 +290,15 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             const SizedBox(height: 4),
                             TextField(
                               controller: _otpController,
+                              enabled: canEnterOtp,
                               keyboardType: TextInputType.number,
                               maxLength: 6,
                               style: const TextStyle(color: Colors.white),
                               decoration: InputDecoration(
                                 counterText: '',
-                                hintText: 'Enter OTP to unlock delivery',
+                                hintText: canEnterOtp
+                                    ? 'Enter OTP to unlock delivery'
+                                    : 'OTP unlocks after pickup',
                                 hintStyle: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.45),
                                 ),
@@ -306,6 +319,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                 ),
                               ),
                               onChanged: (value) {
+                                if (!canEnterOtp) return;
                                 setState(() {
                                   _otpError = null;
                                   _otpVerified = false;
@@ -316,7 +330,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () => _verifyOtp(order),
+                                onPressed: canEnterOtp ? () => _verifyOtp(order) : null,
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   side: const BorderSide(color: Color(0xFFFFA142)),
@@ -338,13 +352,23 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                   width: 42,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE8541A).withValues(alpha: 0.18),
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [Color(0xFFFF8A3D), Color(0xFFE8541A)],
+                                    ),
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: const Color(0x66E8541A)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFE8541A).withValues(alpha: 0.25),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
                                   ),
                                   child: const Icon(
                                     Icons.bolt_rounded,
-                                    color: Color(0xFFFF8A3D),
+                                    color: Colors.white,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -366,6 +390,30 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                           color: Colors.white.withValues(alpha: 0.68),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Flow',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                     ],
@@ -397,6 +445,9 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               accent: const Color(0xFFFFB366),
                               onTap: provider.markPickedUp,
                             ),
+                            const SizedBox(height: 6),
+                            _PickupToOtpArrow(color: pickupFlowColor),
+                            const SizedBox(height: 6),
                             const SizedBox(height: 10),
                             _ActionTile(
                               icon: Icons.local_shipping_rounded,
@@ -404,18 +455,25 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               subtitle: 'Complete the delivery flow',
                               accent: const Color(0xFFE8541A),
                               isPrimary: true,
-                              onTap: otpMatches
+                              onTap: otpMatches && !_markingDelivered
                                   ? () async {
+                                      setState(() => _markingDelivered = true);
                                       final message = await provider.markDelivered(_otpController.text);
                                       if (!context.mounted) return;
-                                      if (message != null && message.isNotEmpty) {
+                                      setState(() => _markingDelivered = false);
+                                      if (message == null) {
+                                        showToast(context, 'Order delivered successfully');
+                                      } else if (message.isNotEmpty) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(SnackBar(content: Text(message)));
                                       }
-                                  }
+                                    }
                                   : null,
                               disabled: !otpMatches,
-                              disabledLabel: _otpVerified
+                              loading: _markingDelivered,
+                              disabledLabel: _markingDelivered
+                                  ? 'Delivering...'
+                                  : _otpVerified
                                   ? 'Ready to deliver'
                                   : 'Verify OTP first',
                               onDisabledTap: () {
@@ -542,6 +600,53 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   Future<void> _call(String phone) async {
     final uri = Uri.parse('tel:$phone');
     await launchUrl(uri);
+  }
+}
+
+class _PickupToOtpArrow extends StatelessWidget {
+  const _PickupToOtpArrow({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: color,
+              thickness: 2,
+              height: 0,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: 0.45)),
+            ),
+            child: Icon(
+              Icons.arrow_downward_rounded,
+              color: color,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Divider(
+              color: color,
+              thickness: 2,
+              height: 0,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -877,6 +982,7 @@ class _ActionTile extends StatelessWidget {
     this.disabled = false,
     this.disabledLabel,
     this.onDisabledTap,
+    this.loading = false,
   });
 
   final IconData icon;
@@ -888,6 +994,7 @@ class _ActionTile extends StatelessWidget {
   final bool disabled;
   final String? disabledLabel;
   final VoidCallback? onDisabledTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -927,21 +1034,50 @@ class _ActionTile extends StatelessWidget {
                     ),
                   ],
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                    ),
+                    child: loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(11),
+                            child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Stack(
+                        children: [
+                          Center(child: Icon(icon, color: Colors.white, size: 22)),
+                          Positioned(
+                            right: 3,
+                            bottom: 3,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.22),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                 ),
-                child: Icon(icon, color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -965,9 +1101,23 @@ class _ActionTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(
-                disabled ? Icons.lock_rounded : Icons.arrow_forward_rounded,
-                color: Colors.white.withValues(alpha: 0.85),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                ),
+                child: Icon(
+                  loading
+                      ? Icons.hourglass_top_rounded
+                      : disabled
+                          ? Icons.lock_rounded
+                          : Icons.arrow_forward_rounded,
+                  color: Colors.white.withValues(alpha: 0.92),
+                  size: 16,
+                ),
               ),
             ],
           ),

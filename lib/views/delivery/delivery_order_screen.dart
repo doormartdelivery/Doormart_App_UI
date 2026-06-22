@@ -5,6 +5,7 @@ import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../../widgets/order_status_widget.dart';
+import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 
 class DeliveryOrderScreen extends StatefulWidget {
@@ -41,6 +42,9 @@ class _DeliveryOrderScreenState extends State<DeliveryOrderScreen> {
     try {
       final updated = await action(context.read<AppState>(), order.id);
       if (!mounted) return;
+      if (successMessage == 'marked as delivered') {
+        showToast(context, 'Order #${_shortId(updated.id)} delivered successfully');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Order #${_shortId(updated.id)} $successMessage'),

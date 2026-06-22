@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app.dart';
 import '../core/constants.dart';
 import '../core/role_access.dart';
 import '../core/utils/network_image_url.dart';
@@ -13,6 +14,7 @@ import '../models/user_model.dart';
 import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../widgets/toast_widget.dart';
 
 class CartLine {
   CartLine({required this.product, this.quantity = 1});
@@ -973,6 +975,8 @@ class AppState extends ChangeNotifier {
         debugPrint('Socket order delivered event received; reloading orders.');
         await loadOrders();
         await loadAdminOrders();
+        final navContext = DoormartDeliveryApp.navigatorKey.currentContext;
+        if (navContext != null) showToast(navContext, 'Order delivered successfully');
       },
     );
     if (user?.id.isNotEmpty == true) {
