@@ -281,20 +281,30 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           const SizedBox(height: 24),
 
           // ── Active Order ──────────────────────────────────────────────
-          const Text(
-            'Active Order',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: _kTextDark,
-            ),
-          ),
-          const SizedBox(height: 12),
           if (provider.activeOrder != null)
-            GestureDetector(
-              onTap: () => Navigator.of(context)
-                  .pushNamed(ActiveOrderScreen.routeName),
-              child: _ActiveOrderCard(order: provider.activeOrder!),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Active Order',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _kTextDark,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => Navigator.of(context)
+                      .pushNamed(ActiveOrderScreen.routeName),
+                  child: _ActiveOrderCard(order: provider.activeOrder!),
+                ),
+              ],
+            )
+          else
+            const _EmptyState(
+              icon: Icons.inbox_rounded,
+              message: 'There is no active order right now',
             ),
           const SizedBox(height: 24),
         ],
@@ -1446,8 +1456,11 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(icon, size: 40, color: const Color(0xFFDDDDDD)),
           const SizedBox(height: 10),
-          Text(message,
-              style: const TextStyle(color: _kTextMid, fontSize: 13)),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _kTextMid, fontSize: 13),
+          ),
         ],
       ),
     );

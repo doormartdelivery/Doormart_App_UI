@@ -26,7 +26,14 @@ class _DeliveryStatusDetailsScreenState extends State<DeliveryStatusDetailsScree
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DeliveryProvider>();
-    final logs = provider.statusDetails.where((log) => _matches(log, _filter)).toList();
+    final allLogs = provider.statusDetails.where((log) => _matches(log, _filter)).toList()
+      ..sort((a, b) {
+        final aStarted = _parseLocalDate(a['startedAt'] as String?) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bStarted = _parseLocalDate(b['startedAt'] as String?) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bStarted.compareTo(aStarted);
+      });
+    final activeLog = allLogs.where(_isActiveLog).toList();
+    final completedLogs = allLogs.where((log) => !_isActiveLog(log)).toList();
     final online = provider.online;
 
     return Scaffold(
@@ -47,12 +54,18 @@ class _DeliveryStatusDetailsScreenState extends State<DeliveryStatusDetailsScree
             onChanged: (filter) => setState(() => _filter = filter),
           ),
           const SizedBox(height: 16),
-          if (logs.isEmpty)
-            const _EmptyState()
-          else
-            ...logs.map(
-              (log) => _StatusLogCard(log: log),
-            ),
+          if (activeLog.isNotEmpty) ...[
+            const _SectionTitle(title: 'In Progress'),
+            const SizedBox(height: 10),
+            ...activeLog.map((log) => _StatusLogCard(log: log)),
+            const SizedBox(height: 14),
+          ],
+          if (completedLogs.isNotEmpty) ...[
+            const _SectionTitle(title: 'Completed'),
+            const SizedBox(height: 10),
+            ...completedLogs.map((log) => _StatusLogCard(log: log)),
+          ] else if (activeLog.isEmpty)
+            const _EmptyState(),
         ],
       ),
     );
@@ -153,6 +166,7 @@ class _StatusLogCard extends StatelessWidget {
     final status = (log['status'] as String? ?? 'offline').toUpperCase();
     final startedAt = _parseLocalDate(log['startedAt'] as String?) ?? DateTime.now();
     final endedAt = _parseLocalDate(log['endedAt'] as String?);
+    final active = endedAt == null;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -175,13 +189,31 @@ class _StatusLogCard extends StatelessWidget {
                 child: Text(status, style: const TextStyle(color: Color(0xFFE8541A), fontWeight: FontWeight.w800)),
               ),
               const Spacer(),
-              Text(_formatDate(startedAt), style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(active ? 'IN PROGRESS' : 'ENDED', style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 10),
           Text('Started: ${_formatDateTime(startedAt)}'),
-          Text('Ended: ${endedAt == null ? 'In progress' : _formatDateTime(endedAt)}'),
+          Text('Ended: ${active ? 'In progress' : _formatDateTime(endedAt!)}'),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        color: Color(0xFF111827),
       ),
     );
   }
@@ -225,6 +257,11 @@ bool _matches(Map<String, dynamic> log, _StatusFilter filter) {
     _StatusFilter.year => startedAt.year == now.year,
     _StatusFilter.all => true,
   };
+}
+
+bool _isActiveLog(Map<String, dynamic> log) {
+  return (log['status'] as String? ?? '').toLowerCase() == 'online' &&
+      (log['endedAt'] == null || log['endedAt'].toString().trim().isEmpty);
 }
 
 String _formatDateTime(DateTime d) {

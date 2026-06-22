@@ -176,6 +176,7 @@ String _activeSinceLabel(List<Map<String, dynamic>> logs) {
   final onlineLog = logs
       .where((log) => (log['status']?.toString().toLowerCase() ?? '') == 'online')
       .where((log) => log['startedAt'] != null)
+      .where((log) => log['endedAt'] == null || log['endedAt'].toString().trim().isEmpty)
       .toList();
   if (onlineLog.isEmpty) {
     return 'Just now';
