@@ -33,8 +33,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late final AnimationController _animationController;
-  late Future<List<OrderModel>> _ordersFuture;
-  int _sortColumnIndex = 1;
+  int _sortColumnIndex = 6;
   bool _sortAscending = false;
   String _query = '';
 
@@ -45,15 +44,18 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..forward();
-    _ordersFuture = _loadOrders();
+    context.read<AppState>().loadAdminOrders();
+    _startPolling();
   }
 
-  Future<List<OrderModel>> _loadOrders() {
-    final state = context.read<AppState>();
-    if (state.adminOrders.isNotEmpty) {
-      return Future.value(state.adminOrders);
-    }
-    return state.allOrdersForRole(UserRoles.admin);
+  void _startPolling() {
+    Future.doWhile(() async {
+      if (!mounted) return false;
+      await Future.delayed(const Duration(seconds: 4));
+      if (!mounted) return false;
+      await context.read<AppState>().loadAdminOrders();
+      return true;
+    });
   }
 
   @override
@@ -65,9 +67,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
 
   Future<void> _moveOrder(OrderModel order, String status) async {
     await context.read<AppState>().updateOrderStatus(order.id, status);
-    setState(() {
-      _ordersFuture = _loadOrders();
-    });
+    await context.read<AppState>().loadAdminOrders();
   }
 
   void _sortBy(int columnIndex) {
@@ -93,6 +93,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
         3 => _statusLabel(a.status).compareTo(_statusLabel(b.status)),
         4 => a.products.length.compareTo(b.products.length),
         5 => a.total.compareTo(b.total),
+        6 => a.createdAt.compareTo(b.createdAt),
         _ => a.createdAt.compareTo(b.createdAt),
       };
     }
@@ -108,7 +109,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return orders;
 
-    return orders.where((order) {
+      return orders.where((order) {
       return order.id.toLowerCase().contains(query) ||
           _shortId(order.id).toLowerCase().contains(query) ||
           _statusLabel(order.status).toLowerCase().contains(query) ||
@@ -155,7 +156,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                 _animationController
                   ..reset()
                   ..forward();
-                _ordersFuture = _loadOrders();
               });
             },
             icon: RotationTransition(
@@ -171,16 +171,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
         ],
       ),
       body: SafeArea(
-        child: FutureBuilder<List<OrderModel>>(
-          future: _ordersFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return _OrdersError(message: snapshot.error.toString());
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final allOrders = _sortedOrders(snapshot.data!);
+        child: Consumer<AppState>(
+          builder: (context, state, _) {
+            final allOrders = _sortedOrders(state.adminOrders);
             final orders = _filteredOrders(allOrders);
 
             return ListView(
@@ -501,34 +494,39 @@ class _OrdersHero extends StatelessWidget {
                   value: '${orders.length}',
                   icon: Icons.shopping_bag,
                   color: _kOrange,
+                  tint: const Color(0xFFFFF0EB),
                   index: 0,
                 ),
                 _HeroMetric(
                   label: 'Pending',
                   value: '$pending',
                   icon: Icons.hourglass_top,
-                  color: const Color(0xFFFFEDD5),
+                  color: const Color(0xFFB45309),
+                  tint: const Color(0xFFFFF7ED),
                   index: 1,
                 ),
                 _HeroMetric(
                   label: 'Active',
                   value: '$active',
                   icon: Icons.local_shipping,
-                  color: const Color(0xFFDBEAFE),
+                  color: const Color(0xFF1D4ED8),
+                  tint: const Color(0xFFEFF6FF),
                   index: 2,
                 ),
                 _HeroMetric(
                   label: 'Delivered',
                   value: '$delivered',
                   icon: Icons.check_circle,
-                  color: const Color(0xFFD1FAE5),
+                  color: const Color(0xFF0F766E),
+                  tint: const Color(0xFFEAF7EF),
                   index: 3,
                 ),
                 _HeroMetric(
                   label: 'Revenue',
                   value: 'Rs ${revenue.toStringAsFixed(0)}',
                   icon: Icons.payments,
-                  color: const Color(0xFFFCE7F3),
+                  color: const Color(0xFFBE185D),
+                  tint: const Color(0xFFFCE7F3),
                   index: 4,
                 ),
               ],
@@ -546,6 +544,7 @@ class _HeroMetric extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    required this.tint,
     required this.index,
   });
 
@@ -553,6 +552,7 @@ class _HeroMetric extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final Color tint;
   final int index;
 
   @override
@@ -569,17 +569,39 @@ class _HeroMetric extends StatelessWidget {
       },
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _kOrangeLight,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              tint,
+              Colors.white,
+            ],
+          ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF1E4DE)),
+          border: Border.all(color: color.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -587,15 +609,17 @@ class _HeroMetric extends StatelessWidget {
                     value,
                     style: const TextStyle(
                       color: _kTextDark,
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     label,
                     style: TextStyle(
                       color: _kTextMid,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -712,15 +736,11 @@ class _OrdersTable extends StatelessWidget {
                           label: const Text('Status'),
                           onSort: (_, __) => onSort(3),
                         ),
-                        DataColumn(
-                          label: const Text('Items'),
-                          numeric: true,
-                          onSort: (_, __) => onSort(4),
-                        ),
+                        const DataColumn(label: Text('Order Items')),
                         DataColumn(
                           label: const Text('Total'),
                           numeric: true,
-                          onSort: (_, __) => onSort(5),
+                          onSort: (_, __) => onSort(4),
                         ),
                         const DataColumn(label: Text('Accepted By')),
                         const DataColumn(label: Text('Next Action')),
@@ -843,10 +863,23 @@ class _OrdersTable extends StatelessWidget {
                               _TableCellIn(
                                 animationKey: '${order.id}-items',
                                 index: index,
-                                child: Text(
-                                  '${order.products.length}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
+                                child: FilledButton.tonalIcon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFFF7ED),
+                                    foregroundColor: _kOrange,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: () => _showOrderItems(context, order),
+                                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                                  label: const Text(
+                                    'View Item',
+                                    style: TextStyle(fontWeight: FontWeight.w800),
                                   ),
                                 ),
                               ),
@@ -911,6 +944,126 @@ class _OrdersTable extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showOrderItems(BuildContext context, OrderModel order) {
+  showDialog<void>(
+    context: context,
+    builder: (context) {
+      return Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 640),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Order Items',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: _kTextDark,
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Order #${_shortId(order.id)}',
+                  style: const TextStyle(
+                    color: _kTextMid,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: order.products.length,
+                    separatorBuilder: (_, __) => const Divider(height: 20),
+                    itemBuilder: (context, index) {
+                      final product = order.products[index];
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: _kOrangeLight,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: SizedBox(
+                              width: 46,
+                              height: 46,
+                              child: Icon(
+                                Icons.shopping_bag_outlined,
+                                color: _kOrange,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: _kTextDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Rs ${product.price.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: _kTextMid,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kOrange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _DonePill extends StatelessWidget {
@@ -1058,6 +1211,35 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+class _PlacedStateBadge extends StatelessWidget {
+  const _PlacedStateBadge({required this.status});
+
+  final OrderStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaced = status == OrderStatus.placed;
+    final background = isPlaced ? const Color(0xFFFFF7ED) : const Color(0xFFF1F5F9);
+    final foreground = isPlaced ? const Color(0xFFC2410C) : const Color(0xFF64748B);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isPlaced ? 'New Request' : 'Pending / Later',
+        style: TextStyle(
+          color: foreground,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
 class _OrdersError extends StatelessWidget {
   const _OrdersError({required this.message});
 
@@ -1188,7 +1370,7 @@ _BadgeStyle _statusStyle(OrderStatus status) {
 
 String _statusLabel(OrderStatus status) {
   return switch (status) {
-    OrderStatus.placed => 'PENDING',
+    OrderStatus.placed => 'NEW REQUEST',
     OrderStatus.accepted => 'ACCEPTED',
     OrderStatus.packed => 'PACKED',
     OrderStatus.assigned => 'ASSIGNED',
@@ -1221,17 +1403,6 @@ String _formatTimeOnly(DateTime? date) {
   final minute = local.minute.toString().padLeft(2, '0');
   final amPm = local.hour >= 12 ? 'PM' : 'AM';
   return '$hour12:$minute $amPm';
-}
-
-String _columnLabel(int index) {
-  return switch (index) {
-    0 => 'Order ID',
-    1 => 'Date',
-    2 => 'Status',
-    3 => 'Items',
-    4 => 'Total',
-    _ => 'Date',
-  };
 }
 
 Color _flowColor(String label) {

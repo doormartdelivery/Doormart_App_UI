@@ -45,6 +45,7 @@ class SocketService {
     if (onOrderCreated != null) {
       _socket?.on('order_created', onOrderCreated);
       _socket?.on('new_order_request', onOrderCreated);
+      _socket?.on('order:new', onOrderCreated);
     }
     if (onOrderAccepted != null) {
       _socket?.on('order_assigned', onOrderAccepted);

@@ -622,6 +622,22 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void upsertAdminOrder(OrderModel order) {
+    if (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin) {
+      return;
+    }
+
+    final index = adminOrders.indexWhere((existing) => existing.id == order.id);
+    if (index == -1) {
+      adminOrders = [order, ...adminOrders];
+    } else {
+      final updated = [...adminOrders];
+      updated[index] = order;
+      adminOrders = updated;
+    }
+    notifyListeners();
+  }
+
   Future<OrderModel> updateOrderStatus(String orderId, String status) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -974,8 +990,25 @@ class AppState extends ChangeNotifier {
     socketService.connect(
       token: token,
       userId: user?.id,
-      onOrderCreated: (_) async {
+      onOrderCreated: (data) async {
         debugPrint('Socket order created event received; reloading orders.');
+        if (data is Map<String, dynamic>) {
+          final order = OrderModel.fromJson(data);
+          if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+            upsertAdminOrder(order);
+          }
+          if (user?.role == UserRoles.user) {
+            final index = orders.indexWhere((existing) => existing.id == order.id);
+            if (index == -1) {
+              orders = [order, ...orders];
+            } else {
+              final updated = [...orders];
+              updated[index] = order;
+              orders = updated;
+            }
+            notifyListeners();
+          }
+        }
         await loadOrders();
         await loadAdminOrders();
       },

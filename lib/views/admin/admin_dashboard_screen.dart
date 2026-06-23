@@ -397,6 +397,20 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
             Positioned(
+              top: 14,
+              left: 68,
+              child: _RefreshButton(onRefresh: () async {
+                final state = context.read<AppState>();
+                await state.loadAdminOrders();
+                await state.loadProducts();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Dashboard refreshed')),
+                  );
+                }
+              }),
+            ),
+            Positioned(
               right: 16,
               top: 16,
               child: Container(
@@ -443,6 +457,47 @@ class _HeroCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RefreshButton extends StatefulWidget {
+  const _RefreshButton({required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  State<_RefreshButton> createState() => _RefreshButtonState();
+}
+
+class _RefreshButtonState extends State<_RefreshButton> {
+  bool _loading = false;
+
+  Future<void> _handleTap() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await widget.onRefresh();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      onPressed: _loading ? null : _handleTap,
+      style: IconButton.styleFrom(
+        backgroundColor: _kOrangeLight,
+        foregroundColor: _kOrange,
+      ),
+      icon: _loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh),
     );
   }
 }
