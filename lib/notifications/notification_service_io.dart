@@ -74,12 +74,20 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    final payload = NotificationPayload(
-      orderId: orderId,
-      title: title,
-      body: body,
+    await showNotification(
+      id: orderId.hashCode,
+      payload: NotificationPayload(
+        orderId: orderId,
+        title: title,
+        body: body,
+      ),
     );
+  }
 
+  Future<void> showNotification({
+    required int id,
+    required NotificationPayload payload,
+  }) async {
     const androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
@@ -96,9 +104,9 @@ class NotificationService {
     const details = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
-      id: orderId.hashCode,
-      title: title,
-      body: body,
+      id: id,
+      title: payload.title,
+      body: payload.body,
       notificationDetails: details,
       payload: jsonEncode(payload.toMap()),
     );

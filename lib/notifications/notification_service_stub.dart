@@ -15,5 +15,10 @@ class NotificationService {
     required String body,
   }) async {}
 
+  Future<void> showNotification({
+    required int id,
+    required NotificationPayload payload,
+  }) async {}
+
   Future<void> handleNotificationTap(String? payload) async {}
 }

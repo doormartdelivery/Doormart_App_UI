@@ -234,7 +234,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _syncDeliveryToken() async {
-    if (user?.role != UserRoles.deliveryPerson || token == null) return;
+    if (token == null) return;
     await _messagingService.registerTokenSync(authToken: token!);
   }
 

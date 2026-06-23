@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -35,12 +36,25 @@ class FirebaseMessagingService {
     FirebaseMessaging.onMessage.listen((message) async {
       final payload = _payloadFromMessage(message);
       if (payload != null) {
-        await NotificationService.instance.showDeliveryRequest(
-          orderId: payload.orderId,
-          title: payload.title,
-          body: payload.body,
+        await NotificationService.instance.showNotification(
+          id: (payload.orderId.isNotEmpty ? payload.orderId : payload.title).hashCode,
+          payload: payload,
         );
+        return;
       }
+
+      final fallbackTitle = message.notification?.title ?? 'Notification';
+      final fallbackBody = message.notification?.body ?? '';
+      await NotificationService.instance.showNotification(
+        id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
+        payload: NotificationPayload(
+          orderId: '',
+          title: fallbackTitle,
+          body: fallbackBody,
+          type: message.data['type']?.toString() ?? 'ADMIN_NOTIFICATION',
+          entityId: message.data['entityId']?.toString(),
+        ),
+      );
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -68,9 +82,16 @@ class FirebaseMessagingService {
     required String authToken,
   }) {
     return apiService.post(
-      '/delivery/save-fcm-token',
+      '/notifications/save-token',
       token: authToken,
-      body: {'token': token},
+      body: {
+        'fcmToken': token,
+        'deviceType': Platform.isAndroid
+            ? 'android'
+            : Platform.isIOS
+                ? 'ios'
+                : 'web',
+      },
     );
   }
 
@@ -92,12 +113,19 @@ class FirebaseMessagingService {
   NotificationPayload? _payloadFromMessage(RemoteMessage message) {
     final data = message.data;
     final orderId = data['orderId']?.toString();
-    if (orderId == null || orderId.isEmpty) return null;
+    final title = data['title']?.toString() ?? message.notification?.title ?? '';
+    final body = data['body']?.toString() ?? message.notification?.body ?? '';
+    final type = data['type']?.toString() ?? 'ADMIN_NOTIFICATION';
+    final entityId = data['entityId']?.toString();
+
+    if ((orderId == null || orderId.isEmpty) && title.isEmpty && body.isEmpty) return null;
 
     return NotificationPayload(
-      orderId: orderId,
-      title: data['title']?.toString() ?? message.notification?.title ?? 'New Delivery Request',
-      body: data['body']?.toString() ?? message.notification?.body ?? '',
+      orderId: orderId ?? '',
+      title: title.isEmpty ? 'Notification' : title,
+      body: body,
+      type: type,
+      entityId: entityId,
     );
   }
 }

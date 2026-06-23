@@ -1,16 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
-import '../app_page.dart';
+import '../../providers/app_state.dart';
+import '../../services/api_service.dart';
+import 'admin_dashboard_screen.dart';
+import 'admin_orders_screen.dart';
+import 'audit_logs_screen.dart';
+import 'manage_banners_screen.dart';
+import 'manage_categories_screen.dart';
+import 'manage_delivery_screen.dart';
+import 'manage_products_screen.dart';
+import 'manage_users_screen.dart';
+import 'stock_screen.dart';
 
-Future<void> showAdminNotificationModal(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => const _AdminNotificationSheet(),
-  );
-}
+const _bg = Color(0xFFF7F8FC);
+const _card = Colors.white;
+const _textDark = Color(0xFF15202B);
+const _textMid = Color(0xFF667085);
+const _border = Color(0xFFE6E8EF);
+const _accent = Color(0xFFFF6A00);
+const _accentSoft = Color(0xFFFFEFE4);
 
 class AdminNotificationsScreen extends StatefulWidget {
   const AdminNotificationsScreen({super.key});
@@ -18,210 +30,679 @@ class AdminNotificationsScreen extends StatefulWidget {
   static const routeName = '/admin/notifications';
 
   @override
-  State<AdminNotificationsScreen> createState() =>
-      _AdminNotificationsScreenState();
+  State<AdminNotificationsScreen> createState() => _AdminNotificationsScreenState();
 }
 
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
-  int _selectedNav = 0;
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _messageController = TextEditingController();
+  final _specificUserController = TextEditingController();
+  final _scheduleController = TextEditingController();
+  final _searchController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  final ApiService _api = ApiService();
+
+  Timer? _refreshTimer;
+  Timer? _searchDebounce;
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+  String _selectedType = 'promotion';
+  String _selectedAudience = 'all_users';
+  String _selectedTab = 'all';
+  bool _pushEnabled = true;
+  bool _logHistory = true;
+  bool _scheduleLater = false;
+  bool _dailySchedule = false;
+  bool _isUploading = false;
+  DateTime? _scheduledAt;
+  String? _bannerUrl;
+  String? _bannerName;
+  List<Map<String, dynamic>> _history = [];
+  Map<String, dynamic> _analytics = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.addListener(_syncPreview);
+    _messageController.addListener(_syncPreview);
+    _loadAll();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) => _loadHistory(silent: true));
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _searchDebounce?.cancel();
+    _titleController.dispose();
+    _messageController.dispose();
+    _specificUserController.dispose();
+    _scheduleController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _syncPreview() => setState(() {});
+
+  Future<void> _loadAll() async {
+    await Future.wait([_loadHistory(), _loadAnalytics()]);
+  }
+
+  Future<void> _loadAnalytics() async {
+    try {
+      final data = await _api.get('/admin/notifications/analytics', token: context.read<AppState>().token);
+      if (!mounted) return;
+      setState(() => _analytics = Map<String, dynamic>.from(data as Map));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _loadHistory({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    try {
+      final query = <String, String>{
+        'limit': '100',
+        if (_searchController.text.trim().isNotEmpty) 'search': _searchController.text.trim(),
+        if (_selectedTab != 'all') 'status': _selectedTab,
+      };
+      final path = '/admin/notifications${query.isEmpty ? '' : '?${Uri(queryParameters: query).query}'}';
+      final data = await _api.get(path, token: context.read<AppState>().token);
+      final items = data is Map
+          ? (data['items'] as List<dynamic>? ?? data['notifications'] as List<dynamic>? ?? [])
+          : data is List
+              ? data
+              : <dynamic>[];
+      if (!mounted) return;
+      setState(() {
+        _history = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (!silent && mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<String?> _uploadBannerIfNeeded() async {
+    if (_bannerUrl != null && _bannerUrl!.isNotEmpty) return _bannerUrl;
+    return null;
+  }
+
+  Future<void> _pickBanner() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (image == null) return;
+    setState(() {
+      _isUploading = true;
+      _bannerName = image.name;
+    });
+    try {
+      final uploaded = await _api.uploadImage(
+        '/categories/upload-image',
+        filePath: image.path,
+        fieldName: 'image',
+        token: context.read<AppState>().token,
+      );
+      final url = (uploaded as Map<String, dynamic>)['url']?.toString();
+      if (!mounted) return;
+      setState(() {
+        _bannerUrl = url;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Image upload failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  Future<void> _submit(String mode) async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedAudience == 'specific_user' && _specificUserController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a specific user ID')),
+      );
+      return;
+    }
+      final body = <String, dynamic>{
+        'title': _titleController.text.trim(),
+        'message': _messageController.text.trim(),
+        'type': _selectedType,
+        'targetAudience': _selectedAudience,
+        if (_selectedAudience == 'specific_user')
+          'specificUserId': _specificUserController.text.trim(),
+        'imageUrl': await _uploadBannerIfNeeded(),
+      };
+    if (_scheduleLater && _scheduledAt != null) {
+      body['scheduledAt'] = _scheduledAt!.toUtc().toIso8601String();
+    }
+    if (_dailySchedule && _scheduledAt != null) {
+      body['recurrence'] = 'daily';
+      body['recurrenceTime'] =
+          '${_scheduledAt!.hour.toString().padLeft(2, '0')}:${_scheduledAt!.minute.toString().padLeft(2, '0')}';
+    }
+
+    try {
+      setState(() => _saving = true);
+      final token = context.read<AppState>().token;
+      if (mode == 'send') {
+        await _api.post('/admin/notifications/send', token: token, body: body);
+      } else if (mode == 'draft') {
+        await _api.post('/admin/notifications/draft', token: token, body: body);
+      } else {
+        if (_scheduledAt == null) {
+          throw StateError('Please choose a schedule time');
+        }
+        await _api.post('/admin/notifications/schedule', token: token, body: body);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mode == 'send' ? 'Notification sent' : mode == 'draft' ? 'Draft saved' : 'Notification scheduled')),
+      );
+      await _loadAll();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Action failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickSchedule() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      initialDate: now,
+    );
+    if (date == null) return;
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    if (time == null) return;
+    setState(() {
+      _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _scheduleController.text = _scheduledAt!.toLocal().toString();
+      _scheduleLater = true;
+    });
+  }
+
+  String _labelForAudience(String audience) {
+    switch (audience) {
+      case 'customers':
+        return 'Customers';
+      case 'delivery_persons':
+        return 'Delivery Persons';
+      case 'specific_user':
+        return 'Specific User';
+      default:
+        return 'All Users';
+    }
+  }
+
+  String _labelForType(String type) {
+    switch (type) {
+      case 'alert':
+        return 'Alert';
+      case 'update':
+        return 'Update';
+      case 'reminder':
+        return 'Reminder';
+      default:
+        return 'Promotion';
+    }
+  }
+
+  String _statusLabel(Map<String, dynamic> item) {
+    final status = (item['status'] ?? '').toString();
+    if (status == 'sent') return 'Delivered';
+    if (status == 'scheduled') return 'Pending';
+    if (status == 'failed') return 'Failed';
+    return 'Draft';
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Delivered':
+        return const Color(0xFF0F9D58);
+      case 'Pending':
+        return const Color(0xFFB7791F);
+      case 'Failed':
+        return const Color(0xFFDC2626);
+      default:
+        return _textMid;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAF8),
+      backgroundColor: _bg,
+      drawer: _AdminDrawer(
+        selectedIndex: 2,
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+        },
+      ),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7FAF8),
+        backgroundColor: _bg,
+        foregroundColor: _textDark,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF17211B)),
-          onPressed: () {},
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         title: const Text(
-          'Notifications',
-          style: TextStyle(
-            color: Color(0xFF0F766E),
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
+          'Notification Center',
+          style: TextStyle(color: _accent, fontWeight: FontWeight.w800),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.tune, color: Color(0xFF17211B)),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFF0F766E),
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ),
+          IconButton(onPressed: _loadAll, icon: const Icon(Icons.refresh_rounded)),
+          const SizedBox(width: 4),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            _NotificationHero(),
-            SizedBox(height: 16),
-            _NotificationStatsList(),
-            SizedBox(height: 16),
-            _NotificationToolbar(),
-            SizedBox(height: 12),
-            _AdminNotificationList(),
-            SizedBox(height: 24),
-            _OverlayPreviewSection(),
-            SizedBox(height: 16),
-          ],
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadAll,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 1100;
+                final formWidth = wide ? constraints.maxWidth * 0.58 : constraints.maxWidth;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AnalyticsRow(analytics: _analytics),
+                    const SizedBox(height: 16),
+                    wide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: formWidth, child: _buildComposerCard()),
+                              const SizedBox(width: 16),
+                              Expanded(child: _buildPreviewColumn()),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildComposerCard(),
+                              const SizedBox(height: 16),
+                              _buildPreviewColumn(),
+                            ],
+                          ),
+                    const SizedBox(height: 16),
+                    _buildHistoryCard(),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
-      ),
-      bottomNavigationBar: _BottomNavBar(
-        selectedIndex: _selectedNav,
-        onTap: (i) => setState(() => _selectedNav = i),
       ),
     );
   }
-}
 
-// ── Bottom Nav ────────────────────────────────────────────────────────────────
-
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar({required this.selectedIndex, required this.onTap});
-
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      _NavItem(Icons.inbox, 'Inbox'),
-      _NavItem(Icons.radio_button_unchecked, 'Active'),
-      _NavItem(Icons.flag_outlined, 'Priority'),
-      _NavItem(Icons.archive_outlined, 'Archive'),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: List.generate(items.length, (i) {
-            final item = items[i];
-            final selected = i == selectedIndex;
-            return Expanded(
-              child: InkWell(
-                onTap: () => onTap(i),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+  Widget _buildComposerCard() {
+    return Card(
+      elevation: 0,
+      color: _card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionTitle(
+                icon: Icons.campaign_outlined,
+                title: 'Create Notification',
+                subtitle: 'Compose and send push notifications to selected users.',
+              ),
+              const SizedBox(height: 18),
+              _FieldLabel('Notification Title'),
+              _InputField(controller: _titleController, hint: 'Weekend Feast 50% Off!'),
+              const SizedBox(height: 14),
+              _FieldLabel('Message Body'),
+              _InputField(
+                controller: _messageController,
+                hint: 'Tell your users about the amazing offer...',
+                maxLines: 4,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _FieldLabel('Notification Type'),
+                        _SelectField(
+                          value: _selectedType,
+                          items: const [
+                            DropdownMenuItem(value: 'promotion', child: Text('Promotion')),
+                            DropdownMenuItem(value: 'alert', child: Text('Alert')),
+                            DropdownMenuItem(value: 'update', child: Text('Update')),
+                            DropdownMenuItem(value: 'reminder', child: Text('Reminder')),
+                          ],
+                          onChanged: (value) => setState(() => _selectedType = value ?? 'promotion'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _FieldLabel('Banner Image (Optional)'),
+              GestureDetector(
+                onTap: _isUploading ? null : _pickBanner,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F9FF),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFCED6E5), style: BorderStyle.solid),
+                  ),
+                  child: Row(
                     children: [
-                      Icon(
-                        item.icon,
-                        size: 22,
-                        color: selected
-                            ? const Color(0xFF0F766E)
-                            : const Color(0xFF94A3B8),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: _accentSoft,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: _isUploading
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.file_upload_outlined, color: _accent),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: selected
-                              ? const Color(0xFF0F766E)
-                              : const Color(0xFF94A3B8),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _bannerUrl == null ? 'Drop image here or click to upload' : 'Uploaded successfully',
+                              style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _bannerName ?? 'Recommended: 1200 x 628 px',
+                              style: const TextStyle(color: _textMid),
+                            ),
+                          ],
                         ),
                       ),
+                      if (_bannerUrl != null)
+                        const Icon(Icons.check_circle, color: Color(0xFF0F9D58)),
                     ],
                   ),
                 ),
               ),
-            );
-          }),
+              const SizedBox(height: 18),
+              _FieldLabel('Audience Selection'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _AudienceChip(label: 'All Users', selected: _selectedAudience == 'all_users', onTap: () => setState(() => _selectedAudience = 'all_users')),
+                  _AudienceChip(label: 'Customers', selected: _selectedAudience == 'customers', onTap: () => setState(() => _selectedAudience = 'customers')),
+                  _AudienceChip(label: 'Delivery Persons', selected: _selectedAudience == 'delivery_persons', onTap: () => setState(() => _selectedAudience = 'delivery_persons')),
+                  _AudienceChip(label: 'Specific User', selected: _selectedAudience == 'specific_user', onTap: () => setState(() => _selectedAudience = 'specific_user')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_selectedAudience == 'specific_user') ...[
+                _FieldLabel('Specific User ID'),
+                _InputField(
+                  controller: _specificUserController,
+                  hint: 'Paste specific user id here',
+                  validator: (value) {
+                    if (_selectedAudience == 'specific_user' && (value == null || value.trim().isEmpty)) {
+                      return 'User ID is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 18),
+              _FieldLabel('Delivery Settings'),
+              _ToggleRow(label: 'Push Notification', value: _pushEnabled, onChanged: (value) => setState(() => _pushEnabled = value)),
+              _ToggleRow(label: 'Log to History', value: _logHistory, onChanged: (value) => setState(() => _logHistory = value)),
+              _ToggleRow(label: 'Schedule for later', value: _scheduleLater, onChanged: (value) => setState(() => _scheduleLater = value)),
+              if (_scheduleLater)
+                _ToggleRow(
+                  label: 'Repeat daily',
+                  value: _dailySchedule,
+                  onChanged: (value) => setState(() => _dailySchedule = value),
+                ),
+              if (_scheduleLater) ...[
+                const SizedBox(height: 12),
+                _InputField(
+                  controller: _scheduleController,
+                  hint: 'Choose schedule time',
+                  readOnly: true,
+                  onTap: _pickSchedule,
+                  suffix: IconButton(
+                    onPressed: _pickSchedule,
+                    icon: const Icon(Icons.schedule_rounded),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : () => _submit('send'),
+                      icon: const Icon(Icons.send_rounded),
+                      label: const Text('Send Notification Now'),
+                      style: FilledButton.styleFrom(backgroundColor: _accent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: _saving ? null : () => _submit('draft'),
+                    child: const Text('Save Draft'),
+                  ),
+              if (_scheduleLater)
+                    OutlinedButton.icon(
+                      onPressed: _saving ? null : () => _submit('schedule'),
+                      icon: const Icon(Icons.schedule_rounded),
+                      label: Text(_dailySchedule ? 'Save Daily Schedule' : 'Save Schedule'),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _NavItem {
-  const _NavItem(this.icon, this.label);
-  final IconData icon;
-  final String label;
-}
-
-// ── Hero ──────────────────────────────────────────────────────────────────────
-
-class _NotificationHero extends StatelessWidget {
-  const _NotificationHero();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF12372A),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Smart Alert Hub',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Precision management for your system's heartbeat. Monitor delivery flows and stock levels.",
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    height: 1.5,
-                  ),
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed: () => showAdminNotificationModal(context),
-              icon: const Icon(Icons.flash_on, size: 16, color: Colors.white),
-              label: const Text(
-                'Quick preview',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white38),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+  Widget _buildPreviewColumn() {
+    return Column(
+      children: [
+        Card(
+          elevation: 0,
+          color: _card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SectionTitle(
+                  icon: Icons.phone_iphone,
+                  title: 'Live Preview',
+                  subtitle: 'See how the push card will look on mobile.',
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
+                const SizedBox(height: 16),
+                _MobilePreview(
+                  title: _titleController.text.isEmpty ? 'Weekend Feast 50% Off!' : _titleController.text,
+                  body: _messageController.text.isEmpty ? 'Order your favorites now and enjoy huge savings.' : _messageController.text,
+                  imageUrl: _bannerUrl,
+                  type: _labelForType(_selectedType),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 0,
+          color: _card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: const Padding(
+            padding: EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionTitle(
+                  icon: Icons.lightbulb_outline,
+                  title: 'Pro Tip',
+                  subtitle: 'Notifications with images and targeted audience filters typically perform better.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryCard() {
+    final filtered = _history.where((item) {
+      if (_selectedTab == 'all') return true;
+      return (item['status'] ?? '').toString() == _selectedTab;
+    }).toList();
+
+    return Card(
+      elevation: 0,
+      color: _card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: _SectionTitle(
+                    icon: Icons.history,
+                    title: 'Notification History',
+                    subtitle: 'Search, filter and inspect the latest admin notifications.',
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (_) {
+                      _searchDebounce?.cancel();
+                      _searchDebounce = Timer(
+                        const Duration(milliseconds: 350),
+                        () => _loadHistory(silent: true),
+                      );
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search title or message',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: const Color(0xFFF7F9FF),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              children: [
+                _TabChip(label: 'All', selected: _selectedTab == 'all', onTap: () { setState(() => _selectedTab = 'all'); _loadHistory(); }),
+                _TabChip(label: 'Sent', selected: _selectedTab == 'sent', onTap: () { setState(() => _selectedTab = 'sent'); _loadHistory(); }),
+                _TabChip(label: 'Scheduled', selected: _selectedTab == 'scheduled', onTap: () { setState(() => _selectedTab = 'scheduled'); _loadHistory(); }),
+              ],
+            ),
+            const SizedBox(height: 18),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 30),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (filtered.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28),
+                child: Center(child: Text('No notifications found')),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(const Color(0xFFF7F9FF)),
+                  columns: const [
+                    DataColumn(label: Text('Title')),
+                    DataColumn(label: Text('Audience')),
+                    DataColumn(label: Text('Type')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Timestamp')),
+                    DataColumn(label: Text('Results')),
+                  ],
+                  rows: filtered.map((item) {
+                    final status = _statusLabel(item);
+                    return DataRow(
+                      cells: [
+                        DataCell(Text((item['title'] ?? '').toString())),
+                        DataCell(Text(_labelForAudience((item['targetAudience'] ?? '').toString()))),
+                        DataCell(Text((item['type'] ?? '').toString())),
+                        DataCell(Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _statusColor(status).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(status, style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w700)),
+                        )),
+                        DataCell(Text((item['sentAt'] ?? item['scheduledAt'] ?? item['createdAt'] ?? '').toString())),
+                        DataCell(Text('${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed')),
+                      ],
+                    );
+                  }).toList(),
+                ),
               ),
-              child: const Icon(
-                Icons.notifications_active_outlined,
-                color: Colors.white54,
-                size: 36,
-              ),
+            const SizedBox(height: 14),
+            const Text(
+              'Notifications with images have 35% higher CTR.',
+              style: TextStyle(color: _accent, fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -230,105 +711,187 @@ class _NotificationHero extends StatelessWidget {
   }
 }
 
-// ── Stats list (vertical cards) ───────────────────────────────────────────────
+class _AdminDrawer extends StatelessWidget {
+  const _AdminDrawer({required this.selectedIndex, required this.onLogout});
 
-class _NotificationStatsList extends StatelessWidget {
-  const _NotificationStatsList();
+  final int selectedIndex;
+  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) {
-    final unread =
-        _mockAdminNotifications.where((item) => !item.isRead).length;
-    final critical = _mockAdminNotifications
-        .where((item) => item.severity == _NotificationSeverity.critical)
-        .length;
-    final delivery = _mockAdminNotifications
-        .where((item) => item.category == 'Delivery')
-        .length;
+    final items = [
+      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
+      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
+      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
+      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
+    ];
 
-    return Column(
-      children: [
-        _StatCard(
-          icon: Icons.mark_email_unread_outlined,
-          iconColor: const Color(0xFF0F766E),
-          label: 'UNREAD',
-          value: unread.toString().padLeft(2, '0'),
+    return Drawer(
+      child: Container(
+        color: _bg,
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: _accentSoft,
+                      child: Icon(Icons.admin_panel_settings, color: _accent),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: _textDark)),
+                          SizedBox(height: 4),
+                          Text('Navigate the control center', style: TextStyle(color: _textMid)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: _border),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final selected = index == selectedIndex;
+                    return Material(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (item.$3 != AdminNotificationsScreen.routeName) {
+                            Navigator.pushReplacementNamed(context, item.$3);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: selected ? _accentSoft : const Color(0xFFF5F6FA),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Icon(item.$2, color: selected ? _accent : _textDark),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  item.$1,
+                                  style: TextStyle(fontWeight: FontWeight.w900, color: selected ? _accent : _textDark),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onLogout,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _accent,
+                      side: const BorderSide(color: _accent),
+                      backgroundColor: _accentSoft,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
-        _StatCard(
-          icon: Icons.priority_high,
-          iconColor: const Color(0xFFDC2626),
-          label: 'CRITICAL',
-          value: critical.toString().padLeft(2, '0'),
-        ),
-        const SizedBox(height: 10),
-        _StatCard(
-          icon: Icons.delivery_dining,
-          iconColor: const Color(0xFFB45309),
-          label: 'DELIVERY ISSUES',
-          value: delivery.toString().padLeft(2, '0'),
-        ),
-      ],
+      ),
+    );
+  }
+}
+
+class _AnalyticsRow extends StatelessWidget {
+  const _AnalyticsRow({required this.analytics});
+
+  final Map<String, dynamic> analytics;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      ('Total Sent', (analytics['totalSent'] ?? 0).toString(), Icons.send_rounded),
+      ('Delivered', (analytics['delivered'] ?? 0).toString(), Icons.done_all_rounded),
+      ('Failed', (analytics['failed'] ?? 0).toString(), Icons.error_outline_rounded),
+      ('Scheduled', (analytics['scheduled'] ?? 0).toString(), Icons.schedule_rounded),
+    ];
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      children: cards
+          .map((card) => SizedBox(
+                width: MediaQuery.of(context).size.width > 700 ? 220 : double.infinity,
+                child: _StatCard(title: card.$1, value: card.$2, icon: card.$3),
+              ))
+          .toList(),
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.value,
-  });
+  const _StatCard({required this.title, required this.value, required this.icon});
 
-  final IconData icon;
-  final Color iconColor;
-  final String label;
+  final String title;
   final String value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+    return Card(
+      elevation: 0,
+      color: _card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: _accentSoft, borderRadius: BorderRadius.circular(16)),
+              child: Icon(icon, color: _accent),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: const Color(0xFF64748B),
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: const Color(0xFF17211B),
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
-                  ),
+                  Text(title, style: const TextStyle(color: _textMid, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _textDark)),
                 ],
               ),
             ),
@@ -339,369 +902,33 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ── Toolbar ───────────────────────────────────────────────────────────────────
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.icon, required this.title, required this.subtitle});
 
-class _NotificationToolbar extends StatelessWidget {
-  const _NotificationToolbar();
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: const [
-          _FilterChip(label: 'All', selected: true),
-          SizedBox(width: 8),
-          _FilterChip(label: 'Critical'),
-          SizedBox(width: 8),
-          _FilterChip(label: 'Stock'),
-          SizedBox(width: 8),
-          _FilterChip(label: 'SLA'),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Notification list ─────────────────────────────────────────────────────────
-
-class _AdminNotificationList extends StatelessWidget {
-  const _AdminNotificationList({this.compact = false});
-
-  final bool compact;
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _mockAdminNotifications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _AdminNotificationTile(
-          notification: _mockAdminNotifications[index],
-        );
-      },
-    );
-  }
-}
-
-class _AdminNotificationTile extends StatelessWidget {
-  const _AdminNotificationTile({required this.notification});
-
-  final _AdminNotification notification;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = notification.tone;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {},
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: tone.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(notification.icon, color: tone, size: 22),
-                    ),
-                    if (!notification.isRead)
-                      Positioned(
-                        top: -2,
-                        right: -2,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: tone,
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: Colors.white, width: 1.5),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(
-                                    color: const Color(0xFF17211B),
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.3,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            notification.timeLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: const Color(0xFF94A3B8),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        notification.body,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: const Color(0xFF64748B),
-                                  height: 1.45,
-                                ),
-                      ),
-                     const SizedBox(height: 10),
-
-Align(
-  alignment: Alignment.centerRight,
-  child: Padding(
-    padding: const EdgeInsets.all(12.0), // Increase outer padding
-    child: SizedBox(
-      width: 140, // Increase width
-      height: 30, // Increase height
-      child: _ActionButton(
-        label: notification.actionLabel,
-        tone: tone,
-        severity: notification.severity,
-      ),
-    ),
-  ),
-),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.label,
-    required this.tone,
-    required this.severity,
-  });
-
-  final String label;
-  final Color tone;
-  final _NotificationSeverity severity;
-
-  @override
-  Widget build(BuildContext context) {
-    final isCritical = severity == _NotificationSeverity.critical;
-
-    if (isCritical) {
-      return FilledButton(
-        onPressed: () {},
-        style: FilledButton.styleFrom(
-          backgroundColor: tone,
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label),
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_forward, size: 13),
-          ],
-        ),
-      );
-    }
-
-    return TextButton(
-      onPressed: () {},
-      style: TextButton.styleFrom(
-        foregroundColor: tone,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-// ── Overlay Preview Section ───────────────────────────────────────────────────
-
-class _OverlayPreviewSection extends StatelessWidget {
-  const _OverlayPreviewSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'OVERLAY PREVIEW',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: const Color(0xFF94A3B8),
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(color: _accentSoft, borderRadius: BorderRadius.circular(14)),
+          child: Icon(icon, color: _accent),
         ),
-        const SizedBox(height: 10),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Alerts',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: const Color(0xFF17211B),
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {},
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF0F766E),
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            textStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          child: const Text('Clear All'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                  const _OverlayAlertItem(
-                    icon: Icons.error,
-                    iconColor: Color(0xFFDC2626),
-                    label: 'Critical Stock Alert',
-                    labelColor: Color(0xFFDC2626),
-                    bold: true,
-                  ),
-                  const Divider(height: 1, indent: 16, color: Color(0xFFE2E8F0)),
-                  const _OverlayAlertItem(
-                    icon: Icons.schedule,
-                    iconColor: Color(0xFF2563EB),
-                    label: 'Order #DM-1048 delayed',
-                    labelColor: Color(0xFF2563EB),
-                    bold: false,
-                  ),
-                  const Divider(height: 1, indent: 16, color: Color(0xFFE2E8F0)),
-                  const _OverlayAlertItem(
-                    icon: Icons.notifications_outlined,
-                    iconColor: Color(0xFF64748B),
-                    label: 'System Update Scheduled',
-                    labelColor: Color(0xFF475569),
-                    bold: false,
-                  ),
-                  const Divider(height: 1, indent: 16, color: Color(0xFFE2E8F0)),
-                  const _OverlayAlertItem(
-                    icon: Icons.trending_up,
-                    iconColor: Color(0xFF0F766E),
-                    label: 'New demand insights ready',
-                    labelColor: Color(0xFF475569),
-                    bold: false,
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {},
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF12372A),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                        child: const Text('View full center'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textDark)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: const TextStyle(color: _textMid)),
+            ],
           ),
         ),
       ],
@@ -709,139 +936,218 @@ class _OverlayPreviewSection extends StatelessWidget {
   }
 }
 
-class _OverlayAlertItem extends StatelessWidget {
-  const _OverlayAlertItem({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.labelColor,
-    required this.bold,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final Color labelColor;
-  final bool bold;
-
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      child: Row(
-        children: [
-          Icon(icon, color: iconColor, size: 18),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: labelColor,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-                ),
-          ),
-        ],
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark)),
+    );
+  }
+}
+
+class _InputField extends StatelessWidget {
+  const _InputField({
+    this.controller,
+    required this.hint,
+    this.maxLines = 1,
+    this.enabled = true,
+    this.readOnly = false,
+    this.onTap,
+    this.suffix,
+    this.validator,
+  });
+
+  final TextEditingController? controller;
+  final String hint;
+  final int maxLines;
+  final bool enabled;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final Widget? suffix;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      enabled: enabled,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator: validator ??
+          (value) {
+            if (hint.contains('Title') && (value == null || value.trim().isEmpty)) {
+              return 'Title is required';
+            }
+            if (hint.contains('Message') && (value == null || value.trim().isEmpty)) {
+              return 'Message is required';
+            }
+            return null;
+          },
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFF7F9FF),
+        suffixIcon: suffix,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       ),
     );
   }
 }
 
-// ── Bottom Sheet ──────────────────────────────────────────────────────────────
+class _SelectField extends StatelessWidget {
+  const _SelectField({required this.value, required this.items, required this.onChanged});
+  final String value;
+  final List<DropdownMenuItem<String>> items;
+  final ValueChanged<String?> onChanged;
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color(0xFFF7F9FF),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      ),
+    );
+  }
+}
 
-class _AdminNotificationSheet extends StatelessWidget {
-  const _AdminNotificationSheet();
+class _AudienceChip extends StatelessWidget {
+  const _AudienceChip({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: _accentSoft,
+      labelStyle: TextStyle(color: selected ? _accent : _textDark, fontWeight: FontWeight.w700),
+      backgroundColor: _card,
+      side: BorderSide(color: selected ? _accent : _border),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({required this.label, required this.value, required this.onChanged});
+  final String label;
+  final bool? value;
+  final ValueChanged<bool> onChanged;
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+      value: value ?? false,
+      activeColor: _accent,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? _accentSoft : const Color(0xFFF7F9FF),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: selected ? _accent : _border),
+        ),
+        child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? _accent : _textDark)),
+      ),
+    );
+  }
+}
+
+class _MobilePreview extends StatelessWidget {
+  _MobilePreview({
+    required this.title,
+    required this.body,
+    required this.imageUrl,
+    required this.type,
+  });
+
+  final String title;
+  final String body;
+  final String? imageUrl;
+  final String type;
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height;
-
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: height * 0.88, maxWidth: 760),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF7FAF8),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1F2937)]),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: AspectRatio(
+        aspectRatio: 0.52,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: const Color(0xFF233043), width: 2),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.all(14),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    const CircleAvatar(radius: 10, backgroundColor: Color(0xFFFF6A00), child: Icon(Icons.notifications, size: 12, color: Colors.white)),
+                    const SizedBox(width: 8),
+                    const Text('DOORMART', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                    const Spacer(),
+                    Text(type, style: const TextStyle(color: Color(0xFFB8C2D3), fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 18),
                 Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC8D3CC),
-                    borderRadius: BorderRadius.circular(8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                      const SizedBox(height: 6),
+                      Text(body, style: const TextStyle(color: Colors.black87)),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.notifications_active,
-                        color: Color(0xFF0F766E),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        colors: imageUrl == null
+                            ? const [Color(0xFF1F2937), Color(0xFF0F172A)]
+                            : const [Color(0xFF283041), Color(0xFF101826)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Admin alert model',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  color: const Color(0xFF17211B),
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Live-looking mock alerts for store operations.',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: const Color(0xFF64748B),
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    IconButton.filledTonal(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Flexible(child: _AdminNotificationList(compact: true)),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(
-                        context,
-                        AdminNotificationsScreen.routeName,
-                      );
-                    },
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Open notification center'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
+                    child: Center(
+                      child: Icon(imageUrl == null ? Icons.image_outlined : Icons.verified, color: Colors.white70, size: 42),
                     ),
                   ),
                 ),
@@ -853,120 +1159,3 @@ class _AdminNotificationSheet extends StatelessWidget {
     );
   }
 }
-
-// ── Filter Chip ───────────────────────────────────────────────────────────────
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, this.selected = false});
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {},
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : const Color(0xFF475569),
-        fontWeight: FontWeight.w700,
-        fontSize: 13,
-      ),
-      selectedColor: const Color(0xFF0F766E),
-      backgroundColor: Colors.white,
-      side: BorderSide(
-        color:
-            selected ? const Color(0xFF0F766E) : const Color(0xFFE2E8F0),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-    );
-  }
-}
-
-// ── Data models ───────────────────────────────────────────────────────────────
-
-class _AdminNotification {
-  const _AdminNotification({
-    required this.title,
-    required this.body,
-    required this.category,
-    required this.timeLabel,
-    required this.actionLabel,
-    required this.icon,
-    required this.tone,
-    required this.severity,
-    required this.isRead,
-  });
-
-  final String title;
-  final String body;
-  final String category;
-  final String timeLabel;
-  final String actionLabel;
-  final IconData icon;
-  final Color tone;
-  final _NotificationSeverity severity;
-  final bool isRead;
-}
-
-enum _NotificationSeverity { critical, warning, info }
-
-const _mockAdminNotifications = [
-  _AdminNotification(
-    title: 'Tomato stock is below reorder level',
-    body: 'Inventory alert: Stock has fallen below 10kg threshold.',
-    category: 'Stock',
-    timeLabel: 'Just now',
-    actionLabel: 'Reorder Now',
-    icon: Icons.inventory_2,
-    tone: Color(0xFFDC2626),
-    severity: _NotificationSeverity.critical,
-    isRead: false,
-  ),
-  _AdminNotification(
-    title: 'Order #DM-1048 crossed SLA',
-    body: 'Delivery delayed by more than 45 mins. Escalation required.',
-    category: 'Order',
-    timeLabel: '12m ago',
-    actionLabel: 'Escalate !',
-    icon: Icons.receipt_long,
-    tone: Color(0xFF2563EB),
-    severity: _NotificationSeverity.warning,
-    isRead: false,
-  ),
-  _AdminNotification(
-    title: 'No delivery partner near Zone 4',
-    body: 'Critical gap in delivery coverage detected for active orders.',
-    category: 'Delivery',
-    timeLabel: '30m ago',
-    actionLabel: 'Assign rider',
-    icon: Icons.delivery_dining,
-    tone: Color(0xFFB45309),
-    severity: _NotificationSeverity.critical,
-    isRead: false,
-  ),
-  _AdminNotification(
-    title: 'Refund request needs review',
-    body: 'Order #DM-9921 marked for partial refund by customer support.',
-    category: 'Payment',
-    timeLabel: '1h ago',
-    actionLabel: 'Review Details',
-    icon: Icons.payments,
-    tone: Color(0xFF7C3AED),
-    severity: _NotificationSeverity.warning,
-    isRead: true,
-  ),
-  _AdminNotification(
-    title: 'Banana demand spike detected',
-    body: "Orders for category 'Fruit' are up 40% in the last hour.",
-    category: 'Insights',
-    timeLabel: '3h ago',
-    actionLabel: 'View Insights',
-    icon: Icons.trending_up,
-    tone: Color(0xFF0F766E),
-    severity: _NotificationSeverity.info,
-    isRead: true,
-  ),
-];
