@@ -56,6 +56,7 @@ class AppState extends ChangeNotifier {
   List<OrderModel> adminOrders = [];
   List<AddressModel> savedAddresses = [];
   AddressModel? selectedAddress;
+  Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
@@ -554,6 +555,23 @@ class AppState extends ChangeNotifier {
     orders.insert(0, order);
     clearCart();
     return order;
+  }
+
+  Future<Map<String, dynamic>> loadCheckoutSummary() async {
+    if (token == null) throw StateError('Please login first');
+    final data =
+        await apiService.post(
+              '/payments/checkout-summary',
+              token: token,
+              body: {
+                'products': cart.map((line) => line.toOrderJson()).toList(),
+                'deliveryFee': deliveryFee,
+              },
+            )
+            as Map<String, dynamic>;
+    checkoutSummary = data;
+    notifyListeners();
+    return data;
   }
 
   Future<Map<String, dynamic>> adminDashboard() async {

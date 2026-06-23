@@ -29,6 +29,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _selectedAddressId;
   bool _initialLoadDone = false;
   bool _processingCod = false;
+  Future<Map<String, dynamic>>? _summaryFuture;
 
   @override
   void didChangeDependencies() {
@@ -39,8 +40,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       await context.read<AppState>().loadAddresses();
       if (!mounted) return;
+      _summaryFuture = context.read<AppState>().loadCheckoutSummary();
+      final summary = await _summaryFuture;
+      if (!mounted) return;
       final state = context.read<AppState>();
       _selectedAddressId = state.selectedAddress?.id;
+      state.checkoutSummary = summary;
       if (mounted) setState(() {});
     });
   }
@@ -185,10 +190,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         // ── Order summary ─────────────────────────────────
                         const _SectionLabel('🧾  Order summary'),
                         const SizedBox(height: 12),
-                        _SummaryCard(
-                          subtotal: state.subtotal,
-                          deliveryFee: state.deliveryFee,
-                          total: state.total,
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _summaryFuture ?? state.loadCheckoutSummary(),
+                          builder: (context, snapshot) {
+                            final summary = snapshot.data ?? state.checkoutSummary;
+                            final subtotal = (summary?['subtotal'] as num?)?.toDouble() ?? state.subtotal;
+                            final deliveryFee = (summary?['deliveryFee'] as num?)?.toDouble() ?? state.deliveryFee;
+                            final total = (summary?['total'] as num?)?.toDouble() ?? state.total;
+                            return _SummaryCard(
+                              subtotal: subtotal,
+                              deliveryFee: deliveryFee,
+                              total: total,
+                              loading: snapshot.connectionState == ConnectionState.waiting && summary == null,
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 24),
@@ -418,11 +433,13 @@ class _SummaryCard extends StatelessWidget {
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    this.loading = false,
   });
 
   final double subtotal;
   final double deliveryFee;
   final double total;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -441,6 +458,10 @@ class _SummaryCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          if (loading) ...[
+            const LinearProgressIndicator(minHeight: 2),
+            const SizedBox(height: 14),
+          ],
           _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
           _SummaryRow(label: 'Delivery fee', value: deliveryFee),

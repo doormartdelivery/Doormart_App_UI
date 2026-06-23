@@ -4,7 +4,22 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
-import '../app_page.dart';
+import 'admin_dashboard_screen.dart';
+import 'admin_notifications_screen.dart';
+import 'manage_users_screen.dart';
+import 'manage_products_screen.dart';
+import 'manage_categories_screen.dart';
+import 'manage_delivery_screen.dart';
+import 'manage_banners_screen.dart';
+import 'stock_screen.dart';
+import 'audit_logs_screen.dart';
+
+const _kOrange = Color(0xFFE8541A);
+const _kOrangeLight = Color(0xFFFFF0EB);
+const _kBg = Color(0xFFF6F6F6);
+const _kCard = Colors.white;
+const _kTextDark = Color(0xFF1A1A1A);
+const _kTextMid = Color(0xFF9E9E9E);
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -71,10 +86,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     int compare(OrderModel a, OrderModel b) {
       return switch (_sortColumnIndex) {
         0 => _shortId(a.id).compareTo(_shortId(b.id)),
-        1 => a.createdAt.compareTo(b.createdAt),
-        2 => _statusLabel(a.status).compareTo(_statusLabel(b.status)),
-        3 => a.products.length.compareTo(b.products.length),
-        4 => a.total.compareTo(b.total),
+        1 => (a.acceptedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(b.acceptedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+        2 => (a.deliveredAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(b.deliveredAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+        3 => _statusLabel(a.status).compareTo(_statusLabel(b.status)),
+        4 => a.products.length.compareTo(b.products.length),
+        5 => a.total.compareTo(b.total),
         _ => a.createdAt.compareTo(b.createdAt),
       };
     }
@@ -95,51 +113,84 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
           _shortId(order.id).toLowerCase().contains(query) ||
           _statusLabel(order.status).toLowerCase().contains(query) ||
           order.total.toStringAsFixed(0).contains(query) ||
-          (order.deliveryPersonName ?? '').toLowerCase().contains(query);
+          (order.deliveryPersonName ?? '').toLowerCase().contains(query) ||
+          order.customerName.toLowerCase().contains(query) ||
+          order.customerPhone.toLowerCase().contains(query) ||
+          order.customerAddress.toLowerCase().contains(query) ||
+          order.address.toLowerCase().contains(query);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Admin Orders',
-      actions: [
-        IconButton(
-          tooltip: 'Refresh orders',
-          onPressed: () {
-            context.read<AppState>().loadAdminOrders();
-            setState(() {
-              _animationController
-                ..reset()
-                ..forward();
-              _ordersFuture = _loadOrders();
-            });
-          },
-          icon: RotationTransition(
-            turns: Tween<double>(begin: 0, end: 1).animate(
-              CurvedAnimation(
-                parent: _animationController,
-                curve: Curves.easeOutCubic,
-              ),
-            ),
-            child: const Icon(Icons.refresh),
+    return Scaffold(
+      backgroundColor: _kBg,
+      drawer: _AdminDrawer(
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+        },
+      ),
+      appBar: AppBar(
+        backgroundColor: _kBg,
+        foregroundColor: _kTextDark,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text('Admin Orders'),
+        leading: Builder(
+          builder: (context) => IconButton(
+            tooltip: 'Menu',
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
-      ],
-      children: [
-        FutureBuilder<List<OrderModel>>(
+        actions: [
+          IconButton(
+            tooltip: 'Refresh orders',
+            onPressed: () {
+              context.read<AppState>().loadAdminOrders();
+              setState(() {
+                _animationController
+                  ..reset()
+                  ..forward();
+                _ordersFuture = _loadOrders();
+              });
+            },
+            icon: RotationTransition(
+              turns: Tween<double>(begin: 0, end: 1).animate(
+                CurvedAnimation(
+                  parent: _animationController,
+                  curve: Curves.easeOutCubic,
+                ),
+              ),
+              child: const Icon(Icons.refresh),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: FutureBuilder<List<OrderModel>>(
           future: _ordersFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return _OrdersError(message: snapshot.error.toString());
             }
-            if (!snapshot.hasData) return const LinearProgressIndicator();
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
             final allOrders = _sortedOrders(snapshot.data!);
             final orders = _filteredOrders(allOrders);
-            if (orders.isEmpty) return const _OrdersEmptyState();
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                16 + MediaQuery.of(context).viewInsets.bottom,
+              ),
               children: [
                 _AnimatedIn(
                   animation: _animationController,
@@ -165,19 +216,146 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                 _AnimatedIn(
                   animation: _animationController,
                   index: 2,
-                  child: _OrdersTable(
-                    orders: orders,
-                    sortColumnIndex: _sortColumnIndex,
-                    sortAscending: _sortAscending,
-                    onSort: _sortBy,
-                    onMove: _moveOrder,
-                  ),
+                  child: orders.isEmpty
+                      ? const _OrdersEmptyState()
+                      : _OrdersTable(
+                          orders: orders,
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _sortAscending,
+                          onSort: _sortBy,
+                          onMove: _moveOrder,
+                        ),
                 ),
               ],
             );
           },
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _AdminDrawer extends StatelessWidget {
+  const _AdminDrawer({required this.onLogout});
+  final Future<void> Function() onLogout;
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
+      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
+      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
+      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
+    ];
+    return Drawer(
+      child: Container(
+        color: _kBg,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 24,
+                      backgroundColor: _kOrangeLight,
+                      child: Icon(Icons.admin_panel_settings, color: _kOrange),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark)),
+                          SizedBox(height: 4),
+                          Text('Navigate the control center', style: TextStyle(color: _kTextMid)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE7E7E7)),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final selected = item.$3 == AdminOrdersScreen.routeName;
+                    return Material(
+                      color: _kCard,
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (item.$3 != AdminOrdersScreen.routeName) {
+                            Navigator.pushReplacementNamed(context, item.$3);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: _kOrangeLight,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Icon(item.$2, color: selected ? _kOrange : _kTextDark),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  item.$1,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: selected ? _kOrange : _kTextDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onLogout,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kOrange,
+                      side: const BorderSide(color: _kOrange),
+                      backgroundColor: _kOrangeLight,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -198,6 +376,8 @@ class _OrderSearchField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      maxLines: 1,
+      textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'Search orders by id, status, delivery person, or total',
         prefixIcon: const Icon(Icons.search),
@@ -210,12 +390,18 @@ class _OrderSearchField extends StatelessWidget {
               ),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _kOrange, width: 1.4),
         ),
       ),
     );
@@ -246,12 +432,16 @@ class _OrdersHero extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F766E), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: _kCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -263,7 +453,7 @@ class _OrdersHero extends StatelessWidget {
               children: [
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: _kOrangeLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const SizedBox(
@@ -271,7 +461,7 @@ class _OrdersHero extends StatelessWidget {
                     height: 48,
                     child: Icon(
                       Icons.receipt_long,
-                      color: Colors.white,
+                      color: _kOrange,
                       size: 28,
                     ),
                   ),
@@ -284,7 +474,7 @@ class _OrdersHero extends StatelessWidget {
                       Text(
                         'Orders control table',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
+                              color: _kTextDark,
                               fontWeight: FontWeight.w900,
                             ),
                       ),
@@ -292,7 +482,7 @@ class _OrdersHero extends StatelessWidget {
                       Text(
                         'Tap any sortable column header to reorder the table.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.86),
+                              color: _kTextMid,
                               fontWeight: FontWeight.w600,
                             ),
                       ),
@@ -310,7 +500,7 @@ class _OrdersHero extends StatelessWidget {
                   label: 'Total orders',
                   value: '${orders.length}',
                   icon: Icons.shopping_bag,
-                  color: const Color(0xFFFFFFFF),
+                  color: _kOrange,
                   index: 0,
                 ),
                 _HeroMetric(
@@ -379,9 +569,9 @@ class _HeroMetric extends StatelessWidget {
       },
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          color: _kOrangeLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1E4DE)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -396,7 +586,7 @@ class _HeroMetric extends StatelessWidget {
                   Text(
                     value,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: _kTextDark,
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
@@ -404,7 +594,7 @@ class _HeroMetric extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.78),
+                      color: _kTextMid,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -438,14 +628,14 @@ class _OrdersTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFDDE7F0)),
+        color: _kCard,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -460,7 +650,7 @@ class _OrdersTable extends StatelessWidget {
                   child: Text(
                     'Orders table',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFF0F172A),
+                          color: _kTextDark,
                           fontWeight: FontWeight.w900,
                         ),
                   ),
@@ -484,7 +674,7 @@ class _OrdersTable extends StatelessWidget {
                       sortColumnIndex: sortColumnIndex,
                       sortAscending: sortAscending,
                       headingRowColor:
-                          WidgetStateProperty.all(const Color(0xFFECFDF5)),
+                          WidgetStateProperty.all(const Color(0xFFFFF5EF)),
                       headingTextStyle: const TextStyle(
                         color: Color(0xFF0F172A),
                         fontWeight: FontWeight.w900,
@@ -503,23 +693,34 @@ class _OrdersTable extends StatelessWidget {
                           label: const Text('Order ID'),
                           onSort: (_, __) => onSort(0),
                         ),
+                        const DataColumn(label: Text('Customer')),
+                        const DataColumn(label: Text('Phone')),
+                        const DataColumn(label: Text('Address')),
                         DataColumn(
-                          label: const Text('Date'),
+                          label: const Text('Placed Time'),
+                          onSort: (_, __) => onSort(0),
+                        ),
+                        DataColumn(
+                          label: const Text('Accepted Time'),
                           onSort: (_, __) => onSort(1),
                         ),
                         DataColumn(
-                          label: const Text('Status'),
+                          label: const Text('Delivered Time'),
                           onSort: (_, __) => onSort(2),
+                        ),
+                        DataColumn(
+                          label: const Text('Status'),
+                          onSort: (_, __) => onSort(3),
                         ),
                         DataColumn(
                           label: const Text('Items'),
                           numeric: true,
-                          onSort: (_, __) => onSort(3),
+                          onSort: (_, __) => onSort(4),
                         ),
                         DataColumn(
                           label: const Text('Total'),
                           numeric: true,
-                          onSort: (_, __) => onSort(4),
+                          onSort: (_, __) => onSort(5),
                         ),
                         const DataColumn(label: Text('Accepted By')),
                         const DataColumn(label: Text('Next Action')),
@@ -531,7 +732,7 @@ class _OrdersTable extends StatelessWidget {
                         return DataRow(
                           color: WidgetStateProperty.resolveWith((states) {
                             if (states.contains(WidgetState.hovered)) {
-                              return const Color(0xFFEFF6FF);
+                              return const Color(0xFFFFF5EF);
                             }
                             return index.isEven
                                 ? const Color(0xFFFFFFFF)
@@ -546,7 +747,7 @@ class _OrdersTable extends StatelessWidget {
                                   children: [
                                     DecoratedBox(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
+                                        color: const Color(0xFFFFF0EB),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const SizedBox(
@@ -554,7 +755,7 @@ class _OrdersTable extends StatelessWidget {
                                         height: 34,
                                         child: Icon(
                                           Icons.receipt,
-                                          color: Color(0xFF475569),
+                                          color: _kOrange,
                                           size: 18,
                                         ),
                                       ),
@@ -563,7 +764,7 @@ class _OrdersTable extends StatelessWidget {
                                     Text(
                                       '#${_shortId(order.id)}',
                                       style: const TextStyle(
-                                        color: Color(0xFF0F172A),
+                                        color: _kTextDark,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -573,9 +774,62 @@ class _OrdersTable extends StatelessWidget {
                             ),
                             DataCell(
                               _TableCellIn(
-                                animationKey: '${order.id}-date',
+                                animationKey: '${order.id}-customer',
                                 index: index,
-                                child: Text(_formatDate(order.createdAt)),
+                                child: Text(
+                                  order.customerName.isNotEmpty
+                                      ? order.customerName
+                                      : 'Customer',
+                                  style: const TextStyle(
+                                    color: _kTextDark,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-phone',
+                                index: index,
+                                child: Text(
+                                  order.customerPhone.isNotEmpty
+                                      ? order.customerPhone
+                                      : '-',
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-address',
+                                index: index,
+                                child: Text(
+                                  order.customerAddress.isNotEmpty
+                                      ? order.customerAddress
+                                      : order.address,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-placed',
+                                index: index,
+                                child: Text(_formatDateTime(order.createdAt)),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-accepted',
+                                index: index,
+                                child: Text(_formatTimeOnly(order.acceptedAt)),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-delivered',
+                                index: index,
+                                child: Text(_formatTimeOnly(order.deliveredAt)),
                               ),
                             ),
                             DataCell(
@@ -604,7 +858,7 @@ class _OrdersTable extends StatelessWidget {
                                 child: Text(
                                   'Rs ${order.total.toStringAsFixed(0)}',
                                   style: const TextStyle(
-                                    color: Color(0xFF0F766E),
+                                    color: _kOrange,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -627,8 +881,7 @@ class _OrdersTable extends StatelessWidget {
                                     ? const _DonePill()
                                     : FilledButton.icon(
                                         style: FilledButton.styleFrom(
-                                          backgroundColor:
-                                              const Color(0xFF2563EB),
+                                          backgroundColor: _kOrange,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
                                             borderRadius:
@@ -667,7 +920,7 @@ class _DonePill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: _kOrangeLight,
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Padding(
@@ -675,7 +928,7 @@ class _DonePill extends StatelessWidget {
         child: Text(
           'Done',
           style: TextStyle(
-            color: Color(0xFF64748B),
+            color: _kOrange,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -695,7 +948,7 @@ class _DeliveryAcceptedCell extends StatelessWidget {
       return Text(
         order.status == OrderStatus.assigned ? 'Waiting' : '-',
         style: const TextStyle(
-          color: Color(0xFF94A3B8),
+          color: _kTextMid,
           fontWeight: FontWeight.w700,
         ),
       );
@@ -703,17 +956,32 @@ class _DeliveryAcceptedCell extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF7EF),
+        color: const Color(0xFFFFF0EB),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Text(
-          order.deliveryPersonName ?? 'Accepted',
-          style: const TextStyle(
-            color: Color(0xFF0F766E),
-            fontWeight: FontWeight.w900,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              order.deliveryPersonName ?? 'Accepted',
+              style: const TextStyle(
+                color: _kOrange,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _formatTimeOnly(order.acceptedAt ?? order.deliveryAcceptedAt ?? order.deliveredAt),
+              style: const TextStyle(
+                color: _kTextMid,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -727,9 +995,9 @@ class _OrdersEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _kCard,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -737,13 +1005,13 @@ class _OrdersEmptyState extends StatelessWidget {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: _kOrangeLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const SizedBox(
                 width: 44,
                 height: 44,
-                child: Icon(Icons.receipt_long, color: Color(0xFF2563EB)),
+                child: Icon(Icons.receipt_long, color: _kOrange),
               ),
             ),
             const SizedBox(width: 12),
@@ -751,7 +1019,7 @@ class _OrdersEmptyState extends StatelessWidget {
               child: Text(
                 'No orders available yet',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF0F172A),
+                      color: _kTextDark,
                       fontWeight: FontWeight.w900,
                     ),
               ),
@@ -936,12 +1204,23 @@ String _shortId(String id) {
   return id.substring(id.length - 8).toUpperCase();
 }
 
-String _formatDate(DateTime date) {
-  final day = date.day.toString().padLeft(2, '0');
-  final month = date.month.toString().padLeft(2, '0');
-  final hour = date.hour.toString().padLeft(2, '0');
-  final minute = date.minute.toString().padLeft(2, '0');
-  return '$day/$month/${date.year} $hour:$minute';
+String _formatDateTime(DateTime date) {
+  final local = date.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final amPm = local.hour >= 12 ? 'PM' : 'AM';
+  return '$day/$month/${local.year} $hour12:$minute $amPm';
+}
+
+String _formatTimeOnly(DateTime? date) {
+  if (date == null) return '-';
+  final local = date.toLocal();
+  final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final amPm = local.hour >= 12 ? 'PM' : 'AM';
+  return '$hour12:$minute $amPm';
 }
 
 String _columnLabel(int index) {

@@ -9,6 +9,8 @@ import '../app_page.dart';
 class ManageBannersScreen extends StatefulWidget {
   const ManageBannersScreen({super.key});
 
+  static const routeName = '/admin/banners';
+
   @override
   State<ManageBannersScreen> createState() => _ManageBannersScreenState();
 }

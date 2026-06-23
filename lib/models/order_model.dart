@@ -20,9 +20,14 @@ class OrderModel {
     required this.createdAt,
     this.scheduledFor,
     this.address = '',
+    this.customerName = '',
+    this.customerAddress = '',
+    this.customerPhone = '',
     this.deliveryPersonId,
     this.deliveryPersonName,
     this.deliveryAcceptedAt,
+    this.acceptedAt,
+    this.deliveredAt,
     this.deliveryOtp,
   });
 
@@ -33,9 +38,14 @@ class OrderModel {
   final DateTime createdAt;
   final DateTime? scheduledFor;
   final String address;
+  final String customerName;
+  final String customerAddress;
+  final String customerPhone;
   final String? deliveryPersonId;
   final String? deliveryPersonName;
   final DateTime? deliveryAcceptedAt;
+  final DateTime? acceptedAt;
+  final DateTime? deliveredAt;
   final String? deliveryOtp;
 
   String get displayOrderId {
@@ -66,42 +76,58 @@ class OrderModel {
     final deliveryPersonMap = deliveryPerson is Map<String, dynamic>
         ? deliveryPerson
         : null;
+    final rawId = json['_id'] ?? json['id'] ?? '';
+    final rawAddress = json['address'];
+    final addressText = rawAddress is String
+        ? rawAddress
+        : rawAddress is Map<String, dynamic>
+            ? [
+                rawAddress['line1'],
+                rawAddress['city'],
+                rawAddress['pincode'],
+              ].whereType<String>().where((value) => value.trim().isNotEmpty).join(', ')
+            : '';
 
     return OrderModel(
-      id: json['_id'] as String? ?? json['id'] as String,
+      id: rawId?.toString() ?? '',
       products: productsJson
           .map(
             (item) => ProductModel(
-              id:
-                  item['productId'] as String? ??
-                  item['product'] as String? ??
-                  '',
-              name: item['name'] as String? ?? 'Product',
-              category: item['category'] as String? ?? 'Grocery',
+              id: item['productId']?.toString() ?? item['product']?.toString() ?? '',
+              name: item['name']?.toString() ?? 'Product',
+              category: item['category']?.toString() ?? 'Grocery',
               price: (item['price'] as num? ?? 0).toDouble(),
               cost: 0,
               stock: 0,
-              imageUrl: item['imageUrl'] as String? ?? '',
+              imageUrl: item['imageUrl']?.toString() ?? '',
               unit: 'item',
             ),
           )
           .toList(),
       total: (json['total'] as num? ?? 0).toDouble(),
-      status: _statusFromJson(json['status'] as String?),
-      createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
-      scheduledFor: DateTime.tryParse(json['scheduledFor'] as String? ?? ''),
-      address: json['address'] as String? ?? '',
+      status: _statusFromJson(json['status']?.toString()),
+      createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
+      scheduledFor: _parseDateTime(json['scheduledFor']),
+      address: addressText,
+      customerName: json['customerName']?.toString() ?? '',
+      customerAddress: json['customerAddress']?.toString() ?? '',
+      customerPhone: json['customerPhone']?.toString() ?? '',
       deliveryPersonId: deliveryPersonMap == null
-          ? deliveryPerson as String?
-          : deliveryPersonMap['_id'] as String? ?? deliveryPersonMap['id'] as String?,
-      deliveryPersonName: deliveryPersonMap?['name'] as String?,
-      deliveryAcceptedAt:
-          DateTime.tryParse(json['deliveryAcceptedAt'] as String? ?? ''),
-      deliveryOtp: json['deliveryOtp'] as String?,
+          ? deliveryPerson?.toString()
+          : deliveryPersonMap['_id']?.toString() ?? deliveryPersonMap['id']?.toString(),
+      deliveryPersonName: deliveryPersonMap?['name']?.toString(),
+      deliveryAcceptedAt: _parseDateTime(json['deliveryAcceptedAt']),
+      acceptedAt: _parseDateTime(json['acceptedAt']),
+      deliveredAt: _parseDateTime(json['deliveredAt']),
+      deliveryOtp: json['deliveryOtp']?.toString(),
     );
   }
+}
+
+DateTime? _parseDateTime(dynamic value) {
+  final parsed = DateTime.tryParse(value?.toString() ?? '');
+  if (parsed == null) return null;
+  return parsed.toLocal();
 }
 
 OrderStatus _statusFromJson(String? status) {

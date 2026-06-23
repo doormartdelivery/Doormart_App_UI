@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../mascot/walking_mascot_widget.dart';
+import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
@@ -12,6 +13,13 @@ import 'manage_products_screen.dart';
 import 'manage_banners_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+
+const _kOrange = Color(0xFFE8541A);
+const _kOrangeLight = Color(0xFFFFF0EB);
+const _kBg = Color(0xFFF6F6F6);
+const _kCard = Colors.white;
+const _kTextDark = Color(0xFF1A1A1A);
+const _kTextMid = Color(0xFF9E9E9E);
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -32,6 +40,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: _kBg,
       drawer: _AdminDrawer(
         selectedIndex: _selectedIndex,
         destinations: destinations,
@@ -50,33 +59,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           );
         },
       ),
-      appBar: AppBar(
-        title: const Text('Admin dashboard'),
-        leading: IconButton(
-          tooltip: 'Menu',
-          icon: const Icon(Icons.menu),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   backgroundColor: _kBg,
+      //   title: const Text('Admin dashboard'),
+      //   foregroundColor: _kTextDark,
+      //   elevation: 0,
+      //   centerTitle: false,
+      //   leading: IconButton(
+      //     tooltip: 'Menu',
+      //     icon: const Icon(Icons.menu),
+      //     onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      //   ),
+      //   actions: [
+      //     IconButton(
+      //       tooltip: 'Refresh',
+      //       onPressed: () => setState(() {}),
+      //       icon: const Icon(Icons.refresh),
+      //     ),
+      //   ],
+      // ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFF9933),
-              Color(0xFFFFFFFF),
-              Color(0xFF138808),
-            ],
-            stops: [0.0, 0.55, 1.0],
-          ),
+          color: _kBg,
         ),
         child: SafeArea(
           child: AnimatedSwitcher(
@@ -191,12 +195,7 @@ class _AdminDrawer extends StatelessWidget {
     return Drawer(
       child: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFF9933), Color(0xFFFFFFFF), Color(0xFF138808)],
-            stops: [0.0, 0.65, 1.0],
-          ),
+          color: _kBg,
         ),
         child: SafeArea(
           child: Column(
@@ -207,8 +206,8 @@ class _AdminDrawer extends StatelessWidget {
                   children: [
                     const CircleAvatar(
                       radius: 24,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.admin_panel_settings, color: Color(0xFF0F766E)),
+                      backgroundColor: _kOrangeLight,
+                      child: Icon(Icons.admin_panel_settings, color: _kOrange),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -219,16 +218,20 @@ class _AdminDrawer extends StatelessWidget {
                             'Admin menu',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w900,
+                                  color: _kTextDark,
                                 ),
                           ),
-                          const Text('Select a section to view its content'),
+                          const Text(
+                            'Select a section to view its content',
+                            style: TextStyle(color: _kTextMid),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              const Divider(height: 1, color: Color(0xFFE7E7E7)),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.all(12),
@@ -238,8 +241,10 @@ class _AdminDrawer extends StatelessWidget {
                     final section = destinations[index];
                     final selected = index == selectedIndex;
                     return Material(
-                      color: selected ? Colors.white.withValues(alpha: 0.92) : Colors.white.withValues(alpha: 0.72),
+                      color: _kCard,
                       borderRadius: BorderRadius.circular(18),
+                      elevation: selected ? 2 : 0,
+                      shadowColor: Colors.black.withValues(alpha: 0.06),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(18),
                         onTap: () => onSelect(index),
@@ -265,22 +270,20 @@ class _AdminDrawer extends StatelessWidget {
                                       section.title,
                                       style: TextStyle(
                                         fontWeight: FontWeight.w900,
-                                        color: selected
-                                            ? const Color(0xFF0F766E)
-                                            : const Color(0xFF17211B),
+                                        color: selected ? _kOrange : _kTextDark,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       section.subtitle,
                                       style: TextStyle(
-                                        color: Colors.black.withValues(alpha: 0.62),
+                                        color: _kTextMid,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
+                              Icon(Icons.chevron_right, color: selected ? _kOrange : _kTextMid),
                             ],
                           ),
                         ),
@@ -296,10 +299,10 @@ class _AdminDrawer extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onLogout,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB91C1C),
-                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      foregroundColor: _kOrange,
+                      side: const BorderSide(color: _kOrange),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.white.withValues(alpha: 0.82),
+                      backgroundColor: _kOrangeLight,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
                       ),
@@ -332,20 +335,21 @@ class _AdminOverviewPanel extends StatelessWidget {
       children: [
         _HeroCard(onOpenMenu: onOpenMenu),
         const SizedBox(height: 16),
-        FutureBuilder<Map<String, dynamic>>(
-          future: context.read<AppState>().adminDashboard(),
+        FutureBuilder<void>(
+          future: Future.microtask(() => context.read<AppState>().loadAdminOrders()),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return _StatusCard(message: snapshot.error.toString());
             }
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                context.read<AppState>().adminOrders.isEmpty) {
               return const Center(child: Padding(
                 padding: EdgeInsets.all(16),
                 child: CircularProgressIndicator(),
               ));
             }
-            final data = snapshot.data!;
-            return _StatsGrid(data: data);
+            final orders = context.watch<AppState>().adminOrders;
+            return _StatsGrid(orders: orders);
           },
         ),
         const SizedBox(height: 16),
@@ -367,43 +371,47 @@ class _HeroCard extends StatelessWidget {
       child: Container(
         height: 220,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFF9933), Color(0xFFFFFFFF), Color(0xFF138808)],
-            stops: [0.0, 0.55, 1.0],
-          ),
+          color: _kCard,
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
+          border: Border.all(color: const Color(0xFFF0F0F0)),
         ),
         child: Stack(
           children: [
-            // Positioned(
-            //   top: 14,
-            //   left: 14,
-            //   child: IconButton.filledTonal(
-            //     onPressed: onOpenMenu,
-            //     icon: const Icon(Icons.menu),
-            //   ),
-            // ),
             Positioned(
-              right: 12,
+              top: 14,
+              left: 14,
+              child: IconButton.filledTonal(
+                onPressed: onOpenMenu,
+                style: IconButton.styleFrom(
+                  backgroundColor: _kOrangeLight,
+                  foregroundColor: _kOrange,
+                ),
+                icon: const Icon(Icons.menu),
+              ),
+            ),
+            Positioned(
+              right: 16,
               top: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                // decoration: BoxDecoration(
-                //   color: Colors.white.withValues(alpha: 0.86),
-                //   borderRadius: BorderRadius.circular(999),
-                // ),
-                // child: const Text(
-                //   'India-themed control center',
-                //   style: TextStyle(fontWeight: FontWeight.w800),
-                // ),
+                decoration: BoxDecoration(
+                  color: _kOrangeLight,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Overview',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: _kOrange,
+                  ),
+                ),
               ),
             ),
             Positioned(
@@ -417,7 +425,7 @@ class _HeroCard extends StatelessWidget {
                     'Admin dashboard',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF17211B),
+                          color: _kTextDark,
                         ),
                   ),
                   const SizedBox(height: 8),
@@ -426,7 +434,7 @@ class _HeroCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F2A24),
+                      color: _kTextMid,
                     ),
                   ),
                 ],
@@ -440,19 +448,31 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.data});
+  _StatsGrid({required this.orders});
 
-  final Map<String, dynamic> data;
+  final List<OrderModel> orders;
 
   @override
   Widget build(BuildContext context) {
+    final orderPlaced = orders.where((order) => order.status == OrderStatus.placed).length;
+    final accepted = orders.where((order) => order.status == OrderStatus.accepted).length;
+    final pickup = orders
+        .where((order) => order.status == OrderStatus.assigned || order.status == OrderStatus.pickedUp)
+        .length;
+    final delivered = orders.where((order) => order.status == OrderStatus.delivered).length;
+    final revenue = orders.fold<double>(0, (sum, order) => sum + order.total);
+    final lowStock = context.select<AppState, int>(
+      (state) => state.products.where((product) => product.stock <= 15 && product.stock >= 0).length,
+    );
+
     final metrics = [
-      _Metric('Today Orders', data['todayOrders']),
-      _Metric('Pending', data['pendingOrders']),
-      _Metric('Revenue', data['todayRevenue'], currency: true),
-      _Metric('Low Stock', data['lowStockProducts']),
-      _Metric('Delivery', data['availableDeliveryPersons']),
-      _Metric('Completed', data['completedOrders']),
+      _Metric('Total Orders', orders.length),
+      _Metric('Order Placed', orderPlaced),
+      _Metric('Order Accepted', accepted),
+      _Metric('Pickup', pickup),
+      _Metric('Delivered', delivered),
+      _Metric('Revenue', revenue, currency: true),
+      _Metric('Low Stock', lowStock),
     ];
 
     return GridView.builder(
@@ -469,9 +489,16 @@ class _StatsGrid extends StatelessWidget {
         final metric = metrics[index];
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.84),
+            color: _kCard,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+            border: Border.all(color: const Color(0xFFF0F0F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -480,7 +507,7 @@ class _StatsGrid extends StatelessWidget {
               Text(
                 metric.label,
                 style: TextStyle(
-                  color: Colors.black.withValues(alpha: 0.6),
+                  color: _kTextMid,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -492,7 +519,7 @@ class _StatsGrid extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF0F766E),
+                  color: _kOrange,
                 ),
               ),
             ],
@@ -513,8 +540,9 @@ class _StatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: _kCard,
         borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Text(message),
     );
