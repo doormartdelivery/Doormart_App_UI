@@ -1204,8 +1204,8 @@ class _HomeFeedCard extends StatelessWidget {
                   left: 10,
                   bottom: 10,
                   child: _HomeTextChip(
-                    'ITEMS',
-                    subText: 'AT Rs ${product.price.toStringAsFixed(0)}',
+                    'PACK',
+                    subText: _unitLabel(product.unit),
                   ),
                 ),
               ],
@@ -1230,7 +1230,7 @@ class _HomeFeedCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product.category,
+                      '${product.category} • ${_unitLabel(product.unit)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: _kTextMid,
@@ -1623,7 +1623,7 @@ class _PopularStyleProductCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      product.category,
+                      '${product.category} • ${_unitLabel(product.unit)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: _kTextMid,
@@ -1693,6 +1693,13 @@ class _PopularStyleProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _unitLabel(String value) {
+  final unit = value.trim();
+  if (unit.isEmpty) return '1 item';
+  if (RegExp(r'^\d').hasMatch(unit)) return unit;
+  return '1 $unit';
 }
 
 class _TopOffersFeed extends StatelessWidget {

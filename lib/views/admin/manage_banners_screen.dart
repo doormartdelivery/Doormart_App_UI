@@ -1,10 +1,21 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/banner_model.dart';
 import '../../providers/app_state.dart';
-import '../app_page.dart';
+import 'admin_dashboard_screen.dart';
+import 'admin_notifications_screen.dart';
+import 'admin_orders_screen.dart';
+import 'audit_logs_screen.dart';
+import 'manage_categories_screen.dart';
+import 'manage_delivery_screen.dart';
+import 'manage_products_screen.dart';
+import 'manage_users_screen.dart';
+import 'stock_screen.dart';
 
 class ManageBannersScreen extends StatefulWidget {
   const ManageBannersScreen({super.key});
@@ -16,6 +27,7 @@ class ManageBannersScreen extends StatefulWidget {
 }
 
 class _ManageBannersScreenState extends State<ManageBannersScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<BannerModel> _banners = [];
   bool _loading = true;
   String? _error;
@@ -25,8 +37,6 @@ class _ManageBannersScreenState extends State<ManageBannersScreen> {
     super.initState();
     _load();
   }
-
-  // ── Data ──────────────────────────────────────────────────────────────────
 
   Future<void> _load() async {
     setState(() {
@@ -45,42 +55,37 @@ class _ManageBannersScreenState extends State<ManageBannersScreen> {
     }
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-
   Future<void> _openEditor({BannerModel? banner}) async {
-    final result = await showDialog<_BannerResult>(
+    final result = await showModalBottomSheet<_BannerResult>(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => _BannerEditorDialog(initial: banner),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _BannerEditorSheet(initial: banner),
     );
     if (result == null || !mounted) return;
 
     try {
       final state = context.read<AppState>();
       if (banner == null) {
-        // ── CREATE ──
         await state.createBanner(
           title: result.title,
           imageUrl: result.imageUrl,
           active: result.active,
         );
-        if (!mounted) return;
-        _showSnack('Banner "${result.title}" created');
       } else {
-        // ── UPDATE ──
         await state.updateBanner(
           bannerId: banner.id,
           title: result.title,
           imageUrl: result.imageUrl,
           active: result.active,
         );
-        if (!mounted) return;
-        _showSnack('Banner "${result.title}" updated');
       }
-      await _load(); // refresh list immediately
+      await _load();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Error: $e', error: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
@@ -94,31 +99,16 @@ class _ManageBannersScreenState extends State<ManageBannersScreen> {
     try {
       await context.read<AppState>().deleteBanner(banner.id);
       if (!mounted) return;
-
-      // Optimistically remove from local list for instant UI update
-      setState(() => _banners.removeWhere((b) => b.id == banner.id));
-      _showSnack('"${banner.title}" deleted');
+      await _load();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Delete failed: $e', error: true);
-      await _load(); // re-sync if delete failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
     }
   }
 
   Future<void> _toggleActive(BannerModel banner) async {
-    // Optimistic update
-    setState(() {
-      final i = _banners.indexWhere((b) => b.id == banner.id);
-      if (i != -1) {
-        _banners[i] = BannerModel(
-          id: banner.id,
-          title: banner.title,
-          imageUrl: banner.imageUrl,
-          active: !banner.active,
-        );
-      }
-    });
-
     try {
       await context.read<AppState>().updateBanner(
             bannerId: banner.id,
@@ -126,116 +116,357 @@ class _ManageBannersScreenState extends State<ManageBannersScreen> {
             imageUrl: banner.imageUrl,
             active: !banner.active,
           );
+      await _load();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('Toggle failed: $e', error: true);
-      await _load(); // revert on error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Toggle failed: $e')),
+      );
     }
   }
-
-  void _showSnack(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: error ? Colors.red.shade700 : const Color(0xFF0F9D58),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Manage banners',
-      actions: [
-        IconButton.filled(
-          tooltip: 'Add banner',
-          onPressed: _loading ? null : () => _openEditor(),
-          icon: const Icon(Icons.add),
-        ),
-      ],
-      children: [_buildBody()],
-    );
-  }
-
-  Widget _buildBody() {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_error != null) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF6F6F6),
+      drawer: _AdminDrawer(
+        onNavigate: (route) {
+          Navigator.pop(context);
+          if (route != ManageBannersScreen.routeName) {
+            Navigator.pushReplacementNamed(context, route);
+          }
+        },
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+        },
+      ),
+      // appBar: AppBar(
+      //   backgroundColor: const Color(0xFFF6F6F6),
+      //   foregroundColor: const Color(0xFF1A1A1A),
+      //   elevation: 0,
+      //   leading: Builder(
+      //     builder: (context) => IconButton(
+      //       tooltip: 'Menu',
+      //       icon: const Icon(Icons.menu),
+      //       onPressed: () => Scaffold.of(context).openDrawer(),
+      //     ),
+      //   ),
+      //   title: const Text('Banners'),
+      // ),
+      body: SafeArea(
+        child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 8),
-            Text(_error!, textAlign: TextAlign.center),
+            _BannersHero(onOpenMenu: () => _scaffoldKey.currentState?.openDrawer()),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _load,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_banners.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 60),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.slideshow_rounded,
-                  size: 56, color: Colors.grey.shade300),
-              const SizedBox(height: 12),
-              const Text(
-                'No banners yet',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey,
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _loading ? null : () => _openEditor(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6A00),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text(
+                  'Add New Banner',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _openEditor(),
-                icon: const Icon(Icons.add),
-                label: const Text('Add first banner'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: _banners
-          .map(
-            (banner) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _BannerCard(
-                banner: banner,
-                onEdit: () => _openEditor(banner: banner),
-                onDelete: () => _delete(banner),
-                onToggleActive: () => _toggleActive(banner),
-              ),
             ),
-          )
-          .toList(),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 8),
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else if (_banners.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.slideshow_rounded, size: 56, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No banners yet',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => _openEditor(),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add first banner'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final crossAxisCount = width >= 900
+                      ? 3
+                      : width >= 600
+                          ? 2
+                          : 1;
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _banners.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      childAspectRatio: crossAxisCount == 1 ? 1.1 : 0.78,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
+                    itemBuilder: (context, index) {
+                      final banner = _banners[index];
+                      return _BannerCard(
+                        banner: banner,
+                        onEdit: () => _openEditor(banner: banner),
+                        onDelete: () => _delete(banner),
+                        onToggleActive: () => _toggleActive(banner),
+                      );
+                    },
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-// ─── Banner Card ──────────────────────────────────────────────────────────────
+class _BannersHero extends StatelessWidget {
+  const _BannersHero({required this.onOpenMenu});
+
+  final VoidCallback onOpenMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 14,
+              left: 14,
+              child: IconButton.filledTonal(
+                onPressed: onOpenMenu,
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF0EB),
+                  foregroundColor: const Color(0xFFE8541A),
+                ),
+                icon: const Icon(Icons.menu),
+              ),
+            ),
+            const Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Banner manager',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Manage homepage banners, visibility, and image highlights from one polished panel.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminDrawer extends StatelessWidget {
+  const _AdminDrawer({
+    required this.onNavigate,
+    required this.onLogout,
+  });
+
+  final void Function(String route) onNavigate;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
+      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
+      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
+      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
+    ];
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFFFF0EB),
+                    child: Icon(Icons.admin_panel_settings, color: Color(0xFFE8541A)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                        SizedBox(height: 4),
+                        Text('Navigate the control center', style: TextStyle(color: Color(0xFF9E9E9E))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE7E7E7)),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final selected = item.$3 == ManageBannersScreen.routeName;
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => onNavigate(item.$3),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                item.$2,
+                                color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item.$1,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: selected ? const Color(0xFFE8541A) : const Color(0xFF9E9E9E)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onLogout,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8541A),
+                    side: const BorderSide(color: Color(0xFFE8541A)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xFFFFF0EB),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _BannerCard extends StatelessWidget {
   const _BannerCard({
@@ -255,106 +486,70 @@ class _BannerCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE3E8DF)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1E3D8)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 16,
-            offset: const Offset(0, 6),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Thumbnail ───────────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-            child: SizedBox(
-              width: double.infinity,
-              height: 140,
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: _BannerThumb(imageUrl: banner.imageUrl),
             ),
           ),
-          // ── Info + Actions ───────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
                         banner.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          fontSize: 15,
+                          color: Color(0xFF1F2937),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      // Active / hidden chip
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: banner.active
-                              ? const Color(0xFFEAF7EF)
-                              : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              banner.active
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
-                              size: 12,
-                              color: banner.active
-                                  ? const Color(0xFF0F9D58)
-                                  : Colors.grey,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              banner.active ? 'Visible' : 'Hidden',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: banner.active
-                                    ? const Color(0xFF0F9D58)
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
+                    ),
+                    Switch.adaptive(
+                      value: banner.active,
+                      activeColor: const Color(0xFF0F9D58),
+                      onChanged: (_) => onToggleActive(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: onEdit,
+                      child: const Text(
+                        'Edit',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                    ],
-                  ),
-                ),
-                // Toggle active
-                Tooltip(
-                  message: banner.active ? 'Hide banner' : 'Show banner',
-                  child: Switch.adaptive(
-                    value: banner.active,
-                    activeColor: const Color(0xFF0F9D58),
-                    onChanged: (_) => onToggleActive(),
-                  ),
-                ),
-                // Edit
-                IconButton(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_rounded, size: 20),
-                  tooltip: 'Edit',
-                ),
-                // Delete
-                IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      size: 20, color: Colors.red),
-                  tooltip: 'Delete',
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: onDelete,
+                      child: const Text(
+                        'Delete',
+                        style: TextStyle(fontWeight: FontWeight.w800, color: Colors.red),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -365,10 +560,9 @@ class _BannerCard extends StatelessWidget {
   }
 }
 
-// ─── Banner Thumb ─────────────────────────────────────────────────────────────
-
 class _BannerThumb extends StatelessWidget {
   const _BannerThumb({required this.imageUrl});
+
   final String imageUrl;
 
   @override
@@ -377,6 +571,7 @@ class _BannerThumb extends StatelessWidget {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
+        width: double.infinity,
         errorBuilder: (_, __, ___) => const _ThumbFallback(),
       );
     }
@@ -384,6 +579,7 @@ class _BannerThumb extends StatelessWidget {
       return Image.asset(
         imageUrl,
         fit: BoxFit.cover,
+        width: double.infinity,
         errorBuilder: (_, __, ___) => const _ThumbFallback(),
       );
     }
@@ -399,27 +595,23 @@ class _ThumbFallback extends StatelessWidget {
     return const ColoredBox(
       color: Color(0xFFF1F5F9),
       child: Center(
-        child: Icon(Icons.slideshow_rounded,
-            size: 48, color: Color(0xFF0F9D58)),
+        child: Icon(Icons.slideshow_rounded, size: 48, color: Color(0xFF0F9D58)),
       ),
     );
   }
 }
 
-// ─── Delete Confirm Dialog ────────────────────────────────────────────────────
-
 class _DeleteConfirmDialog extends StatelessWidget {
   const _DeleteConfirmDialog({required this.title});
+
   final String title;
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      icon: const Icon(Icons.delete_outline_rounded,
-          color: Colors.red, size: 40),
-      title: const Text('Delete banner',
-          style: TextStyle(fontWeight: FontWeight.w900)),
+      icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 40),
+      title: const Text('Delete banner', style: TextStyle(fontWeight: FontWeight.w900)),
       content: Text(
         'Are you sure you want to delete "$title"?\nThis cannot be undone.',
         textAlign: TextAlign.center,
@@ -439,35 +631,34 @@ class _DeleteConfirmDialog extends StatelessWidget {
   }
 }
 
-// ─── Result carrier (replaces bool) ──────────────────────────────────────────
-
 class _BannerResult {
   const _BannerResult({
     required this.title,
     required this.imageUrl,
     required this.active,
   });
+
   final String title;
   final String imageUrl;
   final bool active;
 }
 
-// ─── Banner Editor Dialog ─────────────────────────────────────────────────────
+class _BannerEditorSheet extends StatefulWidget {
+  const _BannerEditorSheet({required this.initial});
 
-class _BannerEditorDialog extends StatefulWidget {
-  const _BannerEditorDialog({required this.initial});
   final BannerModel? initial;
 
   @override
-  State<_BannerEditorDialog> createState() => _BannerEditorDialogState();
+  State<_BannerEditorSheet> createState() => _BannerEditorSheetState();
 }
 
-class _BannerEditorDialogState extends State<_BannerEditorDialog> {
-  final _formKey = GlobalKey<FormState>();
+class _BannerEditorSheetState extends State<_BannerEditorSheet> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _imageCtrl;
   late bool _active;
   bool _uploading = false;
+  String? _error;
+  Uint8List? _pickedPreviewBytes;
 
   @override
   void initState() {
@@ -485,33 +676,50 @@ class _BannerEditorDialogState extends State<_BannerEditorDialog> {
   }
 
   Future<void> _pickImage() async {
-    final picked =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-    setState(() => _uploading = true);
+    setState(() {
+      _uploading = true;
+      _pickedPreviewBytes = null;
+      _error = null;
+    });
     try {
-      final url =
-          await context.read<AppState>().uploadCategoryImage(picked.path);
+      _pickedPreviewBytes = await picked.readAsBytes();
+      final url = await context.read<AppState>().uploadCategoryImage(
+            picked.path,
+            bytes: _pickedPreviewBytes,
+            fileName: picked.name,
+          );
       if (!mounted) return;
-      setState(() => _imageCtrl.text = url);
+      setState(() {
+        _imageCtrl.text = url;
+        _error = null;
+      });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    // Return the result to the parent — the parent handles the API call
+    if (_uploading) return;
+    final title = _titleCtrl.text.trim();
+    final imageUrl = _imageCtrl.text.trim();
+    if (title.isEmpty) {
+      setState(() => _error = 'Title is required');
+      return;
+    }
+    if (imageUrl.isEmpty) {
+      setState(() => _error = 'Please add a valid image URL');
+      return;
+    }
     Navigator.pop(
       context,
       _BannerResult(
-        title: _titleCtrl.text.trim(),
-        imageUrl: _imageCtrl.text.trim(),
+        title: title,
+        imageUrl: imageUrl,
         active: _active,
       ),
     );
@@ -519,183 +727,197 @@ class _BannerEditorDialogState extends State<_BannerEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.initial != null;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final imageUrl = _imageCtrl.text.trim();
+    final preview = _pickedPreviewBytes != null
+        ? Image.memory(_pickedPreviewBytes!, fit: BoxFit.cover)
+        : imageUrl.startsWith('http')
+            ? Image.network(imageUrl, fit: BoxFit.cover)
+            : imageUrl.startsWith('assets/')
+                ? Image.asset(imageUrl, fit: BoxFit.cover)
+                : const _ThumbFallback();
 
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Row(
-        children: [
-          Icon(
-            isEdit ? Icons.edit_rounded : Icons.add_photo_alternate_rounded,
-            color: const Color(0xFF0F9D58),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            isEdit ? 'Edit banner' : 'Add banner',
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ],
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 16 + bottomInset),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF3F7FF),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      content: SizedBox(
-        width: 520,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                // ── Preview ────────────────────────────────────────────
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Container(
-                    height: 160,
-                    width: double.infinity,
-                    color: const Color(0xFFF1F5F9),
-                    child: _imageCtrl.text.trim().isEmpty
-                        ? const Center(
-                            child: Icon(Icons.slideshow_rounded,
-                                size: 56, color: Color(0xFF94A3B8)),
-                          )
-                        : _imageCtrl.text.trim().startsWith('http')
-                            ? Image.network(_imageCtrl.text.trim(),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
-                                      child: Icon(Icons.broken_image_rounded,
-                                          size: 56, color: Color(0xFF94A3B8)),
-                                    ))
-                            : Image.asset(_imageCtrl.text.trim(),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Center(
-                                      child: Icon(Icons.broken_image_rounded,
-                                          size: 56, color: Color(0xFF94A3B8)),
-                                    )),
+                Expanded(
+                  child: Text(
+                    widget.initial == null ? 'Add New Banner' : 'Edit Banner',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // ── Title ──────────────────────────────────────────────
-                TextFormField(
-                  controller: _titleCtrl,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: 'Banner title *',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    prefixIcon: const Icon(Icons.title_rounded),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Title required' : null,
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
                 ),
-
-                const SizedBox(height: 12),
-
-                // ── Image URL + Upload ─────────────────────────────────
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _imageCtrl,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Image *',
-                          hintText: 'Upload from gallery',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          prefixIcon: const Icon(Icons.image_rounded),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty)
-                                ? 'Image required'
-                                : null,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      height: 56,
-                      child: FilledButton.icon(
-                        onPressed: _uploading ? null : _pickImage,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F9D58),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: _uploading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.upload_rounded),
-                        label: Text(_uploading ? 'Uploading…' : 'Upload'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // ── Active toggle ──────────────────────────────────────
-                Container(
+              ],
+            ),
+            const SizedBox(height: 10),
+            _SheetField(
+              label: 'Banner Title',
+              child: TextFormField(
+                controller: _titleCtrl,
+                decoration: _inputDecoration('e.g., Weekend Feast 50% Off!'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SheetField(
+              label: 'Banner Image',
+              child: GestureDetector(
+                onTap: _uploading ? null : _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7FAF4),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE3E8DF)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFF0D8C8)),
                   ),
-                  child: SwitchListTile.adaptive(
-                    value: _active,
-                    activeColor: const Color(0xFF0F9D58),
-                    onChanged: (v) => setState(() => _active = v),
-                    title: const Text(
-                      'Visible on home screen',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: preview,
+                      ),
+                      if (_uploading)
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Color(0xFFFF6A00)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SheetField(
+              label: 'Image URL',
+              child: TextFormField(
+                controller: _imageCtrl,
+                decoration: _inputDecoration('Upload from gallery or paste URL'),
+                onChanged: (_) => setState(() => _error = null),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: (value) => setState(() => _active = value),
+              title: const Text(
+                'Active',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF475569),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    subtitle: Text(
-                      _active
-                          ? 'Users can see this banner'
-                          : 'Banner is hidden from users',
-                      style: const TextStyle(fontSize: 12),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _uploading ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6A00),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    secondary: Icon(
-                      _active
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      color: _active
-                          ? const Color(0xFF0F9D58)
-                          : Colors.grey,
-                    ),
+                    child: const Text('Save Banner'),
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, null),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF0F9D58),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+    );
+  }
+}
+
+class _SheetField extends StatelessWidget {
+  const _SheetField({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF374151),
           ),
-          onPressed: _uploading ? null : _submit,
-          icon: Icon(isEdit ? Icons.save_rounded : Icons.add_rounded),
-          label: Text(isEdit ? 'Save changes' : 'Add banner'),
         ),
+        const SizedBox(height: 8),
+        child,
       ],
     );
   }
+}
+
+InputDecoration _inputDecoration(String hintText) {
+  return InputDecoration(
+    hintText: hintText,
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFF0D8C8)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFF0D8C8)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFFF6A00), width: 1.2),
+    ),
+  );
 }

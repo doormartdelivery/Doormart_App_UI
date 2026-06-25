@@ -84,7 +84,7 @@ Future<void> showProductBottomSheet(
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              product.unit,
+                              _unitLabel(product.unit),
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
@@ -122,6 +122,13 @@ Future<void> showProductBottomSheet(
       );
     },
   );
+}
+
+String _unitLabel(String value) {
+  final unit = value.trim();
+  if (unit.isEmpty) return '1 item';
+  if (RegExp(r'^\d').hasMatch(unit)) return unit;
+  return '1 $unit';
 }
 
 class _QuantityAddToCartBar extends StatefulWidget {

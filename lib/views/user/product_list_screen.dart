@@ -483,7 +483,7 @@ class _ProductFeedCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product.category,
+                      '${product.category} • ${_unitLabel(product.unit)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF9E9E9E),
@@ -574,6 +574,13 @@ class _ProductFeedCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _unitLabel(String value) {
+  final unit = value.trim();
+  if (unit.isEmpty) return '1 item';
+  if (RegExp(r'^\d').hasMatch(unit)) return unit;
+  return '1 $unit';
 }
 
 class _BadgeButton extends StatelessWidget {

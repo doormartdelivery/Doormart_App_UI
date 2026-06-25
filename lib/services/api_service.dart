@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -99,14 +100,13 @@ class ApiService {
 
   Future<dynamic> uploadImage(
     String path, {
-    required String filePath,
+    String? filePath,
+    Uint8List? bytes,
+    String? fileName,
     required String fieldName,
     String? token,
     Map<String, String>? fields,
   }) async {
-    if (kIsWeb) {
-      throw UnsupportedError('Image upload is not supported on web.');
-    }
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl$path'),
@@ -117,9 +117,25 @@ class ApiService {
     if (fields != null) {
       request.fields.addAll(fields);
     }
-    request.files.add(
-      await http.MultipartFile.fromPath(fieldName, filePath),
-    );
+    if (kIsWeb) {
+      if (bytes == null) {
+        throw StateError('Image bytes are required on web');
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fieldName,
+          bytes,
+          filename: fileName ?? 'upload.jpg',
+        ),
+      );
+    } else {
+      if (filePath == null || filePath.isEmpty) {
+        throw StateError('File path is required');
+      }
+      request.files.add(
+        await http.MultipartFile.fromPath(fieldName, filePath),
+      );
+    }
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);

@@ -83,6 +83,20 @@ class ProductCard extends StatelessWidget {
                               fontSize: 17,
                             ),
                       ),
+                      Text(
+                        product.unit.trim().isEmpty
+                            ? '1 item'
+                            : (RegExp(r'^\d').hasMatch(product.unit.trim())
+                                ? product.unit.trim()
+                                : '1 ${product.unit.trim()}'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
                       Row(
                         children: [
                           Expanded(

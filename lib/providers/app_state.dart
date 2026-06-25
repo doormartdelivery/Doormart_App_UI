@@ -58,6 +58,7 @@ class AppState extends ChangeNotifier {
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
+  int dashboardRefreshTick = 0;
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
   double get deliveryFee => cart.isEmpty ? 0 : 35;
@@ -369,7 +370,11 @@ class AppState extends ChangeNotifier {
     await loadCategories();
   }
 
-  Future<String> uploadCategoryImage(String filePath) async {
+  Future<String> uploadCategoryImage(
+    String filePath, {
+    Uint8List? bytes,
+    String? fileName,
+  }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
@@ -379,22 +384,30 @@ class AppState extends ChangeNotifier {
       '/categories/upload-image',
       token: token,
       filePath: filePath,
+      bytes: bytes,
+      fileName: fileName,
       fieldName: 'image',
     ) as Map<String, dynamic>;
 
     return NetworkImageUrl.normalize(data['url'] as String?);
   }
 
-  Future<String> uploadProductImage(String filePath) async {
+  Future<String> uploadProductImage(
+    String filePath, {
+    Uint8List? bytes,
+    String? fileName,
+  }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
 
     final data = await apiService.uploadImage(
-      '/categories/upload-image',
+      '/products/upload-image',
       token: token,
       filePath: filePath,
+      bytes: bytes,
+      fileName: fileName,
       fieldName: 'image',
     ) as Map<String, dynamic>;
 
@@ -407,6 +420,7 @@ class AppState extends ChangeNotifier {
     required double price,
     required double cost,
     required int stock,
+    required String unit,
     String imageUrl = '',
   }) async {
     if (token == null ||
@@ -424,6 +438,7 @@ class AppState extends ChangeNotifier {
                 'price': price,
                 'cost': cost,
                 'stock': stock,
+                'unit': unit,
                 'imageUrl': imageUrl,
               },
             )
@@ -432,6 +447,7 @@ class AppState extends ChangeNotifier {
     final product = ProductModel.fromJson(data);
     products.insert(0, product);
     notifyListeners();
+    await loadProducts();
     return product;
   }
 
@@ -474,6 +490,7 @@ class AppState extends ChangeNotifier {
       products[index] = product;
     }
     notifyListeners();
+    await loadProducts();
     return product;
   }
 
@@ -486,6 +503,7 @@ class AppState extends ChangeNotifier {
     await apiService.delete('/products/$productId', token: token);
     products.removeWhere((product) => product.id == productId);
     notifyListeners();
+    await loadProducts();
   }
 
   Future<void> loadOrders() async {
@@ -992,6 +1010,7 @@ class AppState extends ChangeNotifier {
       userId: user?.id,
       onOrderCreated: (data) async {
         debugPrint('Socket order created event received; reloading orders.');
+        dashboardRefreshTick++;
         if (data is Map<String, dynamic>) {
           final order = OrderModel.fromJson(data);
           if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
@@ -1014,20 +1033,32 @@ class AppState extends ChangeNotifier {
       },
       onOrderAccepted: (_) async {
         debugPrint('Socket order accepted event received; reloading orders.');
+        dashboardRefreshTick++;
         await loadOrders();
         await loadAdminOrders();
       },
       onOrderPickedUp: (_) async {
         debugPrint('Socket order picked up event received; reloading orders.');
+        dashboardRefreshTick++;
         await loadOrders();
         await loadAdminOrders();
       },
       onOrderDelivered: (_) async {
         debugPrint('Socket order delivered event received; reloading orders.');
+        dashboardRefreshTick++;
         await loadOrders();
         await loadAdminOrders();
         final navContext = DoormartDeliveryApp.navigatorKey.currentContext;
         if (navContext != null) showToast(navContext, 'Order delivered successfully');
+      },
+      onStockUpdated: (_) async {
+        debugPrint('Socket stock updated event received; reloading products.');
+        dashboardRefreshTick++;
+        await loadProducts();
+        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+          await loadAdminOrders();
+        }
+        notifyListeners();
       },
     );
     if (user?.id.isNotEmpty == true) {

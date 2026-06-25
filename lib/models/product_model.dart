@@ -24,13 +24,18 @@ class ProductModel {
   final String unit;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    final stockQuantity = (json['stockQuantity'] as num?)?.toInt();
+    final stock = (json['stock'] as num?)?.toInt();
+    final stockValue = (stockQuantity != null && stockQuantity > 0)
+        ? stockQuantity
+        : (stock != null ? stock : (stockQuantity ?? 0));
     return ProductModel(
       id: json['_id'] as String? ?? json['id'] as String,
       name: json['name'] as String,
       category: json['category'] as String,
       price: (json['price'] as num).toDouble(),
       cost: (json['cost'] as num? ?? 0).toDouble(),
-      stock: json['stock'] as int,
+      stock: (stockValue as num).toInt(),
       imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       rating: (json['rating'] as num? ?? 4.5).toDouble(),
       unit: json['unit'] as String? ?? 'item',

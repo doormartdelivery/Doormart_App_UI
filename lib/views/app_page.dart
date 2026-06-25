@@ -11,6 +11,8 @@ class AppPage extends StatelessWidget {
     this.actions,
     this.bottomNavIndex,
     this.leading,
+    this.drawer,
+    this.scaffoldKey,
   });
 
   final String title;
@@ -18,6 +20,8 @@ class AppPage extends StatelessWidget {
   final List<Widget>? actions;
   final int? bottomNavIndex;
   final Widget? leading;
+  final Widget? drawer;
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +31,8 @@ class AppPage extends StatelessWidget {
         : kBottomNavigationBarHeight;
 
     return Scaffold(
+      key: scaffoldKey,
+      drawer: drawer,
       appBar: AppBar(
         toolbarHeight: 48,
         title: Text(title),

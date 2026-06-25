@@ -14,6 +14,7 @@ class SocketService {
     void Function(dynamic data)? onOrderAccepted,
     void Function(dynamic data)? onOrderPickedUp,
     void Function(dynamic data)? onOrderDelivered,
+    void Function(dynamic data)? onStockUpdated,
   }) {
     if (_socket != null) {
       return;
@@ -59,6 +60,9 @@ class SocketService {
     if (onOrderDelivered != null) {
       _socket?.on('order_delivered', onOrderDelivered);
       _socket?.on('order:delivered', onOrderDelivered);
+    }
+    if (onStockUpdated != null) {
+      _socket?.on('stock_updated', onStockUpdated);
     }
   }
 

@@ -3,6 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
+import 'admin_dashboard_screen.dart';
+import 'admin_notifications_screen.dart';
+import 'admin_orders_screen.dart';
+import 'audit_logs_screen.dart';
+import 'manage_banners_screen.dart';
+import 'manage_categories_screen.dart';
+import 'manage_delivery_screen.dart';
+import 'manage_products_screen.dart';
+import 'manage_users_screen.dart';
 
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key});
@@ -17,7 +26,10 @@ class _StockScreenState extends State<StockScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late Future<Map<String, dynamic>> _dashboardFuture;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final TextEditingController _searchController = TextEditingController();
   String _filter = 'All';
+  int _lastRefreshTick = 0;
 
   @override
   void initState() {
@@ -32,12 +44,14 @@ class _StockScreenState extends State<StockScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _refresh() async {
     setState(() {
       _dashboardFuture = context.read<AppState>().adminDashboard();
+      _lastRefreshTick = context.read<AppState>().dashboardRefreshTick;
       _controller
         ..reset()
         ..forward();
@@ -45,18 +59,36 @@ class _StockScreenState extends State<StockScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final refreshTick = context.watch<AppState>().dashboardRefreshTick;
+    if (refreshTick != _lastRefreshTick) {
+      _lastRefreshTick = refreshTick;
+      _dashboardFuture = context.read<AppState>().adminDashboard();
+      _controller
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F6),
-      appBar: AppBar(
-        title: const Text('Stock alerts'),
-        actions: [
-          IconButton(
-            tooltip: 'Sync stock',
-            onPressed: _refresh,
-            icon: const Icon(Icons.sync),
-          ),
-        ],
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF6F6F6),
+      drawer: _AdminDrawer(
+        onNavigate: (route) {
+          Navigator.pop(context);
+          if (route != StockScreen.routeName) {
+            Navigator.pushReplacementNamed(context, route);
+          }
+        },
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+        },
       ),
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(
@@ -73,68 +105,94 @@ class _StockScreenState extends State<StockScreen>
             }
 
             final lowStockItems = _parseLowStock(snapshot.data!);
-            final visibleItems = _filter == 'All'
-                ? lowStockItems
-                : lowStockItems.where((item) => item.status == _filter).toList();
+            final products = context.watch<AppState>().products;
+            final stockRows = _buildStockRows(products, lowStockItems);
+            final q = _searchController.text.trim().toLowerCase();
+            final visibleRows = stockRows.where((row) {
+              final matchesSearch = q.isEmpty ||
+                  row.name.toLowerCase().contains(q) ||
+                row.category.toLowerCase().contains(q);
+              final matchesFilter = switch (_filter) {
+                'All' => true,
+                'Low stock' => row.level == 'Low stock',
+                'Out of stock' => row.level == 'Out of stock',
+                _ => true,
+              };
+              return matchesSearch && matchesFilter;
+            }).toList();
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _AnimatedIn(
-                  animation: _controller,
-                  index: 0,
-                  child: _StockHero(items: lowStockItems),
-                ),
-                const SizedBox(height: 14),
-                _AnimatedIn(
-                  animation: _controller,
-                  index: 1,
-                  child: _StockMetrics(items: lowStockItems),
-                ),
-                const SizedBox(height: 18),
-                _AnimatedIn(
-                  animation: _controller,
-                  index: 2,
-                  child: _AlertFilter(
-                    selected: _filter,
-                    onChanged: (value) => setState(() => _filter = value),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth > 980
-                        ? 3
-                        : constraints.maxWidth > 650
-                            ? 2
-                            : 1;
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: visibleItems.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: columns == 1 ? 1.95 : 1.45,
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                  children: [
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 0,
+                      child: _StockHero(
+                        onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                        onRefresh: _refresh,
                       ),
-                      itemBuilder: (context, index) => _AnimatedIn(
-                        animation: _controller,
-                        index: index + 3,
-                        child: _StockCard(item: visibleItems[index]),
+                    ),
+                    const SizedBox(height: 16),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 1,
+                      child: _StockMetrics(
+                        totalProducts: products.length,
+                        inStock: products.where((p) => p.stock > 15).length,
+                        lowStock: lowStockItems.where((i) => i.status == 'Low').length,
+                        outOfStock: lowStockItems.where((i) => i.status == 'Critical').length,
+                        totalValue: products.fold<double>(0, (sum, p) => sum + (p.price * p.stock)),
+                        expiringSoon: lowStockItems.where((i) => i.status != 'Healthy').length,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 18),
-                _AnimatedIn(
-                  animation: _controller,
-                  index: 8,
-                  child: _RestockPlanner(
-                    items: lowStockItems.where((item) => item.status != 'Healthy').toList(),
-                  ),
-                ),
-              ],
+                    ),
+                    const SizedBox(height: 16),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 2,
+                      child: _CriticalAlertsPanel(items: lowStockItems),
+                    ),
+                    const SizedBox(height: 14),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 3,
+                      child: _InsightCard(),
+                    ),
+                    const SizedBox(height: 16),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 4,
+                      child: _StockSearchBar(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 5,
+                      child: _StockFilterChips(
+                        selected: _filter,
+                        onChanged: (value) => setState(() => _filter = value),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 6,
+                      child: _StockTable(rows: visibleRows),
+                    ),
+                    const SizedBox(height: 16),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 7,
+                      child: _RestockPlanner(items: lowStockItems),
+                    ),
+                  ],
+                );
+              },
             );
           },
         ),
@@ -144,61 +202,88 @@ class _StockScreenState extends State<StockScreen>
 }
 
 class _StockHero extends StatelessWidget {
-  const _StockHero({required this.items});
+  const _StockHero({required this.onOpenMenu, required this.onRefresh});
 
-  final List<_StockAlertItem> items;
+  final VoidCallback onOpenMenu;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final critical = items.where((item) => item.status == 'Critical').length;
-    final low = items.where((item) => item.status == 'Low').length;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF17211B),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
+        child: Stack(
           children: [
-            Expanded(
+            Positioned(
+              top: 14,
+              left: 14,
+              child: IconButton.filledTonal(
+                onPressed: onOpenMenu,
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF0EB),
+                  foregroundColor: const Color(0xFFE8541A),
+                ),
+                icon: const Icon(Icons.menu),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: FilledButton.icon(
+                onPressed: onRefresh,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6A00),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text(
+                  'Refresh',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+            const Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Inventory watchtower',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                        ),
+                    'Stock manager',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 8),
                   Text(
-                    'Live low-stock items from the backend. Prioritize restock before orders are affected.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: .78),
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _HeroPill('Critical', critical, const Color(0xFFDC2626)),
-                      _HeroPill('Low stock', low, const Color(0xFFB45309)),
-                    ],
+                    'Monitor inventory, low-stock alerts, and restock status from one polished control panel.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9E9E9E),
+                    ),
                   ),
                 ],
-              ),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(14),
-                child: Icon(Icons.warning_amber, color: Colors.white, size: 38),
               ),
             ),
           ],
@@ -209,67 +294,284 @@ class _StockHero extends StatelessWidget {
 }
 
 class _StockMetrics extends StatelessWidget {
-  const _StockMetrics({required this.items});
+  const _StockMetrics({
+    required this.totalProducts,
+    required this.inStock,
+    required this.lowStock,
+    required this.outOfStock,
+    required this.totalValue,
+    required this.expiringSoon,
+  });
 
-  final List<_StockAlertItem> items;
+  final int totalProducts;
+  final int inStock;
+  final int lowStock;
+  final int outOfStock;
+  final double totalValue;
+  final int expiringSoon;
 
   @override
   Widget build(BuildContext context) {
-    final critical = items.where((item) => item.status == 'Critical').length;
-    final low = items.where((item) => item.status == 'Low').length;
-    final healthy = items.where((item) => item.status == 'Healthy').length;
-    final totalUnits = items.fold<int>(0, (sum, item) => sum + item.stock);
-    final metrics = [
-      _Metric('Critical', '$critical', Icons.error, const Color(0xFFDC2626)),
-      _Metric('Low stock', '$low', Icons.trending_down, const Color(0xFFB45309)),
-      _Metric('Healthy', '$healthy', Icons.verified, const Color(0xFF0F766E)),
-      _Metric('Units live', '$totalUnits', Icons.inventory, const Color(0xFF2563EB)),
+    final cards = [
+      _CountCard(title: 'TOTAL PRODUCTS', value: '$totalProducts'),
+      _CountCard(title: 'IN STOCK', value: '$inStock'),
+      _CountCard(
+        title: 'LOW STOCK ALERTS',
+        value: '$lowStock',
+        accent: const Color(0xFFE8541A),
+        filled: true,
+        trailing: Icons.warning_amber_outlined,
+      ),
+      _CountCard(
+        title: 'OUT OF STOCK',
+        value: '$outOfStock',
+        accent: const Color(0xFFDC2626),
+        filled: true,
+        trailing: Icons.error_outline,
+      ),
+      _CountCard(title: 'INVENTORY VALUE', value: '₹${(totalValue / 1000000).toStringAsFixed(1)}M'),
+      _CountCard(title: 'EXPIRING SOON', value: '$expiringSoon Items'),
     ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth > 760 ? 4 : 2;
+        final columns = constraints.maxWidth > 700 ? 3 : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: metrics.length,
+          itemCount: cards.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: columns == 4 ? 2.2 : 1.65,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
           ),
-          itemBuilder: (context, index) => _MetricCard(metric: metrics[index]),
+          itemBuilder: (context, index) => cards[index],
         );
       },
     );
   }
 }
 
-class _AlertFilter extends StatelessWidget {
-  const _AlertFilter({required this.selected, required this.onChanged});
+class _CountCard extends StatelessWidget {
+  const _CountCard({
+    required this.title,
+    required this.value,
+    this.trailing,
+    this.accent,
+    this.filled = false,
+  });
+
+  final String title;
+  final String value;
+  final IconData? trailing;
+  final Color? accent;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = accent ?? const Color(0xFF1F3A68);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: filled ? base.withValues(alpha: .10) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: base.withValues(alpha: .22), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (trailing != null) ...[
+            Align(
+              alignment: Alignment.topRight,
+              child: Icon(trailing, color: base),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(title, style: TextStyle(color: base, fontWeight: FontWeight.w800, letterSpacing: .2)),
+          const SizedBox(height: 10),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockSearchBar extends StatelessWidget {
+  const _StockSearchBar({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: 'Search by Product Name or Category',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFF1C6B2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.4),
+        ),
+      ),
+    );
+  }
+}
+
+class _StockFilterChips extends StatelessWidget {
+  const _StockFilterChips({required this.selected, required this.onChanged});
 
   final String selected;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    const filters = ['All', 'Critical', 'Low', 'Healthy'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((filter) {
-          final active = selected == filter;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              selected: active,
-              label: Text(filter),
-              avatar: Icon(active ? Icons.done : Icons.circle_outlined, size: 17),
-              onSelected: (_) => onChanged(filter),
-            ),
+    const filters = ['All', 'Low stock', 'Out of stock'];
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final value = filters[index];
+          final active = selected == value;
+          return ChoiceChip(
+            selected: active,
+            label: Text(value),
+            selectedColor: const Color(0xFFE8541A),
+            labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF1A1A1A), fontWeight: FontWeight.w800),
+            onSelected: (_) => onChanged(value),
           );
-        }).toList(),
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemCount: filters.length,
+      ),
+    );
+  }
+}
+
+class _StockTable extends StatelessWidget {
+  const _StockTable({required this.rows});
+
+  final List<_StockRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1C6B2)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF3F5FD),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: Text('PRODUCT', style: TextStyle(fontWeight: FontWeight.w900))),
+                Expanded(flex: 2, child: Text('STOCK LEVEL', style: TextStyle(fontWeight: FontWeight.w900))),
+              ],
+            ),
+          ),
+          if (rows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('No matching stock rows found.'),
+            )
+          else
+            ...rows.map((row) => _StockTableRow(row: row)),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Showing ${rows.length} item(s)', style: const TextStyle(color: Color(0xFF64748B))),
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Export Report'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockTableRow extends StatelessWidget {
+  const _StockTableRow({required this.row});
+
+  final _StockRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF1E3D8))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: const Color(0xFFF4F7FB),
+                  child: Icon(row.icon, size: 18, color: row.color),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(row.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: row.color.withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: row.progress,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: row.color,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(row.stockLabel, style: TextStyle(color: row.color, fontWeight: FontWeight.w900)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -282,7 +584,6 @@ class _StockCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = item.stock / item.target;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
@@ -328,7 +629,7 @@ class _StockCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 5),
-                    child: Text('/ ${item.target} units', style: const TextStyle(color: Color(0xFF64748B))),
+                    child: const Text('units available', style: TextStyle(color: Color(0xFF64748B))),
                   ),
                 ],
               ),
@@ -336,7 +637,11 @@ class _StockCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
-                  value: percent.clamp(0, 1),
+                  value: item.status == 'Critical'
+                      ? 0.08
+                      : item.status == 'Low'
+                          ? 0.28
+                          : 0.62,
                   minHeight: 9,
                   color: item.color,
                   backgroundColor: item.color.withValues(alpha: .12),
@@ -371,7 +676,11 @@ class _RestockPlanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1E3D8)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -411,7 +720,6 @@ class _RestockRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final need = item.target - item.stock;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -423,7 +731,10 @@ class _RestockRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                Text('Need $need units  •  ${item.restock}', style: const TextStyle(color: Color(0xFF64748B))),
+                Text(
+                  'Stock ${item.stock}  •  ${item.status}  •  ${item.restock}',
+                  style: const TextStyle(color: Color(0xFF64748B)),
+                ),
               ],
             ),
           ),
@@ -442,7 +753,11 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1E3D8)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
@@ -576,12 +891,139 @@ class _ErrorCard extends StatelessWidget {
   }
 }
 
+class _AdminDrawer extends StatelessWidget {
+  const _AdminDrawer({
+    required this.onNavigate,
+    required this.onLogout,
+  });
+
+  final void Function(String route) onNavigate;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
+      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
+      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
+      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
+    ];
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFFFF0EB),
+                    child: Icon(Icons.admin_panel_settings, color: Color(0xFFE8541A)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                        SizedBox(height: 4),
+                        Text('Navigate the control center', style: TextStyle(color: Color(0xFF9E9E9E))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE7E7E7)),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final selected = item.$3 == StockScreen.routeName;
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => onNavigate(item.$3),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                item.$2,
+                                color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item.$1,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: selected ? const Color(0xFFE8541A) : const Color(0xFF9E9E9E)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onLogout,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8541A),
+                    side: const BorderSide(color: Color(0xFFE8541A)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: const Color(0xFFFFF0EB),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StockAlertItem {
   const _StockAlertItem({
     required this.name,
     required this.category,
     required this.stock,
-    required this.target,
     required this.status,
     required this.restock,
     required this.color,
@@ -591,7 +1033,6 @@ class _StockAlertItem {
   final String name;
   final String category;
   final int stock;
-  final int target;
   final String status;
   final String restock;
   final Color color;
@@ -607,43 +1048,196 @@ class _Metric {
   final Color color;
 }
 
+class _StockRow {
+  const _StockRow({
+    required this.name,
+    required this.category,
+    required this.stockLabel,
+    required this.progress,
+    required this.color,
+    required this.icon,
+    required this.level,
+  });
+
+  final String name;
+  final String category;
+  final String stockLabel;
+  final double progress;
+  final Color color;
+  final IconData icon;
+  final String level;
+}
+
+List<_StockRow> _buildStockRows(List<ProductModel> products, List<_StockAlertItem> alerts) {
+  final alertMap = {for (final item in alerts) item.name.toLowerCase(): item};
+  return products.map((product) {
+    final alert = alertMap[product.name.toLowerCase()];
+    final stock = product.stock;
+    final level = alert?.status == 'Critical'
+        ? 'Out of stock'
+        : stock <= 15
+            ? 'Low stock'
+            : 'In stock';
+    final color = alert?.color ?? (stock <= 15 ? const Color(0xFFE8541A) : const Color(0xFF0F766E));
+    final progress = stock <= 0
+        ? 0.08
+        : stock <= 15
+            ? 0.42
+            : 0.78;
+    return _StockRow(
+      name: product.name,
+      category: product.category,
+      stockLabel: stock <= 0 ? '0/${product.stock}' : '$stock/${stock + 100}',
+      progress: progress,
+      color: color,
+      icon: _stockIcon(product.category),
+      level: level,
+    );
+  }).toList();
+}
+
+class _CriticalAlertsPanel extends StatelessWidget {
+  const _CriticalAlertsPanel({required this.items});
+
+  final List<_StockAlertItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final criticalItems = items.where((item) => item.status == 'Critical').toList();
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1C6B2)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF3F5FD),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Color(0xFFE8541A)),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('Critical Stock Alerts', style: TextStyle(fontWeight: FontWeight.w900))),
+                TextButton(onPressed: () {}, child: const Text('View All')),
+              ],
+            ),
+          ),
+          if (criticalItems.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('No critical alerts right now.'),
+            )
+          else
+            ...criticalItems.take(3).map(
+              (item) => Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: const Color(0xFFF4F7FB),
+                      child: Icon(item.icon, color: item.color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text('SKU: ${item.category}', style: const TextStyle(color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8541A),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('Restock', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1F4B),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text('LOGISTICS INSIGHT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(height: 14),
+          const Text('Warehouse Optimization', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          const Text(
+            'You could save on wastage by restocking fast-moving and perishable items based on current trend analysis.',
+            style: TextStyle(color: Colors.white70, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B1F4B)),
+              onPressed: () {},
+              child: const Text('Generate Report'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 List<_StockAlertItem> _parseLowStock(Map<String, dynamic> data) {
   final rawItems = (data['lowStock'] as List<dynamic>? ?? const []);
   return rawItems.map((raw) {
     final item = raw as Map<String, dynamic>;
     final product = ProductModel.fromJson(item);
-    final target = _targetFor(product);
     final stock = product.stock;
-    final ratio = target == 0 ? 1.0 : stock / target;
-    final status = ratio <= 0.2
-        ? 'Critical'
-        : ratio <= 0.5
-            ? 'Low'
-            : 'Healthy';
-    final restockDays = status == 'Critical'
-        ? 'Today'
-        : status == 'Low'
-            ? 'Tomorrow'
-            : 'This week';
+    final status = (item['status'] as String?) ?? _stockStatus(stock).status;
+    final restock = (item['restock'] as String?) ?? _stockStatus(stock).restock;
     return _StockAlertItem(
       name: product.name,
       category: product.category,
       stock: stock,
-      target: target,
       status: status,
-      restock: restockDays,
+      restock: restock,
       color: _stockColor(status),
       icon: _stockIcon(product.category),
     );
   }).toList();
 }
 
-int _targetFor(ProductModel product) {
-  if (product.stock <= 0) return 20;
-  if (product.stock <= 5) return 20;
-  if (product.stock <= 10) return 25;
-  if (product.stock <= 15) return 30;
-  return product.stock + 20;
+({String status, String restock}) _stockStatus(int stock) {
+  if (stock <= 0) return (status: 'Critical', restock: 'Today');
+  if (stock <= 5) return (status: 'Critical', restock: 'Today');
+  if (stock <= 15) return (status: 'Low', restock: 'Soon');
+  return (status: 'Healthy', restock: 'This week');
 }
 
 Color _stockColor(String status) {
@@ -653,8 +1247,9 @@ Color _stockColor(String status) {
     case 'Low':
       return const Color(0xFFB45309);
     case 'Healthy':
-    default:
       return const Color(0xFF0F766E);
+    default:
+      return const Color(0xFF2563EB);
   }
 }
 
