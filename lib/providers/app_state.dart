@@ -701,6 +701,7 @@ class AppState extends ChangeNotifier {
     String? name,
     String? phone,
     String? email,
+    String? avatarUrl,
     String? role,
     String? status,
   }) async {
@@ -712,6 +713,7 @@ class AppState extends ChangeNotifier {
       if (name != null) 'name': name,
       if (phone != null) 'phone': phone,
       if (email != null) 'email': email,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
       if (role != null) 'role': role,
       if (status != null) 'status': status,
     };
@@ -719,6 +721,33 @@ class AppState extends ChangeNotifier {
       '/admin/users/$userId',
       token: token,
       body: body,
+    ) as Map<String, dynamic>;
+    return UserModel.fromJson(data);
+  }
+
+  Future<UserModel> createAdminUser({
+    required String name,
+    required String phone,
+    String email = '',
+    String avatarUrl = '',
+    String role = UserRoles.deliveryPerson,
+    String status = 'active',
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.post(
+      '/admin/users',
+      token: token,
+      body: {
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'avatarUrl': avatarUrl,
+        'role': role,
+        'status': status,
+      },
     ) as Map<String, dynamic>;
     return UserModel.fromJson(data);
   }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
-import 'audit_logs_screen.dart';
 import 'manage_banners_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
@@ -154,16 +154,10 @@ class _StockScreenState extends State<StockScreen>
                       index: 2,
                       child: _CriticalAlertsPanel(items: lowStockItems),
                     ),
-                    const SizedBox(height: 14),
-                    _AnimatedIn(
-                      animation: _controller,
-                      index: 3,
-                      child: _InsightCard(),
-                    ),
                     const SizedBox(height: 16),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 4,
+                      index: 3,
                       child: _StockSearchBar(
                         controller: _searchController,
                         onChanged: (_) => setState(() {}),
@@ -172,7 +166,7 @@ class _StockScreenState extends State<StockScreen>
                     const SizedBox(height: 12),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 5,
+                      index: 4,
                       child: _StockFilterChips(
                         selected: _filter,
                         onChanged: (value) => setState(() => _filter = value),
@@ -181,13 +175,13 @@ class _StockScreenState extends State<StockScreen>
                     const SizedBox(height: 14),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 6,
+                      index: 5,
                       child: _StockTable(rows: visibleRows),
                     ),
                     const SizedBox(height: 16),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 7,
+                      index: 6,
                       child: _RestockPlanner(items: lowStockItems),
                     ),
                   ],
@@ -496,16 +490,12 @@ class _StockTable extends StatelessWidget {
             ...rows.map((row) => _StockTableRow(row: row)),
           Padding(
             padding: const EdgeInsets.all(14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Showing ${rows.length} item(s)', style: const TextStyle(color: Color(0xFF64748B))),
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.download_outlined),
-                  label: const Text('Export Report'),
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Showing ${rows.length} item(s)',
+                style: const TextStyle(color: Color(0xFF64748B)),
+              ),
             ),
           ),
         ],
@@ -902,6 +892,8 @@ class _AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
@@ -909,10 +901,9 @@ class _AdminDrawer extends StatelessWidget {
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
       ('Categories', Icons.category, ManageCategoriesScreen.routeName),
       ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
-      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
       ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
-      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
     ];
 
     return Drawer(
@@ -1165,48 +1156,6 @@ class _CriticalAlertsPanel extends StatelessWidget {
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B1F4B),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .1),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Text('LOGISTICS INSIGHT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-          ),
-          const SizedBox(height: 14),
-          const Text('Warehouse Optimization', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 10),
-          const Text(
-            'You could save on wastage by restocking fast-moving and perishable items based on current trend analysis.',
-            style: TextStyle(color: Colors.white70, height: 1.4),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0B1F4B)),
-              onPressed: () {},
-              child: const Text('Generate Report'),
-            ),
-          ),
         ],
       ),
     );

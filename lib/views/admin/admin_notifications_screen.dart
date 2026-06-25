@@ -9,7 +9,6 @@ import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_orders_screen.dart';
-import 'audit_logs_screen.dart';
 import 'manage_banners_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
@@ -35,6 +34,7 @@ class AdminNotificationsScreen extends StatefulWidget {
 }
 
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
@@ -291,6 +291,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: _bg,
       drawer: _AdminDrawer(
         selectedIndex: 2,
@@ -300,25 +301,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           if (!context.mounted) return;
           Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
         },
-      ),
-      appBar: AppBar(
-        backgroundColor: _bg,
-        foregroundColor: _textDark,
-        elevation: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'Notification Center',
-          style: TextStyle(color: _accent, fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          IconButton(onPressed: _loadAll, icon: const Icon(Icons.refresh_rounded)),
-          const SizedBox(width: 4),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -333,6 +315,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _NotificationHero(
+                      onRefresh: _loadAll,
+                    ),
+                    const SizedBox(height: 16),
                     _AnalyticsRow(analytics: _analytics),
                     const SizedBox(height: 16),
                     wide
@@ -732,7 +718,6 @@ class _AdminDrawer extends StatelessWidget {
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
       ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
-      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
     ];
 
     return Drawer(
@@ -832,6 +817,93 @@ class _AdminDrawer extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationHero extends StatelessWidget {
+  const _NotificationHero({
+    required this.onRefresh,
+  });
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Builder(
+                builder: (menuContext) => IconButton.filledTonal(
+                  onPressed: () => Scaffold.of(menuContext).openDrawer(),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFF0EB),
+                    foregroundColor: const Color(0xFFE8541A),
+                  ),
+                  icon: const Icon(Icons.menu),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: IconButton.filledTonal(
+                onPressed: onRefresh,
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF0EB),
+                  foregroundColor: const Color(0xFFE8541A),
+                ),
+                icon: const Icon(Icons.refresh),
+              ),
+            ),
+            const Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notification Center',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Compose, schedule, and track push notifications from one polished control panel.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

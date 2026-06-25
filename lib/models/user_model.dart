@@ -7,6 +7,7 @@ class UserModel {
     required this.phone,
     required this.role,
     this.email,
+    this.avatarUrl = '',
     this.status = 'active',
     this.createdAt,
     this.updatedAt,
@@ -17,6 +18,7 @@ class UserModel {
   final String phone;
   final String role;
   final String? email;
+  final String avatarUrl;
   final String status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -28,6 +30,7 @@ class UserModel {
       phone: json['phone'] as String? ?? '',
       role: _normalizeRole(json['role'] as String?),
       email: json['email'] as String?,
+      avatarUrl: json['avatarUrl'] as String? ?? '',
       status: json['status'] as String? ?? 'active',
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
       updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
@@ -40,6 +43,7 @@ class UserModel {
     'phone': phone,
     'role': role,
     'email': email,
+    'avatarUrl': avatarUrl,
     'status': status,
     'createdAt': createdAt?.toIso8601String(),
     'updatedAt': updatedAt?.toIso8601String(),

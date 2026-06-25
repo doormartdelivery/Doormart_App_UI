@@ -12,7 +12,6 @@ import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
-import 'audit_logs_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -68,6 +67,16 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   Future<void> _moveOrder(OrderModel order, String status) async {
     await context.read<AppState>().updateOrderStatus(order.id, status);
     await context.read<AppState>().loadAdminOrders();
+  }
+
+  Future<void> _refreshOrders() async {
+    await context.read<AppState>().loadAdminOrders();
+    if (!mounted) return;
+    setState(() {
+      _animationController
+        ..reset()
+        ..forward();
+    });
   }
 
   void _sortBy(int columnIndex) {
@@ -134,42 +143,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
           Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
         },
       ),
-      appBar: AppBar(
-        backgroundColor: _kBg,
-        foregroundColor: _kTextDark,
-        elevation: 0,
-        centerTitle: false,
-        title: const Text('Admin Orders'),
-        leading: Builder(
-          builder: (context) => IconButton(
-            tooltip: 'Menu',
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh orders',
-            onPressed: () {
-              context.read<AppState>().loadAdminOrders();
-              setState(() {
-                _animationController
-                  ..reset()
-                  ..forward();
-              });
-            },
-            icon: RotationTransition(
-              turns: Tween<double>(begin: 0, end: 1).animate(
-                CurvedAnimation(
-                  parent: _animationController,
-                  curve: Curves.easeOutCubic,
-                ),
-              ),
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   backgroundColor: _kBg,
+      //   foregroundColor: _kTextDark,
+      //   elevation: 0,
+      //   centerTitle: false,
+      //   title: const Text('Admin Orders'),
+      // ),
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, state, _) {
@@ -188,7 +168,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                 _AnimatedIn(
                   animation: _animationController,
                   index: 0,
-                  child: _OrdersHero(orders: allOrders),
+                  child: _OrdersHero(
+                    orders: allOrders,
+                    onRefresh: _refreshOrders,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 _AnimatedIn(
@@ -245,7 +228,6 @@ class _AdminDrawer extends StatelessWidget {
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
       ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
-      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
     ];
     return Drawer(
       child: Container(
@@ -404,9 +386,13 @@ class _OrderSearchField extends StatelessWidget {
 }
 
 class _OrdersHero extends StatelessWidget {
-  const _OrdersHero({required this.orders});
+  const _OrdersHero({
+    required this.orders,
+    required this.onRefresh,
+  });
 
   final List<OrderModel> orders;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -444,6 +430,32 @@ class _OrdersHero extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              children: [
+                Builder(
+                  builder: (menuContext) => IconButton.filledTonal(
+                    onPressed: () => Scaffold.of(menuContext).openDrawer(),
+                    style: IconButton.styleFrom(
+                      backgroundColor: _kOrangeLight,
+                      foregroundColor: _kOrange,
+                    ),
+                    icon: const Icon(Icons.menu),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Orders control table',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: _kTextDark,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+                _RefreshButton(onRefresh: onRefresh),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DecoratedBox(
@@ -466,14 +478,6 @@ class _OrdersHero extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Orders control table',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: _kTextDark,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
                       Text(
                         'Tap any sortable column header to reorder the table.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -631,6 +635,47 @@ class _HeroMetric extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RefreshButton extends StatefulWidget {
+  const _RefreshButton({required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  State<_RefreshButton> createState() => _RefreshButtonState();
+}
+
+class _RefreshButtonState extends State<_RefreshButton> {
+  bool _loading = false;
+
+  Future<void> _handleTap() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await widget.onRefresh();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      onPressed: _loading ? null : _handleTap,
+      style: IconButton.styleFrom(
+        backgroundColor: _kOrangeLight,
+        foregroundColor: _kOrange,
+      ),
+      icon: _loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh),
     );
   }
 }

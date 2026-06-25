@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants.dart';
 import '../../models/category_model.dart';
 import '../../providers/app_state.dart';
 import '../app_page.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
-import 'audit_logs_screen.dart';
 import 'manage_banners_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
@@ -292,6 +292,8 @@ class _AdminCategoriesDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
@@ -299,10 +301,9 @@ class _AdminCategoriesDrawer extends StatelessWidget {
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
       ('Categories', Icons.category, ManageCategoriesScreen.routeName),
       ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
-      ('Users', Icons.groups, ManageUsersScreen.routeName),
+      if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
       ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
-      ('Audit logs', Icons.history, AuditLogsScreen.routeName),
     ];
 
     return Drawer(

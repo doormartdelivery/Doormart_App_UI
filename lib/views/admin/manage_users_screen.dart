@@ -7,6 +7,14 @@ import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../app_page.dart';
+import 'admin_dashboard_screen.dart';
+import 'admin_notifications_screen.dart';
+import 'admin_orders_screen.dart';
+import 'manage_banners_screen.dart';
+import 'manage_categories_screen.dart';
+import 'manage_delivery_screen.dart';
+import 'manage_products_screen.dart';
+import 'stock_screen.dart';
 
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
@@ -19,6 +27,7 @@ class ManageUsersScreen extends StatefulWidget {
 
 class _ManageUsersScreenState extends State<ManageUsersScreen>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   late Future<List<UserModel>> _usersFuture;
   String _query = '';
@@ -183,6 +192,21 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     }
   }
 
+  Future<void> _refreshUsers() async {
+    setState(() => _usersFuture = _loadUsers());
+    _animationController
+      ..reset()
+      ..forward();
+    await _usersFuture;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Users refreshed from backend'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _showSnackBar(String message, IconData icon, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -210,21 +234,34 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Manage Users',
-      actions: [
-        IconButton(
-          tooltip: 'Refresh users',
-          onPressed: () {
-            setState(() => _usersFuture = _loadUsers());
-            _animationController.reset();
-            _animationController.forward();
-          },
-          icon: const Icon(Icons.refresh),
-        ),
-      ],
-      children: [
-        FutureBuilder<List<UserModel>>(
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: const Color(0xFFF6F6F6),
+      drawer: _AdminDrawer(
+        onNavigate: (route) {
+          Navigator.pop(context);
+          Navigator.pushReplacementNamed(context, route);
+        },
+        onLogout: () async {
+          Navigator.pop(context);
+          await context.read<AppState>().logout();
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/admin/login',
+            (route) => false,
+          );
+        },
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          children: [
+            _UsersHero(
+              onRefresh: _refreshUsers,
+            ),
+            const SizedBox(height: 16),
+            FutureBuilder<List<UserModel>>(
           future: _usersFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -275,8 +312,237 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
               ),
             );
           },
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+}
+
+class _UsersHero extends StatelessWidget {
+  const _UsersHero({
+    required this.onRefresh,
+  });
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Container(
+        height: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Builder(
+                builder: (menuContext) => IconButton.filledTonal(
+                  onPressed: () => Scaffold.of(menuContext).openDrawer(),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFF0EB),
+                    foregroundColor: const Color(0xFFE8541A),
+                  ),
+                  icon: const Icon(Icons.menu),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: IconButton.filledTonal(
+                onPressed: onRefresh,
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF0EB),
+                  foregroundColor: const Color(0xFFE8541A),
+                ),
+                icon: const Icon(Icons.refresh),
+              ),
+            ),
+            const Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Manage Users',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Control access, roles, and user records from one polished panel.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminDrawer extends StatelessWidget {
+  const _AdminDrawer({
+    required this.onNavigate,
+    required this.onLogout,
+  });
+
+  final void Function(String route) onNavigate;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
+    final items = [
+      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
+      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
+      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
+      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
+    ];
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFFFFF0EB),
+                    child: Icon(Icons.admin_panel_settings, color: Color(0xFFE8541A)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                        SizedBox(height: 4),
+                        Text('Navigate the control center', style: TextStyle(color: Color(0xFF9E9E9E))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE7E7E7)),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => onNavigate(item.$3),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(item.$2, color: const Color(0xFFE8541A)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.$1,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1A1A1A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.$1 == 'Overview'
+                                        ? 'Back to dashboard'
+                                        : 'Open section',
+                                    style: const TextStyle(
+                                      color: Color(0xFF9E9E9E),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onLogout,
+                  style: FilledButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8541A),
+                    backgroundColor: const Color(0xFFFFF0EB),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -426,7 +692,7 @@ class _UsersSummary extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF0F3D31), Color(0xFF176B52)],
+            colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -501,37 +767,37 @@ class _UsersSummary extends StatelessWidget {
                   label: 'Active',
                   value: active,
                   icon: Icons.check_circle_outline,
-                  color: const Color(0xFF4ADE80),
+                  color: const Color(0xFFFFF7F2),
                 ),
                 _SummaryPill(
                   label: 'Blocked',
                   value: blocked,
                   icon: Icons.block_outlined,
-                  color: const Color(0xFFF87171),
+                  color: const Color(0xFFFFE0D4),
                 ),
                 _SummaryPill(
                   label: 'Admins',
                   value: admins,
                   icon: Icons.admin_panel_settings_outlined,
-                  color: const Color(0xFFA78BFA),
+                  color: const Color(0xFFFFE8DD),
                 ),
                 _SummaryPill(
                   label: 'Super Admins',
                   value: superAdmins,
                   icon: Icons.workspace_premium_outlined,
-                  color: const Color(0xFF34D399),
+                  color: const Color(0xFFFFF0E8),
                 ),
                 _SummaryPill(
                   label: 'Delivery',
                   value: delivery,
                   icon: Icons.local_shipping_outlined,
-                  color: const Color(0xFFF472B6),
+                  color: const Color(0xFFFFE9DB),
                 ),
                 _SummaryPill(
                   label: 'Customers',
                   value: customers,
                   icon: Icons.person_outline,
-                  color: const Color(0xFF60A5FA),
+                  color: const Color(0xFFFFF7F2),
                 ),
               ],
             ),
@@ -570,10 +836,10 @@ class _SummaryPill extends StatelessWidget {
         },
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withValues(alpha: 0.16),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: Colors.white.withValues(alpha: 0.18),
             ),
           ),
           child: Padding(
@@ -596,7 +862,7 @@ class _SummaryPill extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -645,13 +911,13 @@ class _SearchAndFilterBar extends StatelessWidget {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+            color: const Color(0xFFF1D4C8),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.04),
+              color: const Color(0xFFE8541A).withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
@@ -667,14 +933,14 @@ class _SearchAndFilterBar extends StatelessWidget {
                   hintText: 'Search users by name, phone, email, or ID...',
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: Color(0xFF64748B),
+                    color: Color(0xFFE8541A),
                     size: 22,
                   ),
                   suffixIcon: onClear == null
                       ? null
                       : IconButton(
                           tooltip: 'Clear search',
-                          icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                          icon: const Icon(Icons.close, color: Color(0xFFE8541A)),
                           onPressed: onClear,
                         ),
                   border: InputBorder.none,
@@ -686,7 +952,7 @@ class _SearchAndFilterBar extends StatelessWidget {
             Container(
               height: 40,
               width: 1,
-              color: Theme.of(context).colorScheme.outlineVariant,
+              color: const Color(0xFFF1D4C8),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -695,11 +961,11 @@ class _SearchAndFilterBar extends StatelessWidget {
                 underline: const SizedBox(),
                 icon: const Icon(
                   Icons.filter_list,
-                  color: Color(0xFF0F3D31),
+                  color: Color(0xFFE8541A),
                   size: 24,
                 ),
                 style: const TextStyle(
-                  color: Color(0xFF0F3D31),
+                  color: Color(0xFFE8541A),
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -764,13 +1030,13 @@ class _UsersTable extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+            color: const Color(0xFFF1D4C8),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.04),
+              color: const Color(0xFFE8541A).withValues(alpha: 0.05),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -798,7 +1064,7 @@ class _UsersTable extends StatelessWidget {
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF059669), Color(0xFF10B981)],
+                        colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -829,7 +1095,7 @@ class _UsersTable extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 headingRowColor:
-                    WidgetStatePropertyAll(const Color(0xFFF8FAFC)),
+                    const WidgetStatePropertyAll(Color(0xFFFFF7F2)),
                 dataRowMinHeight: 76,
                 dataRowMaxHeight: 88,
                 horizontalMargin: 24,
@@ -839,7 +1105,7 @@ class _UsersTable extends StatelessWidget {
                     .labelLarge
                     ?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF475569),
+                      color: const Color(0xFFE8541A),
                       fontSize: 12,
                       letterSpacing: 0.5,
                     ),
@@ -963,8 +1229,8 @@ class _ActionButton extends StatelessWidget {
         },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: IconButton(
@@ -1220,7 +1486,7 @@ class _RoleSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: const Color(0xFFFFF3EC),
         borderRadius: BorderRadius.circular(10),
       ),
       child: DropdownButtonHideUnderline(
@@ -1267,23 +1533,23 @@ class _EmptyState extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(48),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 72,
-              color: Theme.of(context).colorScheme.outlineVariant,
+        child: Container(
+          padding: const EdgeInsets.all(48),
+          decoration: BoxDecoration(
+            color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+            color: const Color(0xFFF1D4C8),
             ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 72,
+              color: const Color(0xFFE8541A),
+              ),
             const SizedBox(height: 16),
             Text(
               'No users found',
@@ -1489,7 +1755,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0F3D31), Color(0xFF176B52)],
+                  colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

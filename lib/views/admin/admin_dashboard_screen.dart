@@ -7,7 +7,6 @@ import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
-import 'audit_logs_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
@@ -170,13 +169,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: Icons.warning_amber,
         accent: const Color(0xFFDC2626),
         builder: (_) => const StockScreen(),
-      ),
-      _AdminSection(
-        title: 'Audit logs',
-        subtitle: 'Critical actions',
-        icon: Icons.history,
-        accent: const Color(0xFF475569),
-        builder: (_) => const AuditLogsScreen(),
       ),
     ];
   }

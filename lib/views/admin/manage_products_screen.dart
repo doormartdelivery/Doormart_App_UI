@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../app_page.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
-import 'audit_logs_screen.dart';
 import 'manage_banners_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
@@ -265,17 +265,18 @@ class _AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
+    final items = [
       ('Overview', Icons.dashboard_rounded, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long_rounded, AdminOrdersScreen.routeName),
       ('Notifications', Icons.notifications_active_rounded, AdminNotificationsScreen.routeName),
       ('Products', Icons.inventory_2_rounded, ManageProductsScreen.routeName),
       ('Categories', Icons.category_rounded, ManageCategoriesScreen.routeName),
       ('Banners', Icons.slideshow_rounded, ManageBannersScreen.routeName),
-      ('Users', Icons.groups_rounded, ManageUsersScreen.routeName),
+      if (isSuperAdmin) ('Users', Icons.groups_rounded, ManageUsersScreen.routeName),
       ('Delivery partners', Icons.delivery_dining_rounded, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber_rounded, StockScreen.routeName),
-      ('Audit logs', Icons.history_rounded, AuditLogsScreen.routeName),
     ];
 
     return Drawer(

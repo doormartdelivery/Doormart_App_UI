@@ -31,6 +31,9 @@ class RoleAccess {
       return role == UserRoles.superAdmin || routeName == '/super-admin/login';
     }
     if (routeName.startsWith('/admin')) {
+      if (routeName == '/admin/users') {
+        return role == UserRoles.superAdmin || routeName == '/admin/login';
+      }
       return role == UserRoles.admin ||
           role == UserRoles.superAdmin ||
           routeName == '/admin/login';

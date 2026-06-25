@@ -5,7 +5,6 @@ import '../../views/admin/admin_login_screen.dart';
 import '../../views/admin/admin_notifications_screen.dart';
 import '../../views/admin/admin_orders_screen.dart';
 import '../../views/admin/manage_categories_screen.dart';
-import '../../views/admin/audit_logs_screen.dart';
 import '../../views/admin/manage_banners_screen.dart';
 import '../../views/admin/manage_delivery_screen.dart';
 import '../../views/admin/manage_products_screen.dart';
@@ -24,6 +23,5 @@ class AdminRoutes {
     ManageUsersScreen.routeName: (_) => const ManageUsersScreen(),
     ManageDeliveryScreen.routeName: (_) => const ManageDeliveryScreen(),
     StockScreen.routeName: (_) => const StockScreen(),
-    AuditLogsScreen.routeName: (_) => const AuditLogsScreen(),
   };
 }
