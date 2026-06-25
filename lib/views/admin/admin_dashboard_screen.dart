@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants.dart';
 import '../../mascot/walking_mascot_widget.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
@@ -10,8 +11,8 @@ import 'audit_logs_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
-import 'manage_banners_screen.dart';
 import 'manage_users_screen.dart';
+import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
@@ -102,6 +103,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   List<_AdminSection> _destinations(BuildContext context) {
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
+
     return [
       _AdminSection(
         title: 'Overview',
@@ -145,13 +149,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         accent: const Color(0xFFEA580C),
         builder: (_) => const ManageBannersScreen(),
       ),
-      _AdminSection(
-        title: 'Users',
-        subtitle: 'Role-based access',
-        icon: Icons.groups,
-        accent: const Color(0xFF7C3AED),
-        builder: (_) => const ManageUsersScreen(),
-      ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Users',
+          subtitle: 'Role-based access',
+          icon: Icons.groups,
+          accent: const Color(0xFF7C3AED),
+          builder: (_) => const ManageUsersScreen(),
+        ),
       _AdminSection(
         title: 'Delivery partners',
         subtitle: 'Assignments and status',
