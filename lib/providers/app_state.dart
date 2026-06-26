@@ -683,6 +683,16 @@ class AppState extends ChangeNotifier {
     return data.cast<Map<String, dynamic>>().map(UserModel.fromJson).toList();
   }
 
+  Future<List<Map<String, dynamic>>> adminDeliveryPartners() async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data = await apiService.get('/admin/delivery', token: token)
+        as List<dynamic>;
+    return data.cast<Map<String, dynamic>>();
+  }
+
   Future<UserModel> updateAdminUserRole(String userId, String role) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {

@@ -74,6 +74,7 @@ flutter:
     - lib/localization/en.json
     - lib/localization/ta.json
     - assets/animations/
+    - assets/images/doormartLogo.jpeg
     - assets/images/products/
     - assets/images/categories/
     - assets/images/banners/

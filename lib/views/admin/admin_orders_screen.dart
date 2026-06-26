@@ -12,6 +12,7 @@ import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
+import 'admin_sidebar_drawer.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -118,8 +119,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return orders;
 
-      return orders.where((order) {
+    return orders.where((order) {
       return order.id.toLowerCase().contains(query) ||
+          order.displayOrderId.toLowerCase().contains(query) ||
           _shortId(order.id).toLowerCase().contains(query) ||
           _statusLabel(order.status).toLowerCase().contains(query) ||
           order.total.toStringAsFixed(0).contains(query) ||
@@ -135,7 +137,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      drawer: _AdminDrawer(
+      drawer: AdminSidebarDrawer(
+        currentRoute: AdminOrdersScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();
@@ -266,6 +269,17 @@ class _AdminDrawer extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
+                    final accentColors = const [
+                      Color(0xFF0F766E),
+                      Color(0xFFB45309),
+                      Color(0xFF2563EB),
+                      Color(0xFF059669),
+                      Color(0xFFEA580C),
+                      Color(0xFF7C3AED),
+                      Color(0xFFDB2777),
+                      Color(0xFFDC2626),
+                    ];
+                    final accent = accentColors[index % accentColors.length];
                     final selected = item.$3 == AdminOrdersScreen.routeName;
                     return Material(
                       color: _kCard,
@@ -286,10 +300,10 @@ class _AdminDrawer extends StatelessWidget {
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  color: _kOrangeLight,
+                                  color: accent.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: Icon(item.$2, color: selected ? _kOrange : _kTextDark),
+                                child: Icon(item.$2, color: accent),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -297,7 +311,7 @@ class _AdminDrawer extends StatelessWidget {
                                   item.$1,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
-                                    color: selected ? _kOrange : _kTextDark,
+                                    color: accent,
                                   ),
                                 ),
                               ),
@@ -396,9 +410,6 @@ class _OrdersHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = orders
-        .where((order) => order.status == OrderStatus.placed)
-        .length;
     final active = orders
         .where(
           (order) =>
@@ -409,7 +420,9 @@ class _OrdersHero extends StatelessWidget {
     final delivered = orders
         .where((order) => order.status == OrderStatus.delivered)
         .length;
-    final revenue = orders.fold<double>(0, (sum, order) => sum + order.total);
+    final revenue = orders
+        .where((order) => order.status == OrderStatus.delivered)
+        .fold<double>(0, (sum, order) => sum + order.total);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -504,20 +517,12 @@ class _OrdersHero extends StatelessWidget {
                   index: 0,
                 ),
                 _HeroMetric(
-                  label: 'Pending',
-                  value: '$pending',
-                  icon: Icons.hourglass_top,
-                  color: const Color(0xFFB45309),
-                  tint: const Color(0xFFFFF7ED),
-                  index: 1,
-                ),
-                _HeroMetric(
                   label: 'Active',
                   value: '$active',
                   icon: Icons.local_shipping,
                   color: const Color(0xFF1D4ED8),
                   tint: const Color(0xFFEFF6FF),
-                  index: 2,
+                  index: 1,
                 ),
                 _HeroMetric(
                   label: 'Delivered',
@@ -525,7 +530,7 @@ class _OrdersHero extends StatelessWidget {
                   icon: Icons.check_circle,
                   color: const Color(0xFF0F766E),
                   tint: const Color(0xFFEAF7EF),
-                  index: 3,
+                  index: 2,
                 ),
                 _HeroMetric(
                   label: 'Revenue',
@@ -533,7 +538,7 @@ class _OrdersHero extends StatelessWidget {
                   icon: Icons.payments,
                   color: const Color(0xFFBE185D),
                   tint: const Color(0xFFFCE7F3),
-                  index: 4,
+                  index: 3,
                 ),
               ],
             ),
@@ -784,6 +789,7 @@ class _OrdersTable extends StatelessWidget {
                           onSort: (_, __) => onSort(3),
                         ),
                         const DataColumn(label: Text('Order Items')),
+                        const DataColumn(label: Text('Payment')),
                         DataColumn(
                           label: const Text('Total'),
                           numeric: true,
@@ -829,7 +835,7 @@ class _OrdersTable extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      '#${_shortId(order.id)}',
+                                      order.displayOrderId,
                                       style: const TextStyle(
                                         color: _kTextDark,
                                         fontWeight: FontWeight.w900,
@@ -910,16 +916,16 @@ class _OrdersTable extends StatelessWidget {
                               _TableCellIn(
                                 animationKey: '${order.id}-items',
                                 index: index,
-                                child: FilledButton.tonalIcon(
+                                child: FilledButton.icon(
                                   style: FilledButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFF7ED),
-                                    foregroundColor: _kOrange,
+                                    backgroundColor: _kOrange,
+                                    foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
+                                      horizontal: 14,
+                                      vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   onPressed: () => _showOrderItems(context, order),
@@ -929,6 +935,13 @@ class _OrdersTable extends StatelessWidget {
                                     style: TextStyle(fontWeight: FontWeight.w800),
                                   ),
                                 ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
+                                animationKey: '${order.id}-payment',
+                                index: index,
+                                child: _PaymentBadge(method: order.paymentMethod),
                               ),
                             ),
                             DataCell(
@@ -957,25 +970,10 @@ class _OrdersTable extends StatelessWidget {
                                 animationKey:
                                     '${order.id}-action-${action?.status ?? 'done'}',
                                 index: index,
-                                child: action == null
-                                    ? const _DonePill()
-                                    : FilledButton.icon(
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: _kOrange,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            onMove(order, action.status),
-                                        icon: const Icon(
-                                          Icons.arrow_forward,
-                                          size: 16,
-                                        ),
-                                        label: Text(action.label),
-                                      ),
+                                child: _OrderActionBadge(
+                                  label: action?.label ?? 'Done',
+                                  isDone: action == null,
+                                ),
                               ),
                             ),
                           ],
@@ -999,11 +997,11 @@ void _showOrderItems(BuildContext context, OrderModel order) {
     builder: (context) {
       return Dialog(
         insetPadding: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 640),
+          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 760),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1011,7 +1009,7 @@ void _showOrderItems(BuildContext context, OrderModel order) {
                   children: [
                     Expanded(
                       child: Text(
-                        'Order Items',
+                        'Invoice',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: _kTextDark,
@@ -1027,79 +1025,208 @@ void _showOrderItems(BuildContext context, OrderModel order) {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Order #${_shortId(order.id)}',
+                  'Order ${order.displayOrderId}',
                   style: const TextStyle(
                     color: _kTextMid,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 16),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: order.products.length,
-                    separatorBuilder: (_, __) => const Divider(height: 20),
-                    itemBuilder: (context, index) {
-                      final product = order.products[index];
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: _kOrangeLight,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: SizedBox(
-                              width: 46,
-                              height: 46,
-                              child: Icon(
-                                Icons.shopping_bag_outlined,
-                                color: _kOrange,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    color: _kTextDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Rs ${product.price.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: _kTextMid,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8F3),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFF5D6C4)),
                   ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _InvoiceMeta(
+                          label: 'Customer',
+                          value: order.customerName.isNotEmpty ? order.customerName : 'Customer',
+                        ),
+                      ),
+                      Expanded(
+                        child: _InvoiceMeta(
+                          label: 'Phone',
+                          value: order.customerPhone.isNotEmpty ? order.customerPhone : '-',
+                        ),
+                      ),
+                      Expanded(
+                        child: _InvoiceMeta(
+                          label: 'Status',
+                          value: _statusLabel(order.status),
+                        ),
+                      ),
+                      Expanded(
+                        child: _InvoiceMeta(
+                          label: 'Total',
+                          value: 'Rs ${order.total.toStringAsFixed(0)}',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFF0F0F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF7F9FF),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Expanded(flex: 5, child: Text('ITEM', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark))),
+                              Expanded(flex: 2, child: Text('QTY', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark))),
+                              Expanded(flex: 2, child: Text('PRICE', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark))),
+                              Expanded(flex: 2, child: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark))),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: order.products.length,
+                            separatorBuilder: (_, __) => const Divider(height: 24),
+                            itemBuilder: (context, index) {
+                              final product = order.products[index];
+                              final qty = index < order.quantities.length ? order.quantities[index] : 1;
+                              final lineTotal = product.price * qty;
+                              return Row(
+                                children: [
+                                  Container(
+                                    width: 58,
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      color: _kOrangeLight,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: const Color(0xFFF5D6C4)),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: product.imageUrl.isNotEmpty
+                                          ? Image.network(
+                                              product.imageUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.shopping_bag_outlined,
+                                                color: _kOrange,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.shopping_bag_outlined,
+                                              color: _kOrange,
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    flex: 5,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          product.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            color: _kTextDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          product.category,
+                                          style: const TextStyle(
+                                            color: _kTextMid,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'x$qty',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: _kTextDark,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Rs ${product.price.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: _kTextDark,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Rs ${lineTotal.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        color: _kOrange,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InvoiceTotalBox(
+                        label: 'Subtotal',
+                        value: 'Rs ${order.products.fold<double>(0, (sum, item) => sum + (item.price * (item.stock > 0 ? item.stock : 1))).toStringAsFixed(0)}',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InvoiceTotalBox(
+                        label: 'Grand Total',
+                        value: 'Rs ${order.total.toStringAsFixed(0)}',
+                        highlighted: true,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: _kOrange,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      'Close',
+                    icon: const Icon(Icons.close),
+                    label: const Text(
+                      'Close Invoice',
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
@@ -1111,6 +1238,83 @@ void _showOrderItems(BuildContext context, OrderModel order) {
       );
     },
   );
+}
+
+class _InvoiceMeta extends StatelessWidget {
+  const _InvoiceMeta({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: _kTextMid, fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: _kTextDark, fontWeight: FontWeight.w900)),
+      ],
+    );
+  }
+}
+
+class _InvoiceTotalBox extends StatelessWidget {
+  const _InvoiceTotalBox({
+    required this.label,
+    required this.value,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final String value;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: highlighted ? _kOrangeLight : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: highlighted ? _kOrange.withValues(alpha: 0.22) : const Color(0xFFF0F0F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: _kTextMid, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: highlighted ? _kOrange : _kTextDark, fontSize: 18, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentBadge extends StatelessWidget {
+  const _PaymentBadge({required this.method});
+
+  final String method;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = method.toLowerCase() == 'paid' || method.toLowerCase() == 'online';
+    final label = isPaid ? 'Paid' : 'COD';
+    final color = isPaid ? const Color(0xFF0F766E) : const Color(0xFFB45309);
+    final bg = isPaid ? const Color(0xFFEAF7EF) : const Color(0xFFFFF7ED);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12),
+      ),
+    );
+  }
 }
 
 class _DonePill extends StatelessWidget {
@@ -1131,6 +1335,39 @@ class _DonePill extends StatelessWidget {
             color: _kOrange,
             fontWeight: FontWeight.w900,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderActionBadge extends StatelessWidget {
+  const _OrderActionBadge({
+    required this.label,
+    required this.isDone,
+  });
+
+  final String label;
+  final bool isDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDone ? const Color(0xFF0F766E) : const Color(0xFFB45309);
+    final bg = isDone ? const Color(0xFFEAF7EF) : const Color(0xFFFFF7ED);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
         ),
       ),
     );

@@ -16,6 +16,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import 'admin_sidebar_drawer.dart';
 
 class ManageBannersScreen extends StatefulWidget {
   const ManageBannersScreen({super.key});
@@ -130,13 +131,8 @@ class _ManageBannersScreenState extends State<ManageBannersScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F6F6),
-      drawer: _AdminDrawer(
-        onNavigate: (route) {
-          Navigator.pop(context);
-          if (route != ManageBannersScreen.routeName) {
-            Navigator.pushReplacementNamed(context, route);
-          }
-        },
+      drawer: AdminSidebarDrawer(
+        currentRoute: ManageBannersScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();
@@ -400,6 +396,17 @@ class _AdminDrawer extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final item = items[index];
+      final accentColors = const [
+        Color(0xFF0F766E),
+        Color(0xFFB45309),
+        Color(0xFF2563EB),
+        Color(0xFF059669),
+        Color(0xFFEA580C),
+        Color(0xFF7C3AED),
+        Color(0xFFDB2777),
+        Color(0xFFDC2626),
+      ];
+      final accent = accentColors[index % accentColors.length];
                   final selected = item.$3 == ManageBannersScreen.routeName;
                   return Material(
                     color: Colors.white,
@@ -420,7 +427,7 @@ class _AdminDrawer extends StatelessWidget {
                               ),
                               child: Icon(
                                 item.$2,
-                                color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                                color: const Color(0xFFE8541A),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -429,7 +436,7 @@ class _AdminDrawer extends StatelessWidget {
                                 item.$1,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
-                                  color: selected ? const Color(0xFFE8541A) : const Color(0xFF1A1A1A),
+                                  color: const Color(0xFFE8541A),
                                 ),
                               ),
                             ),

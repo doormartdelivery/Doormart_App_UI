@@ -16,6 +16,7 @@ import 'manage_banners_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_users_screen.dart';
+import 'admin_sidebar_drawer.dart';
 import 'stock_screen.dart';
 
 class ManageProductsScreen extends StatefulWidget {
@@ -138,13 +139,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     return AppPage(
       title: 'Manage products',
       scaffoldKey: _scaffoldKey,
-      drawer: _AdminDrawer(
-        onNavigate: (route) {
-          Navigator.pop(context);
-          if (route != ManageProductsScreen.routeName) {
-            Navigator.pushReplacementNamed(context, route);
-          }
-        },
+      drawer: AdminSidebarDrawer(
+        currentRoute: ManageProductsScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();

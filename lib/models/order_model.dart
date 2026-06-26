@@ -15,6 +15,8 @@ class OrderModel {
   const OrderModel({
     required this.id,
     required this.products,
+    required this.quantities,
+    required this.paymentMethod,
     required this.total,
     required this.status,
     required this.createdAt,
@@ -33,6 +35,8 @@ class OrderModel {
 
   final String id;
   final List<ProductModel> products;
+  final List<int> quantities;
+  final String paymentMethod;
   final double total;
   final OrderStatus status;
   final DateTime createdAt;
@@ -104,6 +108,12 @@ class OrderModel {
             ),
           )
           .toList(),
+      quantities: productsJson
+          .map((item) => (item['quantity'] as num? ?? 1).toInt())
+          .toList(),
+      paymentMethod: (json['paymentMethod'] ?? json['paymentType'] ?? json['paymentMode'] ?? 'cod')
+          .toString()
+          .toLowerCase(),
       total: (json['total'] as num? ?? 0).toDouble(),
       status: _statusFromJson(json['status']?.toString()),
       createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),

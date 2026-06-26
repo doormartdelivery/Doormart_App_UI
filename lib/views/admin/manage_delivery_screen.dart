@@ -16,6 +16,7 @@ import 'manage_categories_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import 'admin_sidebar_drawer.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -39,7 +40,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   // ── Local state — no Future needed ────────────────────────────────────────
-  List<UserModel> _allPartners = [];
+  List<_DeliveryPartnerRow> _allPartners = [];
   bool _loading = true;
   String? _error;
   String _query = '';
@@ -65,10 +66,29 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     });
     try {
       final users = await context.read<AppState>().adminUsers();
+      final delivery = await context.read<AppState>().adminDeliveryPartners();
       if (!mounted) return;
+      final deliveryByUserId = <String, Map<String, dynamic>>{
+        for (final item in delivery)
+          if (item['user'] is Map<String, dynamic>)
+            (item['user']['_id'] as String? ??
+                    item['user']['id'] as String? ??
+                    ''):
+                item,
+      };
       setState(() {
-        _allPartners =
-            users.where((u) => u.role == UserRoles.deliveryPerson).toList();
+        _allPartners = users
+            .where((u) => u.role == UserRoles.deliveryPerson)
+            .map(
+              (u) => _DeliveryPartnerRow(
+                user: u,
+                isOnline: _isOnlineFromBackend(
+                  user: u,
+                  deliveryDoc: deliveryByUserId[u.id],
+                ),
+              ),
+            )
+            .toList();
         _loading = false;
       });
     } catch (e) {
@@ -81,18 +101,18 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
   }
 
   // ── Filter / search ───────────────────────────────────────────────────────
-  List<UserModel> get _filtered {
-    var items = List<UserModel>.from(_allPartners);
+  List<_DeliveryPartnerRow> get _filtered {
+    var items = List<_DeliveryPartnerRow>.from(_allPartners);
     if (_filter != 'All') {
-      items = items.where((u) => _statusLabel(u) == _filter).toList();
+      items = items.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == _filter).toList();
     }
     if (_query.trim().isNotEmpty) {
       final q = _query.trim().toLowerCase();
       items = items.where((u) {
-        return u.name.toLowerCase().contains(q) ||
-            u.phone.toLowerCase().contains(q) ||
-            u.id.toLowerCase().contains(q) ||
-            (u.email ?? '').toLowerCase().contains(q);
+        return u.user.name.toLowerCase().contains(q) ||
+            u.user.phone.toLowerCase().contains(q) ||
+            u.user.id.toLowerCase().contains(q) ||
+            (u.user.email ?? '').toLowerCase().contains(q);
       }).toList();
     }
     return items;
@@ -108,7 +128,12 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     if (newUser == null || !mounted) return;
 
     // Instantly add to local list — no full reload needed
-    setState(() => _allPartners = [newUser, ..._allPartners]);
+    setState(
+      () => _allPartners = [
+        _DeliveryPartnerRow(user: newUser, isOnline: false),
+        ..._allPartners,
+      ],
+    );
     _showSnack('${newUser.name} added');
   }
 
@@ -123,8 +148,10 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
 
     // Replace in local list instantly
     setState(() {
-      _allPartners = _allPartners.map((u) {
-        return u.id == updated.id ? updated : u;
+      _allPartners = _allPartners.map((row) {
+        return row.user.id == updated.id
+            ? _DeliveryPartnerRow(user: updated, isOnline: row.isOnline)
+            : row;
       }).toList();
     });
     _showSnack('${updated.name} updated');
@@ -142,7 +169,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
       await context.read<AppState>().deleteAdminUser(user.id);
       if (!mounted) return;
       // Remove from local list instantly
-      setState(() => _allPartners.removeWhere((u) => u.id == user.id));
+      setState(() => _allPartners.removeWhere((row) => row.user.id == user.id));
       _showSnack('${user.name} removed');
     } catch (e) {
       if (!mounted) return;
@@ -168,13 +195,8 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: _kBg,
-      drawer: _AdminDrawer(
-        onNavigate: (route) {
-          Navigator.pop(context);
-          if (route != ManageDeliveryScreen.routeName) {
-            Navigator.pushReplacementNamed(context, route);
-          }
-        },
+      drawer: AdminSidebarDrawer(
+        currentRoute: ManageDeliveryScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();
@@ -206,11 +228,9 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     final partners = _filtered;
     final total = _allPartners.length;
     final online =
-        _allPartners.where((u) => _statusLabel(u) == 'Online').length;
-    final onDuty =
-        _allPartners.where((u) => _statusLabel(u) == 'On Duty').length;
+        _allPartners.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Online').length;
     final offline =
-        _allPartners.where((u) => _statusLabel(u) == 'Offline').length;
+        _allPartners.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Offline').length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -234,10 +254,6 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               _StatCard(label: 'Online', value: '$online',
                   icon: Icons.wifi_rounded,
                   color: const Color(0xFF16A34A)),
-              const SizedBox(width: 10),
-              _StatCard(label: 'On Duty', value: '$onDuty',
-                  icon: Icons.delivery_dining_rounded,
-                  color: const Color(0xFFB45309)),
               const SizedBox(width: 10),
               _StatCard(label: 'Offline', value: '$offline',
                   icon: Icons.wifi_off_rounded,
@@ -294,9 +310,6 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               _Chip(label: 'Online', selected: _filter == 'Online',
                   onTap: () => setState(() => _filter = 'Online')),
               const SizedBox(width: 8),
-              _Chip(label: 'On Duty', selected: _filter == 'On Duty',
-                  onTap: () => setState(() => _filter = 'On Duty')),
-              const SizedBox(width: 8),
               _Chip(label: 'Offline', selected: _filter == 'Offline',
                   onTap: () => setState(() => _filter = 'Offline')),
             ],
@@ -313,9 +326,10 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
             (u) => Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: _PartnerCard(
-                user: u,
-                onEdit: () => _editPartner(u),
-                onDelete: () => _deletePartner(u),
+                user: u.user,
+                isOnline: u.isOnline,
+                onEdit: () => _editPartner(u.user),
+                onDelete: () => _deletePartner(u.user),
               ),
             ),
           ),
@@ -509,25 +523,25 @@ class _Chip extends StatelessWidget {
 class _PartnerCard extends StatelessWidget {
   const _PartnerCard({
     required this.user,
+    required this.isOnline,
     required this.onEdit,
     required this.onDelete,
   });
   final UserModel user;
+  final bool isOnline;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final status = _statusLabel(user);
+    final status = _statusLabel(user, isOnline: isOnline);
     final vehicle = _vehicleFor(user);
     final statusColor = switch (status) {
       'Online' => const Color(0xFF16A34A),
-      'On Duty' => const Color(0xFFB45309),
       _ => const Color(0xFF64748B),
     };
     final statusBg = switch (status) {
       'Online' => const Color(0xFFECFDF5),
-      'On Duty' => const Color(0xFFFFF7ED),
       _ => const Color(0xFFF1F5F9),
     };
 
@@ -1460,11 +1474,33 @@ class _AdminDrawer extends StatelessWidget {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-String _statusLabel(UserModel user) {
-  final s = user.status.toLowerCase();
-  if (s == 'active') return 'Online';
-  if (s == 'on_duty' || s == 'on duty') return 'On Duty';
-  return 'Offline';
+class _DeliveryPartnerRow {
+  const _DeliveryPartnerRow({
+    required this.user,
+    required this.isOnline,
+  });
+
+  final UserModel user;
+  final bool isOnline;
+}
+
+bool _isOnlineFromBackend({
+  required UserModel user,
+  Map<String, dynamic>? deliveryDoc,
+}) {
+  final isOnline = deliveryDoc?['isOnline'];
+  if (isOnline is bool) return isOnline;
+  final deliveryUser = deliveryDoc?['user'];
+  if (deliveryUser is Map<String, dynamic>) {
+    final deliveryStatus = (deliveryUser['status'] ?? '').toString().toLowerCase();
+    if (deliveryStatus == 'online') return true;
+    if (deliveryStatus == 'offline') return false;
+  }
+  return false;
+}
+
+String _statusLabel(UserModel user, {required bool isOnline}) {
+  return isOnline ? 'Online' : 'Offline';
 }
 
 String _vehicleFor(UserModel user) {

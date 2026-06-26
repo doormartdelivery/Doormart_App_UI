@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
@@ -15,6 +16,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import 'admin_sidebar_drawer.dart';
 
 const _bg = Color(0xFFF7F8FC);
 const _card = Colors.white;
@@ -34,6 +36,13 @@ class AdminNotificationsScreen extends StatefulWidget {
 }
 
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
+  static const _prefsKeyScheduleLater = 'admin_notifications_schedule_later';
+  static const _prefsKeyDailySchedule = 'admin_notifications_daily_schedule';
+  static const _prefsKeySelectedType = 'admin_notifications_selected_type';
+  static const _prefsKeySelectedAudience = 'admin_notifications_selected_audience';
+  static const _prefsKeyScheduledAt = 'admin_notifications_scheduled_at';
+  static const _prefsKeyScheduleLabel = 'admin_notifications_schedule_label';
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -69,6 +78,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     _titleController.addListener(_syncPreview);
     _messageController.addListener(_syncPreview);
     _loadAll();
+    _restoreDraftState();
     _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) => _loadHistory(silent: true));
   }
 
@@ -85,6 +95,43 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   }
 
   void _syncPreview() => setState(() {});
+
+  Future<void> _restoreDraftState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _selectedType = prefs.getString(_prefsKeySelectedType) ?? _selectedType;
+      _selectedAudience = prefs.getString(_prefsKeySelectedAudience) ?? _selectedAudience;
+      _scheduleLater = prefs.getBool(_prefsKeyScheduleLater) ?? _scheduleLater;
+      _dailySchedule = prefs.getBool(_prefsKeyDailySchedule) ?? _dailySchedule;
+      final scheduledAtIso = prefs.getString(_prefsKeyScheduledAt);
+      if (scheduledAtIso != null && scheduledAtIso.isNotEmpty) {
+        final parsed = DateTime.tryParse(scheduledAtIso);
+        if (parsed != null) {
+          _scheduledAt = parsed.toLocal();
+        }
+      }
+      final scheduleLabel = prefs.getString(_prefsKeyScheduleLabel);
+      if (scheduleLabel != null && scheduleLabel.isNotEmpty) {
+        _scheduleController.text = scheduleLabel;
+      }
+    });
+  }
+
+  Future<void> _persistDraftState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKeySelectedType, _selectedType);
+    await prefs.setString(_prefsKeySelectedAudience, _selectedAudience);
+    await prefs.setBool(_prefsKeyScheduleLater, _scheduleLater);
+    await prefs.setBool(_prefsKeyDailySchedule, _dailySchedule);
+    if (_scheduledAt != null) {
+      await prefs.setString(_prefsKeyScheduledAt, _scheduledAt!.toUtc().toIso8601String());
+      await prefs.setString(_prefsKeyScheduleLabel, _scheduleController.text.trim());
+    } else {
+      await prefs.remove(_prefsKeyScheduledAt);
+      await prefs.remove(_prefsKeyScheduleLabel);
+    }
+  }
 
   Future<void> _loadAll() async {
     await Future.wait([_loadHistory(), _loadAnalytics()]);
@@ -212,6 +259,22 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(mode == 'send' ? 'Notification sent' : mode == 'draft' ? 'Draft saved' : 'Notification scheduled')),
       );
+      if (mode == 'send') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_prefsKeyScheduleLater);
+        await prefs.remove(_prefsKeyDailySchedule);
+        await prefs.remove(_prefsKeyScheduledAt);
+        await prefs.remove(_prefsKeyScheduleLabel);
+        if (!mounted) return;
+        setState(() {
+          _scheduleLater = false;
+          _dailySchedule = false;
+          _scheduledAt = null;
+          _scheduleController.clear();
+        });
+      } else {
+        await _persistDraftState();
+      }
       await _loadAll();
     } catch (e) {
       if (!mounted) return;
@@ -236,9 +299,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     if (time == null) return;
     setState(() {
       _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      _scheduleController.text = _scheduledAt!.toLocal().toString();
+      _scheduleController.text = _formatScheduleInput(_scheduledAt!);
       _scheduleLater = true;
     });
+    await _persistDraftState();
   }
 
   String _labelForAudience(String audience) {
@@ -293,8 +357,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: _bg,
-      drawer: _AdminDrawer(
-        selectedIndex: 2,
+      drawer: AdminSidebarDrawer(
+        currentRoute: AdminNotificationsScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();
@@ -392,7 +456,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                             DropdownMenuItem(value: 'update', child: Text('Update')),
                             DropdownMenuItem(value: 'reminder', child: Text('Reminder')),
                           ],
-                          onChanged: (value) => setState(() => _selectedType = value ?? 'promotion'),
+                          onChanged: (value) async {
+                            setState(() => _selectedType = value ?? 'promotion');
+                            await _persistDraftState();
+                          },
                         ),
                       ],
                     ),
@@ -456,10 +523,38 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _AudienceChip(label: 'All Users', selected: _selectedAudience == 'all_users', onTap: () => setState(() => _selectedAudience = 'all_users')),
-                  _AudienceChip(label: 'Customers', selected: _selectedAudience == 'customers', onTap: () => setState(() => _selectedAudience = 'customers')),
-                  _AudienceChip(label: 'Delivery Persons', selected: _selectedAudience == 'delivery_persons', onTap: () => setState(() => _selectedAudience = 'delivery_persons')),
-                  _AudienceChip(label: 'Specific User', selected: _selectedAudience == 'specific_user', onTap: () => setState(() => _selectedAudience = 'specific_user')),
+                  _AudienceChip(
+                    label: 'All Users',
+                    selected: _selectedAudience == 'all_users',
+                    onTap: () async {
+                      setState(() => _selectedAudience = 'all_users');
+                      await _persistDraftState();
+                    },
+                  ),
+                  _AudienceChip(
+                    label: 'Customers',
+                    selected: _selectedAudience == 'customers',
+                    onTap: () async {
+                      setState(() => _selectedAudience = 'customers');
+                      await _persistDraftState();
+                    },
+                  ),
+                  _AudienceChip(
+                    label: 'Delivery Persons',
+                    selected: _selectedAudience == 'delivery_persons',
+                    onTap: () async {
+                      setState(() => _selectedAudience = 'delivery_persons');
+                      await _persistDraftState();
+                    },
+                  ),
+                  _AudienceChip(
+                    label: 'Specific User',
+                    selected: _selectedAudience == 'specific_user',
+                    onTap: () async {
+                      setState(() => _selectedAudience = 'specific_user');
+                      await _persistDraftState();
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -479,14 +574,32 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               ],
               const SizedBox(height: 18),
               _FieldLabel('Delivery Settings'),
-              _ToggleRow(label: 'Push Notification', value: _pushEnabled, onChanged: (value) => setState(() => _pushEnabled = value)),
-              _ToggleRow(label: 'Log to History', value: _logHistory, onChanged: (value) => setState(() => _logHistory = value)),
-              _ToggleRow(label: 'Schedule for later', value: _scheduleLater, onChanged: (value) => setState(() => _scheduleLater = value)),
+              _ToggleRow(
+                label: 'Push Notification',
+                value: _pushEnabled,
+                onChanged: (value) => setState(() => _pushEnabled = value),
+              ),
+              _ToggleRow(
+                label: 'Log to History',
+                value: _logHistory,
+                onChanged: (value) => setState(() => _logHistory = value),
+              ),
+              _ToggleRow(
+                label: 'Schedule for later',
+                value: _scheduleLater,
+                onChanged: (value) async {
+                  setState(() => _scheduleLater = value);
+                  await _persistDraftState();
+                },
+              ),
               if (_scheduleLater)
                 _ToggleRow(
                   label: 'Repeat daily',
                   value: _dailySchedule,
-                  onChanged: (value) => setState(() => _dailySchedule = value),
+                  onChanged: (value) async {
+                    setState(() => _dailySchedule = value);
+                    await _persistDraftState();
+                  },
                 ),
               if (_scheduleLater) ...[
                 const SizedBox(height: 12),
@@ -600,36 +713,31 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: _SectionTitle(
-                    icon: Icons.history,
-                    title: 'Notification History',
-                    subtitle: 'Search, filter and inspect the latest admin notifications.',
-                  ),
+            const _SectionTitle(
+              icon: Icons.history,
+              title: 'Notification History',
+              subtitle: 'Search, filter and inspect the latest admin notifications.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              onChanged: (_) {
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(
+                  const Duration(milliseconds: 350),
+                  () => _loadHistory(silent: true),
+                );
+              },
+              decoration: InputDecoration(
+                hintText: 'Search title or message',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: const Color(0xFFF7F9FF),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
-                SizedBox(
-                  width: 220,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) {
-                      _searchDebounce?.cancel();
-                      _searchDebounce = Timer(
-                        const Duration(milliseconds: 350),
-                        () => _loadHistory(silent: true),
-                      );
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search title or message',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor: const Color(0xFFF7F9FF),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -661,6 +769,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                     DataColumn(label: Text('Audience')),
                     DataColumn(label: Text('Type')),
                     DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Repeat')),
                     DataColumn(label: Text('Timestamp')),
                     DataColumn(label: Text('Results')),
                   ],
@@ -679,7 +788,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           ),
                           child: Text(status, style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w700)),
                         )),
-                        DataCell(Text((item['sentAt'] ?? item['scheduledAt'] ?? item['createdAt'] ?? '').toString())),
+                        DataCell(_RepeatBadge(text: _repeatLabel(item))),
+                        DataCell(Text(_formatNotificationTimestamp(item))),
                         DataCell(Text('${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed')),
                       ],
                     );
@@ -692,6 +802,80 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               style: TextStyle(color: _accent, fontWeight: FontWeight.w800),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatNotificationTimestamp(Map<String, dynamic> item) {
+  final raw = item['sentAt'] ?? item['scheduledAt'] ?? item['createdAt'];
+  if (raw == null) return '—';
+  DateTime? dt;
+  if (raw is DateTime) {
+    dt = raw;
+  } else {
+    dt = DateTime.tryParse(raw.toString());
+  }
+  if (dt == null) return raw.toString();
+  final local = dt.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  final month = monthNames[local.month - 1];
+  final year = local.year;
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final amPm = local.hour >= 12 ? 'PM' : 'AM';
+  return '$day $month $year, ${hour.toString().padLeft(2, '0')}:$minute $amPm';
+}
+
+String _formatScheduleInput(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  final month = monthNames[local.month - 1];
+  final year = local.year;
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final amPm = local.hour >= 12 ? 'PM' : 'AM';
+  return '$day $month $year, ${hour.toString().padLeft(2, '0')}:$minute $amPm';
+}
+
+String _repeatLabel(Map<String, dynamic> item) {
+  final recurrence = (item['recurrence'] ?? 'none').toString().toLowerCase();
+  final time = (item['recurrenceTime'] ?? '').toString().trim();
+  if (recurrence == 'daily') {
+    return time.isEmpty ? 'Daily' : 'Daily at $time';
+  }
+  return 'Once';
+}
+
+class _RepeatBadge extends StatelessWidget {
+  const _RepeatBadge({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDaily = text.toLowerCase().startsWith('daily');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (isDaily ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6)).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isDaily ? const Color(0xFF4F46E5) : _textMid,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
       ),
     );
@@ -757,6 +941,17 @@ class _AdminDrawer extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
+      final accentColors = const [
+        Color(0xFF0F766E),
+        Color(0xFFB45309),
+        Color(0xFF2563EB),
+        Color(0xFF059669),
+        Color(0xFFEA580C),
+        Color(0xFF7C3AED),
+        Color(0xFFDB2777),
+        Color(0xFFDC2626),
+      ];
+      final accent = accentColors[index % accentColors.length];
                     final selected = index == selectedIndex;
                     return Material(
                       color: _card,
@@ -780,13 +975,13 @@ class _AdminDrawer extends StatelessWidget {
                                   color: selected ? _accentSoft : const Color(0xFFF5F6FA),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: Icon(item.$2, color: selected ? _accent : _textDark),
+                                child: Icon(item.$2, color: _accent),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   item.$1,
-                                  style: TextStyle(fontWeight: FontWeight.w900, color: selected ? _accent : _textDark),
+                                  style: TextStyle(fontWeight: FontWeight.w900, color: _accent),
                                 ),
                               ),
                             ],
@@ -1105,7 +1300,7 @@ class _AudienceChip extends StatelessWidget {
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: _accentSoft,
-      labelStyle: TextStyle(color: selected ? _accent : _textDark, fontWeight: FontWeight.w700),
+      labelStyle: TextStyle(color: _accent, fontWeight: FontWeight.w700),
       backgroundColor: _card,
       side: BorderSide(color: selected ? _accent : _border),
     );
@@ -1146,7 +1341,7 @@ class _TabChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: selected ? _accent : _border),
         ),
-        child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? _accent : _textDark)),
+        child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: _accent)),
       ),
     );
   }

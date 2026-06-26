@@ -512,7 +512,9 @@ class _StatsGrid extends StatelessWidget {
         .where((order) => order.status == OrderStatus.assigned || order.status == OrderStatus.pickedUp)
         .length;
     final delivered = orders.where((order) => order.status == OrderStatus.delivered).length;
-    final revenue = orders.fold<double>(0, (sum, order) => sum + order.total);
+    final revenue = orders
+        .where((order) => order.status == OrderStatus.delivered)
+        .fold<double>(0, (sum, order) => sum + order.total);
     final lowStock = context.select<AppState, int>(
       (state) => state.products.where((product) => product.stock <= 15 && product.stock >= 0).length,
     );

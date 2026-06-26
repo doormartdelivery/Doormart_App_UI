@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 
 import 'notification_payload.dart';
+import '../core/constants/app_assets.dart';
 
 class NotificationService {
   NotificationService._();
@@ -88,7 +90,8 @@ class NotificationService {
     required int id,
     required NotificationPayload payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    final largeIcon = await _loadLargeIcon();
+    final androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
       channelDescription: channelDescription,
@@ -99,9 +102,10 @@ class NotificationService {
       category: AndroidNotificationCategory.message,
       visibility: NotificationVisibility.public,
       enableVibration: true,
+      largeIcon: largeIcon,
     );
 
-    const details = NotificationDetails(android: androidDetails);
+    final details = NotificationDetails(android: androidDetails);
 
     await _plugin.show(
       id: id,
@@ -110,6 +114,15 @@ class NotificationService {
       notificationDetails: details,
       payload: jsonEncode(payload.toMap()),
     );
+  }
+
+  Future<ByteArrayAndroidBitmap?> _loadLargeIcon() async {
+    try {
+      final data = await rootBundle.load(AppAssets.logo);
+      return ByteArrayAndroidBitmap(data.buffer.asUint8List());
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> handleNotificationTap(String? payload) async {

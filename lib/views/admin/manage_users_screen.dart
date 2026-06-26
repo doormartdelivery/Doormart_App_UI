@@ -15,6 +15,7 @@ import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'stock_screen.dart';
+import 'admin_sidebar_drawer.dart';
 
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
@@ -237,11 +238,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F6F6),
-      drawer: _AdminDrawer(
-        onNavigate: (route) {
-          Navigator.pop(context);
-          Navigator.pushReplacementNamed(context, route);
-        },
+      drawer: AdminSidebarDrawer(
+        currentRoute: ManageUsersScreen.routeName,
         onLogout: () async {
           Navigator.pop(context);
           await context.read<AppState>().logout();
@@ -468,6 +466,17 @@ class _AdminDrawer extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final item = items[index];
+      final accentColors = const [
+        Color(0xFF0F766E),
+        Color(0xFFB45309),
+        Color(0xFF2563EB),
+        Color(0xFF059669),
+        Color(0xFFEA580C),
+        Color(0xFF7C3AED),
+        Color(0xFFDB2777),
+        Color(0xFFDC2626),
+      ];
+      final accent = accentColors[index % accentColors.length];
                   return Material(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
