@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../services/api_service.dart';
 import '../../../../models/user_model.dart';
 import '../../../../providers/app_state.dart';
+import '../../../../services/session_service.dart';
 import '../../../../views/access_denied_screen.dart';
 import '../providers/delivery_provider.dart';
 import 'delivery_home_screen.dart';
@@ -89,6 +90,10 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen> {
         appState.token = provider.authToken;
         appState.user = UserModel.fromJson(authUser);
         await appState.refreshProfile();
+        await SessionService().saveSession(
+          token: provider.authToken!,
+          user: appState.user!,
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(DeliveryHomeScreen.routeName);

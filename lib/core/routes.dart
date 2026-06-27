@@ -9,6 +9,7 @@ import '../features/routing/super_admin_routes.dart';
 import '../providers/app_state.dart';
 import '../views/access_denied_screen.dart';
 import '../views/delivery/new_order_request_screen.dart';
+import '../views/user/splash_screen.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> get routes => {
@@ -41,6 +42,12 @@ class AppRoutes {
     }
 
     final state = context.read<AppState>();
+    if (!state.initialized && settings.name != SplashScreen.routeName) {
+      return MaterialPageRoute(
+        builder: (_) => const SplashScreen(),
+        settings: const RouteSettings(name: SplashScreen.routeName),
+      );
+    }
     if (!state.canAccessRoute(routeName)) {
       return MaterialPageRoute(
         builder: (_) => const AccessDeniedScreen(),

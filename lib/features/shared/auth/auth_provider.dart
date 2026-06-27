@@ -26,6 +26,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<String?> login({
+    String? email,
+    String? phone,
+    required String password,
+  }) async {
+    try {
+      await loginWithPassword(
+        email: email,
+        phone: phone,
+        password: password,
+      );
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
   Future<void> sendOtp(String email) async {
     await _authService.sendOtp(email);
   }
@@ -35,5 +52,29 @@ class AuthProvider extends ChangeNotifier {
     token = data['token'] as String?;
     user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
     notifyListeners();
+  }
+
+  Future<String?> signUp({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? role,
+  }) async {
+    try {
+      final data = await _authService.signUp(
+        name: name,
+        email: email,
+        phone: phone,
+        password: password,
+        role: role,
+      );
+      token = data['token'] as String?;
+      user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 }

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../providers/app_state.dart';
-import '../select_role_screen.dart';
+import '../../features/auth/auth_gate.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,9 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       Navigator.pushReplacementNamed(
         context,
-        state.signedIn
-            ? state.defaultDashboardRoute
-            : SelectRoleScreen.routeName,
+        AuthGate.routeName,
       );
     });
   }

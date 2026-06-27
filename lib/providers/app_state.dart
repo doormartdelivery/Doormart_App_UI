@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app.dart';
 import '../core/constants.dart';
@@ -14,6 +13,7 @@ import '../models/user_model.dart';
 import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import '../services/session_service.dart';
 import '../widgets/toast_widget.dart';
 
 class CartLine {
@@ -40,9 +40,7 @@ class AppState extends ChangeNotifier {
   final ApiService apiService;
   final SocketService socketService;
   final FirebaseMessagingService _messagingService = FirebaseMessagingService();
-  static const _tokenKey = 'auth_token';
-  static const _userKey = 'auth_user';
-
+  final SessionService _sessionService = SessionService();
   bool initialized = false;
   bool loading = false;
   String? error;
@@ -69,22 +67,26 @@ class AppState extends ChangeNotifier {
 
   Future<void> bootstrap() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      token = prefs.getString(_tokenKey);
-      final storedUser = prefs.getString(_userKey);
-      if (storedUser != null && storedUser.isNotEmpty) {
-        user = UserModel.fromStorage(storedUser);
-      }
+      token = await _sessionService.getToken();
+      user = await _sessionService.getSavedUser();
       await Future.wait([
         loadProducts(),
         loadCategories(),
         loadBanners(),
-        _restoreSession(),
       ]);
+      if (token != null && user?.role != UserRoles.deliveryPerson) {
+        await _restoreSession();
+      }
       if (token != null) {
-        await loadFavorites();
         _connectSocket();
-        await _syncDeliveryToken();
+        try {
+          await _syncDeliveryToken();
+        } catch (e) {
+          debugPrint('FCM token sync skipped during bootstrap: $e');
+        }
+        if (user?.role == UserRoles.user) {
+          await loadFavorites();
+        }
         if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }
@@ -116,14 +118,15 @@ class AppState extends ChangeNotifier {
               as Map<String, dynamic>;
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-      await _persistSession();
-      await refreshProfile();
-      await loadOrders();
-      await loadCart();
-      await loadAddresses();
-      await loadFavorites();
+      await _sessionService.saveSession(token: token!, user: user!);
+      await _refreshCurrentProfileSafely();
+      await _loadPostAuthData();
       _connectSocket();
-      await _syncDeliveryToken();
+      try {
+        await _syncDeliveryToken();
+      } catch (e) {
+        debugPrint('FCM token sync skipped after login: $e');
+      }
       if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
         await loadAdminOrders();
       }
@@ -148,12 +151,9 @@ class AppState extends ChangeNotifier {
               as Map<String, dynamic>;
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-      await _persistSession();
-      await refreshProfile();
-      await loadOrders();
-      await loadCart();
-      await loadAddresses();
-      await loadFavorites();
+      await _sessionService.saveSession(token: token!, user: user!);
+      await _refreshCurrentProfileSafely();
+      await _loadPostAuthData();
       _connectSocket();
       if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
         await loadAdminOrders();
@@ -185,25 +185,35 @@ class AppState extends ChangeNotifier {
     token = data['token'] as String?;
     final userJson = data['user'] as Map<String, dynamic>;
     user = UserModel.fromJson(userJson);
-    await _persistSession();
+    if (token != null) {
+      await _sessionService.saveSession(token: token!, user: user!);
+    }
     notifyListeners();
     _connectSocket();
-    await _syncDeliveryToken();
+    try {
+      await _syncDeliveryToken();
+    } catch (e) {
+      debugPrint('FCM token sync skipped after register: $e');
+    }
 
     if ((addressLine1 ?? '').isNotEmpty &&
         (city ?? '').isNotEmpty &&
         (pincode ?? '').isNotEmpty) {
-      await apiService.post(
-        '/addresses',
-        token: token,
-        body: {
-          'label': addressLabel ?? 'Home',
-          'line1': addressLine1,
-          'city': city,
-          'pincode': pincode,
-        },
-      );
-      await loadAddresses();
+      try {
+        await apiService.post(
+          '/addresses',
+          token: token,
+          body: {
+            'label': addressLabel ?? 'Home',
+            'line1': addressLine1,
+            'city': city,
+            'pincode': pincode,
+          },
+        );
+        await loadAddresses();
+      } catch (e) {
+        debugPrint('Address save skipped after register: $e');
+      }
     }
   }
 
@@ -218,6 +228,47 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> _refreshCurrentProfileSafely() async {
+    if (token == null) return;
+    if (user?.role == UserRoles.deliveryPerson) return;
+    try {
+      await refreshProfile();
+    } catch (e) {
+      debugPrint('Profile refresh skipped: $e');
+    }
+  }
+
+  Future<void> _loadPostAuthData() async {
+    final role = user?.role;
+    if (role == UserRoles.user) {
+      await _safeCall(loadCart);
+      await _safeCall(loadAddresses);
+      await _safeCall(loadFavorites);
+      await _safeCall(loadOrders);
+      return;
+    }
+    if (role == UserRoles.deliveryPerson) {
+      return;
+    }
+    if (role == UserRoles.admin || role == UserRoles.superAdmin) {
+      await _safeCall(loadOrders);
+      await _safeCall(loadFavorites);
+      return;
+    }
+    await _safeCall(loadOrders);
+    await _safeCall(loadCart);
+    await _safeCall(loadAddresses);
+    await _safeCall(loadFavorites);
+  }
+
+  Future<void> _safeCall(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      debugPrint('Post-auth load skipped: $e');
+    }
+  }
+
   Future<void> logout() async {
     token = null;
     user = null;
@@ -228,9 +279,7 @@ class AppState extends ChangeNotifier {
     cart.clear();
     favorites = [];
     socketService.disconnect();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
+    await _sessionService.clearSession();
     notifyListeners();
   }
 
@@ -1024,21 +1073,17 @@ class AppState extends ChangeNotifier {
         }
       }
     } catch (_) {
-      token = null;
-      user = null;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_tokenKey);
-      await prefs.remove(_userKey);
+      if (user?.role != UserRoles.deliveryPerson) {
+        token = null;
+        user = null;
+        await _sessionService.clearSession();
+      }
     }
   }
 
   Future<void> _persistSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (token != null) {
-      await prefs.setString(_tokenKey, token!);
-    }
-    if (user != null) {
-      await prefs.setString(_userKey, user!.toStorage());
+    if (token != null && user != null) {
+      await _sessionService.saveSession(token: token!, user: user!);
     }
   }
 

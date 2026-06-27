@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/api_service.dart';
 import '../../../core/constants.dart';
 import '../../../notifications/firebase_messaging_service.dart';
+import '../../../models/user_model.dart';
 import '../models/delivery_order_model.dart';
 import '../models/delivery_person_model.dart';
 import '../services/delivery_api_service.dart';
@@ -44,6 +45,25 @@ class DeliveryProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Delivery bootstrap skipped: $e');
     }
+  }
+
+  void hydrateFromSession({
+    required String token,
+    required UserModel user,
+  }) {
+    authToken = token;
+    authUser = user.toJson();
+    deliveryPerson ??= DeliveryPersonModel(
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      vehicleNumber: '',
+      status: user.status,
+      active: true,
+      completedOrders: 0,
+      todayEarnings: 0,
+      avatarUrl: user.avatarUrl,
+    );
   }
 
   Future<bool> login({

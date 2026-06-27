@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../providers/app_state.dart';
 import '../providers/delivery_provider.dart';
 import 'active_order_screen.dart';
 import 'delivery_history_screen.dart';
@@ -34,6 +35,13 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<DeliveryProvider>();
+      final appState = context.read<AppState>();
+      if (appState.token != null && appState.user != null) {
+        provider.hydrateFromSession(
+          token: appState.token!,
+          user: appState.user!,
+        );
+      }
       await provider.loadDashboard();
     });
   }

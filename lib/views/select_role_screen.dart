@@ -1,14 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'admin/admin_login_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
+import '../features/delivery/screens/delivery_home_screen.dart';
+import '../providers/app_state.dart';
 import 'delivery/delivery_login_screen.dart';
 import 'super_admin/super_admin_login_screen.dart';
+import 'super_admin/super_admin_dashboard_screen.dart';
+import 'user/user_home_screen.dart';
 import 'user/login_screen.dart';
 
-class SelectRoleScreen extends StatelessWidget {
+class SelectRoleScreen extends StatefulWidget {
   const SelectRoleScreen({super.key});
 
   static const routeName = '/select-role';
+
+  @override
+  State<SelectRoleScreen> createState() => _SelectRoleScreenState();
+}
+
+class _SelectRoleScreenState extends State<SelectRoleScreen> {
+  bool _redirecting = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final state = context.watch<AppState>();
+    if (_redirecting || !state.initialized || !state.signedIn || state.user == null) {
+      return;
+    }
+    _redirecting = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final target = switch (state.user!.role) {
+        'delivery_person' => const DeliveryHomeScreen(),
+        'admin' => const AdminDashboardScreen(),
+        'super_admin' => const SuperAdminDashboardScreen(),
+        _ => const UserHomeScreen(),
+      };
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => target),
+        (route) => false,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +98,7 @@ class SelectRoleScreen extends StatelessWidget {
                     'Browse products, place orders, and track deliveries.',
                 icon: Icons.shopping_bag_rounded,
                 color: const Color(0xFF0F9D58),
-                onTap: () =>
-                    Navigator.pushNamed(context, LoginScreen.routeName),
+                onTap: () => Navigator.pushNamed(context, '/login'),
               ),
               _RoleCard(
                 title: 'Delivery Login',

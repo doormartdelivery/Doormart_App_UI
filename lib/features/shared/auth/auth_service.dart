@@ -42,6 +42,28 @@ class AuthService {
     return data;
   }
 
+  Future<Map<String, dynamic>> signUp({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String? role,
+  }) async {
+    final data =
+        await _apiService.post(
+              '/auth/register',
+              body: {
+                'name': name,
+                'email': email,
+                'phone': phone,
+                'password': password,
+                if (role != null) 'role': role,
+              },
+            )
+            as Map<String, dynamic>;
+    return data;
+  }
+
   Future<UserModel> me(String token) async {
     final data =
         await _apiService.get('/auth/me', token: token) as Map<String, dynamic>;

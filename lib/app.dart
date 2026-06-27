@@ -10,7 +10,6 @@ import 'providers/app_state.dart';
 import 'features/delivery/providers/delivery_provider.dart';
 import 'features/delivery/screens/delivery_home_screen.dart';
 import 'views/user/splash_screen.dart';
-import 'views/select_role_screen.dart';
 
 class DoormartDeliveryApp extends StatefulWidget {
   const DoormartDeliveryApp({super.key});
@@ -74,9 +73,7 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
             scaffoldMessengerKey: DoormartDeliveryApp.scaffoldMessengerKey,
             navigatorKey: DoormartDeliveryApp.navigatorKey,
             theme: AppTheme.lightTheme,
-            initialRoute: kIsWeb
-                ? SelectRoleScreen.routeName
-                : SplashScreen.routeName,
+            initialRoute: SplashScreen.routeName,
             onGenerateRoute: (settings) =>
                 AppRoutes.onGenerateRoute(context, settings),
           ),

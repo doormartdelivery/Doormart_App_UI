@@ -39,4 +39,3 @@ class CustomerRoutes {
     WishlistScreen.routeName: (_) => const WishlistScreen(),
   };
 }
-
