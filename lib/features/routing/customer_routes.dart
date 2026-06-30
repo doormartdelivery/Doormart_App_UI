@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../views/user/address_screen.dart';
 import '../../views/user/cart_screen.dart';
 import '../../views/user/checkout_screen.dart';
+import '../../views/user/help_support_screen.dart';
 import '../../views/user/login_screen.dart';
 import '../../views/user/my_orders_screen.dart';
 import '../../views/user/notification_screen.dart';
@@ -34,6 +35,7 @@ class CustomerRoutes {
     ScheduledOrderScreen.routeName: (_) => const ScheduledOrderScreen(),
     MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
     AddressScreen.routeName: (_) => const AddressScreen(),
+    HelpSupportScreen.routeName: (_) => const HelpSupportScreen(),
     NotificationScreen.routeName: (_) => const NotificationScreen(),
     ProfileScreen.routeName: (_) => const ProfileScreen(),
     WishlistScreen.routeName: (_) => const WishlistScreen(),

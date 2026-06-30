@@ -46,7 +46,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       leading: Padding(
         padding: const EdgeInsets.only(left: 16),
         child: GestureDetector(
-          onTap: () => Navigator.maybePop(context),
+          onTap: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
           child: Container(
             width: 42,
             height: 42,
@@ -329,25 +333,6 @@ class _CurrentOrderCard extends StatelessWidget {
                     )
                     .toList(),
               ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE8541A),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () {},
-                child: const Text(
-                  'TRACK ORDER',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-            ),
           ],
         ),
       ),

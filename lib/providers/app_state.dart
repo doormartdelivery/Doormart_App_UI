@@ -53,6 +53,7 @@ class AppState extends ChangeNotifier {
   List<OrderModel> orders = [];
   List<OrderModel> adminOrders = [];
   List<AddressModel> savedAddresses = [];
+  List<Map<String, dynamic>> supportTickets = [];
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
@@ -74,7 +75,7 @@ class AppState extends ChangeNotifier {
         loadCategories(),
         loadBanners(),
       ]);
-      if (token != null && user?.role != UserRoles.deliveryPerson) {
+      if (token != null && user?.role == UserRoles.user) {
         await _restoreSession();
       }
       if (token != null) {
@@ -259,6 +260,43 @@ class AppState extends ChangeNotifier {
     await _safeCall(loadCart);
     await _safeCall(loadAddresses);
     await _safeCall(loadFavorites);
+  }
+
+  Future<void> loadSupportTickets() async {
+    if (token == null) return;
+    try {
+      final data =
+          await apiService.get('/support/tickets', token: token) as List<dynamic>;
+      supportTickets = data
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Support tickets skipped: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> createSupportTicket({
+    required String subject,
+    required String issueType,
+    required String description,
+    String orderId = '',
+    String imageUrl = '',
+  }) async {
+    if (token == null) throw StateError('Please login first');
+    final data = await apiService.post(
+      '/support/tickets',
+      token: token,
+      body: {
+        'subject': subject,
+        'issueType': issueType,
+        'description': description,
+        'orderId': orderId,
+        'imageUrl': imageUrl,
+      },
+    ) as Map<String, dynamic>;
+    await loadSupportTickets();
+    return data;
   }
 
   Future<void> _safeCall(Future<void> Function() action) async {
@@ -1073,7 +1111,7 @@ class AppState extends ChangeNotifier {
         }
       }
     } catch (_) {
-      if (user?.role != UserRoles.deliveryPerson) {
+      if (user?.role == UserRoles.user || user?.role == null) {
         token = null;
         user = null;
         await _sessionService.clearSession();

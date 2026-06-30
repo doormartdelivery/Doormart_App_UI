@@ -7,6 +7,7 @@ import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
+import 'help_support_management_screen.dart';
 import 'manage_categories_screen.dart';
 import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
@@ -126,6 +127,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: Icons.notifications_active,
         accent: const Color(0xFFB45309),
         builder: (_) => const AdminNotificationsScreen(),
+      ),
+      _AdminSection(
+        title: 'Ticket Management',
+        subtitle: 'Help and support tickets',
+        icon: Icons.support_agent,
+        accent: const Color(0xFFE8541A),
+        builder: (_) => const HelpSupportManagementScreen(),
       ),
       _AdminSection(
         title: 'Products',

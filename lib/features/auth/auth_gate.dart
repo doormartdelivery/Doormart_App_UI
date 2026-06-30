@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
+import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../features/delivery/screens/delivery_home_screen.dart';
 import '../../views/user/user_home_screen.dart';
 import '../../views/select_role_screen.dart';
 import '../../views/admin/admin_dashboard_screen.dart';
 import '../../views/super_admin/super_admin_dashboard_screen.dart';
-import '../../core/constants.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -18,8 +19,27 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  late final VideoPlayerController _controller;
+  late final Future<void> _videoInitFuture;
   bool _checking = true;
   Widget? _target;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.asset(
+      'assets/animations/doormart_splash.mp4',
+    )
+      ..setLooping(true)
+      ..setVolume(0.0);
+    _videoInitFuture = _controller.initialize().then((_) => _controller.play());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -37,11 +57,12 @@ class _AuthGateState extends State<AuthGate> {
           return !state.initialized;
         });
       }
-      final savedRole = state.user?.role;
-      if (state.token != null && savedRole != UserRoles.deliveryPerson) {
-        await state.refreshProfile();
+      final role = state.user?.role;
+      final token = state.token;
+      if (token == null || role == null) {
+        _target = null;
+        return;
       }
-      final role = state.user?.role ?? savedRole;
       _target = switch (role) {
         UserRoles.deliveryPerson => const DeliveryHomeScreen(),
         UserRoles.admin => const AdminDashboardScreen(),
@@ -50,7 +71,6 @@ class _AuthGateState extends State<AuthGate> {
         _ => null,
       };
     } catch (_) {
-      await state.logout();
       _target = null;
     } finally {
       if (!mounted) return;
@@ -74,8 +94,44 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: ColoredBox(
+        color: Colors.white,
+        child: FutureBuilder<void>(
+          future: _videoInitFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done ||
+                !_controller.value.isInitialized) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFFE8541A)),
+              );
+            }
+
+            if (_controller.value.hasError) {
+              return Center(
+                child: Image.asset(
+                  'assets/images/banners/grocery_bag.png',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.contain,
+                ),
+              );
+            }
+
+            return Center(
+              child: SizedBox(
+                width: 120,
+                height: 120,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: VideoPlayer(_controller),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

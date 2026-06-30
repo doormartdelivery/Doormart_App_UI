@@ -497,7 +497,7 @@ class _DeliveryOrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Order #${_shortId(order.id)}',
+                        'Order #${order.displayOrderId}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: const Color(0xFF16231F),

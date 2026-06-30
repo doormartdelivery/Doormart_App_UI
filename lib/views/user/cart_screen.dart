@@ -8,6 +8,7 @@ import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 import 'checkout_screen.dart';
 import 'search_screen.dart';
+import 'user_home_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -90,13 +91,22 @@ class CartScreen extends StatelessWidget {
 class _CartAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    void goBack() {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop();
+        return;
+      }
+      navigator.pushReplacementNamed(UserHomeScreen.routeName);
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Row(
         children: [
           // Back button
           GestureDetector(
-            onTap: () => Navigator.maybePop(context),
+            onTap: goBack,
             child: Container(
               width: 42,
               height: 42,

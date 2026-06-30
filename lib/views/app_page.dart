@@ -31,10 +31,14 @@ class AppPage extends StatelessWidget {
         : kBottomNavigationBarHeight;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
       key: scaffoldKey,
       drawer: drawer,
       appBar: AppBar(
         toolbarHeight: 48,
+        backgroundColor: const Color(0xFFF6F6F6),
+        surfaceTintColor: const Color(0xFFF6F6F6),
+        elevation: 0,
         title: Text(title),
         actions: actions,
         leading: leading,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../views/admin/admin_dashboard_screen.dart';
 import '../../views/admin/admin_login_screen.dart';
+import '../../views/admin/help_support_management_screen.dart';
 import '../../views/admin/admin_notifications_screen.dart';
 import '../../views/admin/admin_orders_screen.dart';
 import '../../views/admin/manage_categories_screen.dart';
@@ -15,6 +16,7 @@ class AdminRoutes {
   static Map<String, WidgetBuilder> get routes => {
     AdminLoginScreen.routeName: (_) => const AdminLoginScreen(),
     AdminDashboardScreen.routeName: (_) => const AdminDashboardScreen(),
+    HelpSupportManagementScreen.routeName: (_) => const HelpSupportManagementScreen(),
     AdminOrdersScreen.routeName: (_) => const AdminOrdersScreen(),
     AdminNotificationsScreen.routeName: (_) => const AdminNotificationsScreen(),
     ManageProductsScreen.routeName: (_) => const ManageProductsScreen(),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import 'admin_dashboard_screen.dart';
+import 'help_support_management_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
 import 'manage_banners_screen.dart';
@@ -37,6 +38,7 @@ class AdminSidebarDrawer extends StatelessWidget {
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName, const Color(0xFF0F766E)),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName, const Color(0xFF0F766E)),
       ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName, const Color(0xFFB45309)),
+      ('Ticket Management', Icons.support_agent, HelpSupportManagementScreen.routeName, const Color(0xFFE8541A)),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName, const Color(0xFF2563EB)),
       ('Categories', Icons.category, ManageCategoriesScreen.routeName, const Color(0xFF059669)),
       ('Banners', Icons.slideshow, ManageBannersScreen.routeName, const Color(0xFFEA580C)),
@@ -123,10 +125,14 @@ class AdminSidebarDrawer extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      item.$1 == 'Overview' ? 'Back to dashboard' : 'Open section',
-                                      style: const TextStyle(color: _kTextMid, fontSize: 12),
-                                    ),
+                                      Text(
+                                        item.$1 == 'Overview'
+                                            ? 'Back to dashboard'
+                                            : item.$1 == 'Ticket Management'
+                                                ? 'Manage user tickets'
+                                                : 'Open section',
+                                        style: const TextStyle(color: _kTextMid, fontSize: 12),
+                                      ),
                                   ],
                                 ),
                               ),

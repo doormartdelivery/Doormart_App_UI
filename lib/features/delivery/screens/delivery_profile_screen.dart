@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../providers/app_state.dart';
 import '../providers/delivery_provider.dart';
 import 'delivery_login_screen.dart';
 import 'delivery_history_screen.dart';
@@ -76,6 +77,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
 
     if (confirmed != true || !mounted) return;
     await context.read<DeliveryProvider>().logout();
+    await context.read<AppState>().logout();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(
       DeliveryLoginScreen.routeName,

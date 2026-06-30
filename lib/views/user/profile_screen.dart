@@ -6,6 +6,7 @@ import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../select_role_screen.dart';
 import 'address_screen.dart';
+import 'help_support_screen.dart';
 import 'my_orders_screen.dart';
 import 'notification_screen.dart';
 import 'settings_screen.dart';
@@ -13,7 +14,7 @@ import 'settings_screen.dart';
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
-const _kBg = Color(0xFFF7FAF4);
+const _kBg = Color(0xFFF6F6F6);
 const _kGreen = Color(0xFF0F9D58);
 const _kGreenLight = Color(0xFFEAF7EF);
 const _kCard = Colors.white;
@@ -108,7 +109,8 @@ class ProfileScreen extends StatelessWidget {
               iconColor: const Color(0xFF16A34A),
               title: 'Help & Support',
               subtitle: '24/7 customer care',
-              onTap: () {},
+              onTap: () =>
+                  Navigator.pushNamed(context, HelpSupportScreen.routeName),
             ),
 
             _MenuTile(

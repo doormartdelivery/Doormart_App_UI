@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../providers/app_state.dart';
-import '../../features/auth/auth_gate.dart';
+import 'login_screen.dart';
+import '../delivery/delivery_home_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
+import '../super_admin/super_admin_dashboard_screen.dart';
+import 'user_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,9 +45,15 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!state.initialized) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.pushReplacementNamed(
-        context,
-        AuthGate.routeName,
+      final target = switch (state.user?.role) {
+        'delivery_person' => const DeliveryHomeScreen(),
+        'admin' => const AdminDashboardScreen(),
+        'super_admin' => const SuperAdminDashboardScreen(),
+        'user' => const UserHomeScreen(),
+        _ => const LoginScreen(),
+      };
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => target),
       );
     });
   }

@@ -7,6 +7,7 @@ import '../../../services/api_service.dart';
 import '../../../core/constants.dart';
 import '../../../notifications/firebase_messaging_service.dart';
 import '../../../models/user_model.dart';
+import '../../../services/session_service.dart';
 import '../models/delivery_order_model.dart';
 import '../models/delivery_person_model.dart';
 import '../services/delivery_api_service.dart';
@@ -368,7 +369,13 @@ class DeliveryProvider extends ChangeNotifier {
     history.clear();
     pendingRequests.clear();
     earningsStats = const {};
+    authToken = null;
+    authUser = null;
     _stopRequestRefresh();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_deliveryTokenKey);
+    await prefs.remove(_deliveryUserKey);
+    await SessionService().clearSession();
     notifyListeners();
   }
 

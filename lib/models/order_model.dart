@@ -64,6 +64,8 @@ class OrderModel {
     return 'DMD-$first-$second';
   }
 
+  String get orderNumber => displayOrderId;
+
   String get deliveryOtpDisplay {
     if ((deliveryOtp ?? '').isNotEmpty) return deliveryOtp!;
     return id.replaceAll(RegExp(r'[^0-9]'), '').substring(
