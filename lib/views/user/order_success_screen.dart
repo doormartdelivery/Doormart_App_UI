@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/network_image_url.dart';
+import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import '../user/user_home_screen.dart';
 
@@ -34,7 +35,9 @@ class OrderSuccessScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFFE8541A,
+                          ).withValues(alpha: 0.12),
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -44,7 +47,9 @@ class OrderSuccessScreen extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: latest != null && latest.products.isNotEmpty
-                            ? _OrderImage(imageUrl: latest.products.first.imageUrl)
+                            ? _OrderImage(
+                                imageUrl: latest.products.first.imageUrl,
+                              )
                             : Image.asset(
                                 'assets/images/delivery_boy.png',
                                 fit: BoxFit.contain,
@@ -99,7 +104,9 @@ class OrderSuccessScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFEEEEEE)),
+                              border: Border.all(
+                                color: const Color(0xFFEEEEEE),
+                              ),
                             ),
                             child: latest != null && latest.products.isNotEmpty
                                 ? ClipRRect(
@@ -178,18 +185,18 @@ class OrderSuccessScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         _SummaryRow(
+                          label: 'Quantity',
+                          value: _quantityLabel(latest),
+                        ),
+                        const SizedBox(height: 14),
+                        _SummaryRow(
                           label: 'Order ID',
-                          value: latest?.id ?? '—',
+                          value: latest?.displayOrderId ?? '—',
                         ),
                         const SizedBox(height: 14),
                         _SummaryRow(
                           label: 'Shipping Address',
                           value: latest?.address ?? '—',
-                        ),
-                        const SizedBox(height: 14),
-                        _SummaryRow(
-                          label: 'Tracking ID',
-                          value: latest?.id ?? '—',
                         ),
                         const SizedBox(height: 14),
                         _SummaryRow(
@@ -254,12 +261,17 @@ class OrderSuccessScreen extends StatelessWidget {
 
   String _estimatedDelivery() {
     final delivery = DateTime.now().add(const Duration(hours: 1));
-    final month = delivery.month.toString().padLeft(2, '0');
-    final day = delivery.day.toString().padLeft(2, '0');
-    final year = delivery.year.toString().substring(2);
-    final hour = delivery.hour.toString().padLeft(2, '0');
+    final hour24 = delivery.hour;
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
     final minute = delivery.minute.toString().padLeft(2, '0');
-    return '$month/$day/$year, $hour:${minute}pm';
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    return 'Today, ${hour12.toString().padLeft(2, '0')}:$minute $period';
+  }
+
+  String _quantityLabel(OrderModel? order) {
+    if (order == null || order.quantities.isEmpty) return '—';
+    final total = order.quantities.fold<int>(0, (sum, value) => sum + value);
+    return total == 1 ? '1 item' : '$total items';
   }
 }
 
@@ -353,7 +365,12 @@ class _OrderThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
     if (normalized.startsWith('http')) {
-      return Image.network(normalized, fit: BoxFit.cover, width: 48, height: 48);
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        width: 48,
+        height: 48,
+      );
     }
     if (normalized.startsWith('assets/')) {
       return Image.asset(normalized, fit: BoxFit.cover, width: 48, height: 48);
@@ -361,7 +378,11 @@ class _OrderThumb extends StatelessWidget {
     return const ColoredBox(
       color: Color(0xFFF1F1F1),
       child: Center(
-        child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF999999), size: 18),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: Color(0xFF999999),
+          size: 18,
+        ),
       ),
     );
   }

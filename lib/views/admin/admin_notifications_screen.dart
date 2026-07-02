@@ -363,7 +363,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         },
       ),
       body: SafeArea(

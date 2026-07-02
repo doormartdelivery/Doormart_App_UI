@@ -4,12 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../select_role_screen.dart';
+import 'login_screen.dart';
 import 'address_screen.dart';
 import 'help_support_screen.dart';
 import 'my_orders_screen.dart';
 import 'notification_screen.dart';
-import 'settings_screen.dart';
+import 'privacy_policy_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -60,9 +60,7 @@ class ProfileScreen extends StatelessWidget {
               iconColor: const Color(0xFF4F46E5),
               title: 'My Orders',
               subtitle: 'View recent and repeat orders',
-              badge: state.orders.isNotEmpty
-                  ? '${state.orders.length}'
-                  : null,
+              badge: state.orders.isNotEmpty ? '${state.orders.length}' : null,
               onTap: () =>
                   Navigator.pushNamed(context, MyOrdersScreen.routeName),
             ),
@@ -83,8 +81,8 @@ class ProfileScreen extends StatelessWidget {
               iconColor: const Color(0xFFD97706),
               title: 'Notifications',
               subtitle: 'Order updates and offers',
-              onTap: () => Navigator.pushNamed(
-                  context, NotificationScreen.routeName),
+              onTap: () =>
+                  Navigator.pushNamed(context, NotificationScreen.routeName),
             ),
 
             const SizedBox(height: 20),
@@ -92,16 +90,6 @@ class ProfileScreen extends StatelessWidget {
             // ── Section: Preferences ─────────────────────────────────────
             const _SectionLabel('Preferences'),
             const SizedBox(height: 10),
-
-            _MenuTile(
-              icon: Icons.settings_rounded,
-              iconBg: const Color(0xFFF5F3FF),
-              iconColor: const Color(0xFF7C3AED),
-              title: 'Settings',
-              subtitle: 'Language, support and preferences',
-              onTap: () =>
-                  Navigator.pushNamed(context, SettingsScreen.routeName),
-            ),
 
             _MenuTile(
               icon: Icons.help_outline_rounded,
@@ -119,7 +107,8 @@ class ProfileScreen extends StatelessWidget {
               iconColor: const Color(0xFFEA580C),
               title: 'Privacy Policy',
               subtitle: 'Terms, policy and legal info',
-              onTap: () {},
+              onTap: () =>
+                  Navigator.pushNamed(context, PrivacyPolicyScreen.routeName),
               isLast: true,
             ),
 
@@ -134,7 +123,7 @@ class ProfileScreen extends StatelessWidget {
                   if (!context.mounted) return;
                   Navigator.pushNamedAndRemoveUntil(
                     context,
-                    SelectRoleScreen.routeName,
+                    LoginScreen.routeName,
                     (_) => false,
                   );
                 },
@@ -211,13 +200,14 @@ class _HeroCard extends StatelessWidget {
                           height: 68,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color:
-                                Colors.white.withValues(alpha: 0.20),
-                            border: Border.all(
-                                color: Colors.white38, width: 2),
+                            color: Colors.white.withValues(alpha: 0.20),
+                            border: Border.all(color: Colors.white38, width: 2),
                           ),
-                          child: const Icon(Icons.person_rounded,
-                              color: Colors.white, size: 36),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                            size: 36,
+                          ),
                         ),
                         if (signedIn)
                           Positioned(
@@ -230,7 +220,9 @@ class _HeroCard extends StatelessWidget {
                                 color: const Color(0xFF22C55E),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: Colors.white, width: 2),
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
                               ),
                             ),
                           ),
@@ -259,8 +251,7 @@ class _HeroCard extends StatelessWidget {
                                 ? contact
                                 : 'Login to manage orders and addresses',
                             style: TextStyle(
-                              color:
-                                  Colors.white.withValues(alpha: 0.80),
+                              color: Colors.white.withValues(alpha: 0.80),
                               fontSize: 13,
                             ),
                           ),
@@ -285,9 +276,7 @@ class _HeroCard extends StatelessWidget {
                       icon: signedIn
                           ? Icons.verified_rounded
                           : Icons.lock_outline_rounded,
-                      text: signedIn
-                          ? 'Verified account'
-                          : 'Sign in required',
+                      text: signedIn ? 'Verified account' : 'Sign in required',
                     ),
                   ],
                 ),
@@ -302,10 +291,11 @@ class _HeroCard extends StatelessWidget {
                         label: signedIn ? 'Refresh' : 'Login',
                         filled: true,
                         onTap: signedIn
-                            ? () =>
-                                context.read<AppState>().refreshProfile()
+                            ? () => context.read<AppState>().refreshProfile()
                             : () => Navigator.pushNamed(
-                                context, SelectRoleScreen.routeName),
+                                context,
+                                LoginScreen.routeName,
+                              ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -319,12 +309,14 @@ class _HeroCard extends StatelessWidget {
                                 if (!context.mounted) return;
                                 Navigator.pushNamedAndRemoveUntil(
                                   context,
-                                  SelectRoleScreen.routeName,
+                                  LoginScreen.routeName,
                                   (_) => false,
                                 );
                               }
                             : () => Navigator.pushNamed(
-                                context, SelectRoleScreen.routeName),
+                                context,
+                                LoginScreen.routeName,
+                              ),
                       ),
                     ),
                   ],
@@ -346,8 +338,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
@@ -361,9 +352,10 @@ class _InfoChip extends StatelessWidget {
           Text(
             text,
             style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600),
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -391,10 +383,10 @@ class _HeroBtnState extends State<_HeroBtn>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.95).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.95,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -420,9 +412,7 @@ class _HeroBtnState extends State<_HeroBtn>
                 ? Colors.white
                 : Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(14),
-            border: widget.filled
-                ? null
-                : Border.all(color: Colors.white38),
+            border: widget.filled ? null : Border.all(color: Colors.white38),
           ),
           child: Center(
             child: Text(
@@ -600,10 +590,10 @@ class _MenuTileState extends State<_MenuTile>
     vsync: this,
     duration: const Duration(milliseconds: 100),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.97).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.97,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -629,10 +619,8 @@ class _MenuTileState extends State<_MenuTile>
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(18),
               topRight: const Radius.circular(18),
-              bottomLeft:
-                  Radius.circular(widget.isLast ? 18 : 4),
-              bottomRight:
-                  Radius.circular(widget.isLast ? 18 : 4),
+              bottomLeft: Radius.circular(widget.isLast ? 18 : 4),
+              bottomRight: Radius.circular(widget.isLast ? 18 : 4),
             ),
             boxShadow: [
               BoxShadow(
@@ -643,8 +631,7 @@ class _MenuTileState extends State<_MenuTile>
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             child: Row(
               children: [
                 // Icon box
@@ -655,8 +642,7 @@ class _MenuTileState extends State<_MenuTile>
                     color: widget.iconBg,
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: Icon(widget.icon,
-                      color: widget.iconColor, size: 22),
+                  child: Icon(widget.icon, color: widget.iconColor, size: 22),
                 ),
 
                 const SizedBox(width: 14),
@@ -677,10 +663,7 @@ class _MenuTileState extends State<_MenuTile>
                       const SizedBox(height: 2),
                       Text(
                         widget.subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _kTextMid,
-                        ),
+                        style: const TextStyle(fontSize: 12, color: _kTextMid),
                       ),
                     ],
                   ),
@@ -691,7 +674,9 @@ class _MenuTileState extends State<_MenuTile>
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: _kOrangeLight,
                       borderRadius: BorderRadius.circular(999),
@@ -707,8 +692,11 @@ class _MenuTileState extends State<_MenuTile>
                   ),
 
                 // Chevron
-                const Icon(Icons.chevron_right_rounded,
-                    size: 20, color: _kTextMid),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: _kTextMid,
+                ),
               ],
             ),
           ),
@@ -734,10 +722,10 @@ class _LogoutButtonState extends State<_LogoutButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -767,8 +755,7 @@ class _LogoutButtonState extends State<_LogoutButton>
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.logout_rounded,
-                  color: Color(0xFFDC2626), size: 20),
+              Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
               SizedBox(width: 8),
               Text(
                 'Logout',
@@ -804,8 +791,11 @@ class _Footer extends StatelessWidget {
                 color: _kOrangeLight,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.storefront_rounded,
-                  color: _kOrange, size: 14),
+              child: const Icon(
+                Icons.storefront_rounded,
+                color: _kOrange,
+                size: 14,
+              ),
             ),
             const SizedBox(width: 6),
             const Text(
@@ -821,18 +811,12 @@ class _Footer extends StatelessWidget {
         const SizedBox(height: 6),
         const Text(
           'Version 1.0.0 • Delivery in 10 minutes',
-          style: TextStyle(
-            fontSize: 11,
-            color: _kTextMid,
-          ),
+          style: TextStyle(fontSize: 11, color: _kTextMid),
         ),
         const SizedBox(height: 4),
         const Text(
-          '© 2024 Doormart. All rights reserved.',
-          style: TextStyle(
-            fontSize: 11,
-            color: _kTextMid,
-          ),
+          '© 2026 Doormart. All rights reserved.',
+          style: TextStyle(fontSize: 11, color: _kTextMid),
         ),
       ],
     );

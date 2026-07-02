@@ -6,8 +6,10 @@ import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/toast_widget.dart';
+import '../../widgets/bottom_nav_bar.dart';
 import 'cart_screen.dart';
 import 'search_screen.dart';
+import 'user_home_screen.dart';
 
 class WishlistScreen extends StatefulWidget {
   const WishlistScreen({super.key});
@@ -35,9 +37,21 @@ class _WishlistScreenState extends State<WishlistScreen> {
               children: [
                 _TopBar(
                   cartCount: state.cartCount,
-                  onBack: () => Navigator.pop(context),
-                  onCart: () => Navigator.pushNamed(context, CartScreen.routeName),
-                  onSearch: () => Navigator.pushNamed(context, SearchScreen.routeName),
+                  onBack: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        UserHomeScreen.routeName,
+                        (route) => false,
+                      );
+                    }
+                  },
+                  onCart: () =>
+                      Navigator.pushNamed(context, CartScreen.routeName),
+                  onSearch: () =>
+                      Navigator.pushNamed(context, SearchScreen.routeName),
                 ),
                 // Filter pills row
                 SizedBox(
@@ -61,7 +75,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       _FilterPill(
                         label: 'Fast Delivery',
                         active: _fastDeliveryOnly,
-                        onTap: () => setState(() => _fastDeliveryOnly = !_fastDeliveryOnly),
+                        onTap: () => setState(
+                          () => _fastDeliveryOnly = !_fastDeliveryOnly,
+                        ),
                       ),
                       _FilterPill(
                         label: 'Ratings 4.0+',
@@ -78,7 +94,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                           itemCount: favorites.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 16),
                           itemBuilder: (context, index) {
                             final product = favorites[index];
                             return _FavoriteCard(
@@ -100,11 +117,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                 },
                               ),
                               onToggleFavorite: () async {
-                                await context
-                                    .read<AppState>()
-                                    .removeFavorite(product.id);
+                                await context.read<AppState>().removeFavorite(
+                                  product.id,
+                                );
                                 if (!context.mounted) return;
-                                showToast(context, '${product.name} removed from favorites');
+                                showToast(
+                                  context,
+                                  '${product.name} removed from favorites',
+                                );
                               },
                               isFavorited: true,
                             );
@@ -115,6 +135,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
             );
           },
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        index: 3,
+        onTap: (index) => BottomNavBar.navigate(context, index),
       ),
     );
   }
@@ -136,7 +160,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
         items.sort((a, b) => b.rating.compareTo(a.rating));
         break;
       case _WishlistSort.nameAZ:
-        items.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        items.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
         break;
     }
     return items;
@@ -194,11 +220,35 @@ class _WishlistScreenState extends State<WishlistScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _SortTile(label: 'Relevance', selected: _sort == _WishlistSort.relevance, onTap: () => setModalState(() => _sort = _WishlistSort.relevance)),
-              _SortTile(label: 'Price: Low to High', selected: _sort == _WishlistSort.priceLowHigh, onTap: () => setModalState(() => _sort = _WishlistSort.priceLowHigh)),
-              _SortTile(label: 'Price: High to Low', selected: _sort == _WishlistSort.priceHighLow, onTap: () => setModalState(() => _sort = _WishlistSort.priceHighLow)),
-              _SortTile(label: 'Rating: High to Low', selected: _sort == _WishlistSort.ratingHighLow, onTap: () => setModalState(() => _sort = _WishlistSort.ratingHighLow)),
-              _SortTile(label: 'Name: A to Z', selected: _sort == _WishlistSort.nameAZ, onTap: () => setModalState(() => _sort = _WishlistSort.nameAZ)),
+              _SortTile(
+                label: 'Relevance',
+                selected: _sort == _WishlistSort.relevance,
+                onTap: () =>
+                    setModalState(() => _sort = _WishlistSort.relevance),
+              ),
+              _SortTile(
+                label: 'Price: Low to High',
+                selected: _sort == _WishlistSort.priceLowHigh,
+                onTap: () =>
+                    setModalState(() => _sort = _WishlistSort.priceLowHigh),
+              ),
+              _SortTile(
+                label: 'Price: High to Low',
+                selected: _sort == _WishlistSort.priceHighLow,
+                onTap: () =>
+                    setModalState(() => _sort = _WishlistSort.priceHighLow),
+              ),
+              _SortTile(
+                label: 'Rating: High to Low',
+                selected: _sort == _WishlistSort.ratingHighLow,
+                onTap: () =>
+                    setModalState(() => _sort = _WishlistSort.ratingHighLow),
+              ),
+              _SortTile(
+                label: 'Name: A to Z',
+                selected: _sort == _WishlistSort.nameAZ,
+                onTap: () => setModalState(() => _sort = _WishlistSort.nameAZ),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
@@ -218,7 +268,13 @@ class _WishlistScreenState extends State<WishlistScreen> {
   }
 }
 
-enum _WishlistSort { relevance, priceLowHigh, priceHighLow, ratingHighLow, nameAZ }
+enum _WishlistSort {
+  relevance,
+  priceLowHigh,
+  priceHighLow,
+  ratingHighLow,
+  nameAZ,
+}
 
 // ─── Top Bar ────────────────────────────────────────────────────────────────
 
@@ -258,7 +314,11 @@ class _TopBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.chevron_left, size: 26, color: Color(0xFF1E1C1A)),
+              child: const Icon(
+                Icons.chevron_left,
+                size: 26,
+                color: Color(0xFF1E1C1A),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -293,9 +353,16 @@ class _TopBar extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE8541A), width: 1.5),
+                    border: Border.all(
+                      color: const Color(0xFFE8541A),
+                      width: 1.5,
+                    ),
                   ),
-                  child: const Icon(Icons.shopping_bag_outlined, size: 22, color: Color(0xFFE8541A)),
+                  child: const Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 22,
+                    color: Color(0xFFE8541A),
+                  ),
                 ),
                 if (cartCount > 0)
                   Positioned(
@@ -357,11 +424,10 @@ class _FavoriteCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Left image with heart overlay
-            Stack(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
@@ -370,141 +436,134 @@ class _FavoriteCard extends StatelessWidget {
                   ),
                   child: _Thumb(imageUrl: product.imageUrl),
                 ),
-                // Heart button
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: onToggleFavorite,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        isFavorited ? Icons.favorite : Icons.favorite_border,
-                        size: 18,
-                        color: isFavorited ? const Color(0xFFE8541A) : const Color(0xFFAAAAAA),
-                      ),
-                    ),
-                  ),
-                ),
-                // Positioned(
-                //   top: 8,
-                //   left: 8,
-                //   child: GestureDetector(
-                //     onTap: onToggleFavorite,
-                //     child: Container(
-                //       width: 34,
-                //       height: 34,
-                //       decoration: BoxDecoration(
-                //         color: Colors.black.withOpacity(0.58),
-                //         shape: BoxShape.circle,
-                //       ),
-                //       child: const Icon(
-                //         Icons.close_rounded,
-                //         size: 18,
-                //         color: Colors.white,
-                //       ),
-                //     ),
-                //   ),
-                // ),
-              ],
-            ),
-            // Right content
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E1C1A),
-                        height: 1.15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.category,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFFAAAAAA),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Fresh, quality-picked product ready to add to your cart.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF666666),
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Rating + time row
-                    Row(
+                // Right content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 44, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFC107)),
-                        const SizedBox(width: 4),
                         Text(
-                          product.rating.toStringAsFixed(1),
+                          product.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
                             color: Color(0xFF1E1C1A),
+                            height: 1.15,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.alarm, size: 16, color: Color(0xFFE8541A)),
-                        const SizedBox(width: 4),
-                        const Text(
-                          '20-25 Min',
-                          style: TextStyle(
+                        const SizedBox(height: 4),
+                        Text(
+                          product.category,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF555555),
+                            color: Color(0xFFAAAAAA),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Fresh, quality-picked product ready to add to your cart.',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF666666),
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Rating + time row
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 18,
+                              color: Color(0xFFFFC107),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              product.rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E1C1A),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(
+                              Icons.alarm,
+                              size: 16,
+                              color: Color(0xFFE8541A),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              '20-25 Min',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF555555),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Orange price pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8541A),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Text(
+                            'Rs ${product.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    // Orange price pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8541A),
-                        borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: onToggleFavorite,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE8541A).withOpacity(0.22),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      child: Text(
-                        'Rs ${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: Icon(
+                    isFavorited ? Icons.favorite : Icons.favorite_border,
+                    size: 18,
+                    color: isFavorited
+                        ? const Color(0xFFE8541A)
+                        : const Color(0xFFAAAAAA),
+                  ),
                 ),
               ),
             ),
@@ -529,16 +588,30 @@ class _Thumb extends StatelessWidget {
     final normalized = NetworkImageUrl.normalize(imageUrl);
 
     if (normalized.startsWith('assets/')) {
-      return Image.asset(normalized, width: width, height: height, fit: BoxFit.cover);
+      return Image.asset(
+        normalized,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+      );
     }
     if (normalized.startsWith('http')) {
-      return Image.network(normalized, width: width, height: height, fit: BoxFit.cover);
+      return Image.network(
+        normalized,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+      );
     }
     return Container(
       width: width,
       height: height,
       color: const Color(0xFFF1F1F1),
-      child: const Icon(Icons.image_outlined, color: Color(0xFFCCCCCC), size: 32),
+      child: const Icon(
+        Icons.image_outlined,
+        color: Color(0xFFCCCCCC),
+        size: 32,
+      ),
     );
   }
 }
@@ -590,7 +663,11 @@ class _FilterPill extends StatelessWidget {
               ),
               if (icon != null) ...[
                 const SizedBox(width: 4),
-                Icon(icon, size: 16, color: active ? Colors.white : const Color(0xFF1E1C1A)),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: active ? Colors.white : const Color(0xFF1E1C1A),
+                ),
               ],
             ],
           ),
@@ -618,18 +695,30 @@ class _EmptyFavoritesCard extends StatelessWidget {
               color: const Color(0xFFFFF0EA),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.favorite_border, size: 38, color: Color(0xFFE8541A)),
+            child: const Icon(
+              Icons.favorite_border,
+              size: 38,
+              color: Color(0xFFE8541A),
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
             'No favourites yet',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E1C1A)),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E1C1A),
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
             'Tap the heart on any product\nto save it here.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF999999), height: 1.5),
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF999999),
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -640,7 +729,11 @@ class _EmptyFavoritesCard extends StatelessWidget {
 // ─── Sort Tile ────────────────────────────────────────────────────────────────
 
 class _SortTile extends StatelessWidget {
-  const _SortTile({required this.label, required this.selected, required this.onTap});
+  const _SortTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;

@@ -54,8 +54,10 @@ class CartScreen extends StatelessWidget {
                           final ok = await state.addToCart(line.product);
                           if (!context.mounted) return;
                           if (!ok) {
-                            showToast(context,
-                                state.error ?? 'Please login first');
+                            showToast(
+                              context,
+                              state.error ?? 'Please login first',
+                            );
                           }
                         },
                         onDecrement: () async {
@@ -63,8 +65,10 @@ class CartScreen extends StatelessWidget {
                           final ok = await state.decrement(line.product);
                           if (!context.mounted) return;
                           if (!ok) {
-                            showToast(context,
-                                state.error ?? 'Please login first');
+                            showToast(
+                              context,
+                              state.error ?? 'Please login first',
+                            );
                           }
                         },
                       );
@@ -76,8 +80,7 @@ class CartScreen extends StatelessWidget {
 
             // ── Bottom summary + checkout ──────────────────────────────────
             Consumer<AppState>(
-              builder: (context, state, _) =>
-                  _BottomBar(state: state),
+              builder: (context, state, _) => _BottomBar(state: state),
             ),
           ],
         ),
@@ -121,8 +124,11 @@ class _CartAppBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.chevron_left_rounded,
-                  size: 26, color: _kTextDark),
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                size: 26,
+                color: _kTextDark,
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -150,8 +156,8 @@ class _CartAppBar extends StatelessWidget {
               badge: state.cart.isEmpty
                   ? null
                   : state.cart
-                      .fold<int>(0, (sum, l) => sum + l.quantity)
-                      .toString(),
+                        .fold<int>(0, (sum, l) => sum + l.quantity)
+                        .toString(),
               onTap: () {},
             ),
           ),
@@ -253,7 +259,7 @@ class _CartItemCard extends StatelessWidget {
             ),
             child: SizedBox(
               width: 120,
-              height: 110,
+              height: 130,
               child: _ProductImage(imageUrl: line.product.imageUrl ?? ''),
             ),
           ),
@@ -263,27 +269,52 @@ class _CartItemCard extends StatelessWidget {
           // ── Details ───────────────────────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.fromLTRB(0, 14, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    line.product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: _kTextDark,
-                      height: 1.25,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              line.product.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: _kTextDark,
+                                height: 1.25,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              line.product.category ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _kTextMid,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _UnitChip(label: _unitLabel(line.product.unit)),
+                    ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
-                    line.product.category ?? '',
+                    _descriptionText(line.product.description),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12,
                       color: _kTextMid,
+                      height: 1.25,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -318,6 +349,32 @@ class _CartItemCard extends StatelessWidget {
   }
 }
 
+class _UnitChip extends StatelessWidget {
+  const _UnitChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kOrangeLight,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFD1BE)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _kOrange,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Quantity Pill ────────────────────────────────────────────────────────────
 
 class _QuantityPill extends StatelessWidget {
@@ -334,7 +391,7 @@ class _QuantityPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: 35,
       decoration: BoxDecoration(
         color: _kOrange,
         borderRadius: BorderRadius.circular(999),
@@ -356,10 +413,8 @@ class _QuantityPill extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
-              transitionBuilder: (child, anim) => ScaleTransition(
-                scale: anim,
-                child: child,
-              ),
+              transitionBuilder: (child, anim) =>
+                  ScaleTransition(scale: anim, child: child),
               child: Text(
                 '$quantity',
                 key: ValueKey(quantity),
@@ -396,10 +451,10 @@ class _PillBtnState extends State<_PillBtn>
     lowerBound: 0,
     upperBound: 1,
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.80).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.80,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -438,12 +493,18 @@ class _ProductImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
     if (normalized.startsWith('http')) {
-      return Image.network(normalized, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const _ImageFallback());
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _ImageFallback(),
+      );
     }
     if (normalized.startsWith('assets/')) {
-      return Image.asset(normalized, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const _ImageFallback());
+      return Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _ImageFallback(),
+      );
     }
     return const _ImageFallback();
   }
@@ -478,8 +539,11 @@ class _EmptyCart extends StatelessWidget {
               color: _kOrangeLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.shopping_bag_outlined,
-                size: 64, color: _kOrange),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              size: 64,
+              color: _kOrange,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -499,6 +563,18 @@ class _EmptyCart extends StatelessWidget {
       ),
     );
   }
+}
+
+String _unitLabel(String value) {
+  final unit = value.trim();
+  if (unit.isEmpty) return '1 item';
+  if (RegExp(r'^\d').hasMatch(unit)) return unit;
+  return '1 $unit';
+}
+
+String _descriptionText(String value) {
+  final description = value.trim();
+  return description.isEmpty ? 'No description available' : description;
 }
 
 // ─── Bottom Bar ───────────────────────────────────────────────────────────────
@@ -616,10 +692,10 @@ class _CheckoutButtonState extends State<_CheckoutButton>
     lowerBound: 0,
     upperBound: 1,
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {

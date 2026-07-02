@@ -10,14 +10,10 @@ import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/gradient_background.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
-import '../admin/admin_dashboard_screen.dart';
-import '../delivery/delivery_home_screen.dart';
-import '../super_admin/super_admin_dashboard_screen.dart';
 import 'cart_screen.dart';
 import 'product_list_screen.dart';
 import 'search_screen.dart';
@@ -42,7 +38,9 @@ class UserHomeScreen extends StatefulWidget {
 class _UserHomeScreenState extends State<UserHomeScreen>
     with SingleTickerProviderStateMixin {
   _EssentialsSort _sort = _EssentialsSort.relevance;
+  _EssentialsSort _popularSort = _EssentialsSort.relevance;
   String _selectedCategory = 'All';
+  String _popularSelectedCategory = 'All';
 
   // Page-entry animation
   late final AnimationController _pageCtrl = AnimationController(
@@ -50,8 +48,10 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     duration: const Duration(milliseconds: 700),
   )..forward();
 
-  late final Animation<double> _pageFade =
-      CurvedAnimation(parent: _pageCtrl, curve: const Interval(0, 0.6, curve: Curves.easeOut));
+  late final Animation<double> _pageFade = CurvedAnimation(
+    parent: _pageCtrl,
+    curve: const Interval(0, 0.6, curve: Curves.easeOut),
+  );
 
   late final Animation<Offset> _pageSlide = Tween<Offset>(
     begin: const Offset(0, 0.04),
@@ -68,64 +68,86 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      body: GradientBackground(
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _pageFade,
-            child: SlideTransition(
-              position: _pageSlide,
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverToBoxAdapter(child: _HomeHeader()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                  // ── Sticky search ──────────────────────────────────────
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _SearchBarDelegate(),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  const SliverToBoxAdapter(child: _OfferBanners()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                  const SliverToBoxAdapter(child: _SectionTitle('Shop by category')),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  const SliverToBoxAdapter(child: _CategoryGrid()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                  const SliverToBoxAdapter(child: _SectionTitle('Fresh picks today', actionColor: _kGreen)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  const SliverToBoxAdapter(child: _ProductRail()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                  const SliverToBoxAdapter(child: _SectionTitle('Daily essentials', actionColor: _kGreen)),
-                  SliverToBoxAdapter(
-                    child: _EssentialsFilters(
-                      sort: _sort,
-                      selectedCategory: _selectedCategory,
-                      onFilterTap: _showFilterSheet,
-                      onSortTap: _showSortSheet,
-                      onCategorySelected: (v) =>
-                          setState(() => _selectedCategory = v),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _EssentialsGrid(
-                      sort: _sort,
-                      selectedCategory: _selectedCategory,
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                  const SliverToBoxAdapter(child: _SectionTitle('Popular Products')),
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  const SliverToBoxAdapter(child: _TopOffersFeed()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                  const SliverToBoxAdapter(child: _OperationsEntry()),
-                  const SliverToBoxAdapter(child: WalkingMascotWidget()),
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
-                ],
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _pageFade,
+          child: SlideTransition(
+            position: _pageSlide,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
+              slivers: [
+                SliverToBoxAdapter(child: _HomeHeader()),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                // ── Sticky search ──────────────────────────────────────
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SearchBarDelegate(),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                const SliverToBoxAdapter(child: _OfferBanners()),
+                const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                const SliverToBoxAdapter(
+                  child: _SectionTitle('Shop by category'),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                const SliverToBoxAdapter(child: _CategoryGrid()),
+                const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                const SliverToBoxAdapter(
+                  child: _SectionTitle(
+                    'Fresh picks today',
+                    actionColor: _kGreen,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                const SliverToBoxAdapter(child: _ProductRail()),
+                const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                const SliverToBoxAdapter(
+                  child: _SectionTitle(
+                    'Daily essentials',
+                    actionColor: _kGreen,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _EssentialsFilters(
+                    sort: _sort,
+                    onFilterTap: _showFilterSheet,
+                    onSortTap: _showSortSheet,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _EssentialsGrid(
+                    sort: _sort,
+                    selectedCategory: _selectedCategory,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                const SliverToBoxAdapter(
+                  child: _SectionTitle('Popular Products'),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                SliverToBoxAdapter(
+                  child: _PopularFilters(
+                    sort: _popularSort,
+                    selectedCategory: _popularSelectedCategory,
+                    onFilterTap: _showPopularFilterSheet,
+                    onSortTap: _showPopularSortSheet,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: _PopularProductsGrid(
+                    sort: _popularSort,
+                    selectedCategory: _popularSelectedCategory,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                const SliverToBoxAdapter(child: WalkingMascotWidget()),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              ],
             ),
           ),
         ),
@@ -166,23 +188,39 @@ class _UserHomeScreenState extends State<UserHomeScreen>
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: categories.map((cat) {
-                  final sel = _selectedCategory == cat.name;
-                  return AnimatedContainer(
+                children: [
+                  AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     child: ChoiceChip(
-                      label: Text(cat.name),
-                      selected: sel,
+                      label: const Text('All'),
+                      selected: _selectedCategory == 'All',
                       selectedColor: _kGreenLight,
                       labelStyle: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: sel ? _kGreen : _kTextMid,
+                        color: _selectedCategory == 'All' ? _kGreen : _kTextMid,
                       ),
                       onSelected: (_) =>
-                          setModal(() => _selectedCategory = cat.name),
+                          setModal(() => _selectedCategory = 'All'),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  ...categories.map((cat) {
+                    final sel = _selectedCategory == cat.name;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      child: ChoiceChip(
+                        label: Text(cat.name),
+                        selected: sel,
+                        selectedColor: _kGreenLight,
+                        labelStyle: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: sel ? _kGreen : _kTextMid,
+                        ),
+                        onSelected: (_) =>
+                            setModal(() => _selectedCategory = cat.name),
+                      ),
+                    );
+                  }),
+                ],
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -201,6 +239,173 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                   },
                   child: const Text(
                     'Apply Filters',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPopularFilterSheet() {
+    final categories = context.read<AppState>().categoryCatalog;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose category',
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: _kTextDark,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: _popularSelectedCategory == 'All',
+                    selectedColor: _kGreenLight,
+                    labelStyle: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: _popularSelectedCategory == 'All'
+                          ? _kGreen
+                          : _kTextMid,
+                    ),
+                    onSelected: (_) =>
+                        setModal(() => _popularSelectedCategory = 'All'),
+                  ),
+                  ...categories.map((cat) {
+                    final sel = _popularSelectedCategory == cat.name;
+                    return ChoiceChip(
+                      label: Text(cat.name),
+                      selected: sel,
+                      selectedColor: _kGreenLight,
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: sel ? _kGreen : _kTextMid,
+                      ),
+                      onSelected: (_) =>
+                          setModal(() => _popularSelectedCategory = cat.name),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGreen,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    setState(() {});
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: const Text(
+                    'Apply Filters',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPopularSortSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sort products',
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: _kTextDark,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _SortTile(
+                label: 'Relevance',
+                selected: _popularSort == _EssentialsSort.relevance,
+                onTap: () =>
+                    setModal(() => _popularSort = _EssentialsSort.relevance),
+              ),
+              _SortTile(
+                label: 'Price: Low to High',
+                selected: _popularSort == _EssentialsSort.priceLowHigh,
+                onTap: () =>
+                    setModal(() => _popularSort = _EssentialsSort.priceLowHigh),
+              ),
+              _SortTile(
+                label: 'Price: High to Low',
+                selected: _popularSort == _EssentialsSort.priceHighLow,
+                onTap: () =>
+                    setModal(() => _popularSort = _EssentialsSort.priceHighLow),
+              ),
+              _SortTile(
+                label: 'Rating: High to Low',
+                selected: _popularSort == _EssentialsSort.ratingHighLow,
+                onTap: () => setModal(
+                  () => _popularSort = _EssentialsSort.ratingHighLow,
+                ),
+              ),
+              _SortTile(
+                label: 'Name: A to Z',
+                selected: _popularSort == _EssentialsSort.nameAZ,
+                onTap: () =>
+                    setModal(() => _popularSort = _EssentialsSort.nameAZ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGreen,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    setState(() {});
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: const Text(
+                    'Apply Sort',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -320,7 +525,8 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final addr = state.selectedAddress?.fullAddress ?? 'Add delivery address';
+        final addr =
+            state.selectedAddress?.fullAddress ?? 'Add delivery address';
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Container(
@@ -357,7 +563,11 @@ class _HomeHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.bolt_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -376,8 +586,11 @@ class _HomeHeader extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_rounded,
-                              size: 14, color: _kGreen),
+                          const Icon(
+                            Icons.location_on_rounded,
+                            size: 14,
+                            color: _kGreen,
+                          ),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
@@ -403,7 +616,8 @@ class _HomeHeader extends StatelessWidget {
                 const SizedBox(width: 6),
                 _IconBtn(
                   icon: Icons.person_rounded,
-                  onTap: () => Navigator.pushNamed(ctx, ProfileScreen.routeName),
+                  onTap: () =>
+                      Navigator.pushNamed(ctx, ProfileScreen.routeName),
                 ),
               ],
             ),
@@ -431,10 +645,10 @@ class _IconBtnState extends State<_IconBtn>
     lowerBound: 0,
     upperBound: 0.08,
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1, end: 0.88).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1,
+    end: 0.88,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -451,24 +665,24 @@ class _IconBtnState extends State<_IconBtn>
         widget.onTap();
       },
       onTapCancel: () => _c.reverse(),
-          child: ScaleTransition(
-            scale: _scale,
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _kGreenLight,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _kGreenLight,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
-              child: Icon(widget.icon, size: 20, color: _kGreen),
-            ),
+            ],
           ),
+          child: Icon(widget.icon, size: 20, color: _kGreen),
+        ),
+      ),
     );
   }
 }
@@ -520,16 +734,16 @@ class _OfferBannersState extends State<_OfferBanners> {
         final items = banners.isEmpty
             ? fallback
             : banners
-                .map(
-                  (b) => (
-                    b.title,
-                    'Fresh, admin-managed offer',
-                    b.imageUrl,
-                    _accentForTitle(b.title),
-                    _accentForTitle(b.title).withValues(alpha: 0.85),
-                  ),
-                )
-                .toList();
+                  .map(
+                    (b) => (
+                      b.title,
+                      'Fresh, admin-managed offer',
+                      b.imageUrl,
+                      _accentForTitle(b.title),
+                      _accentForTitle(b.title).withValues(alpha: 0.85),
+                    ),
+                  )
+                  .toList();
 
         if (_page >= items.length && items.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -555,7 +769,13 @@ class _OfferBannersState extends State<_OfferBanners> {
                         left: i == 0 ? 16 : 6,
                         right: i == items.length - 1 ? 16 : 6,
                       ),
-                      child: _BannerCard(banner: b),
+                      child: _BannerCard(
+                        banner: b,
+                        onTap: () => Navigator.pushNamed(
+                          ctx,
+                          ProductListScreen.routeName,
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -573,7 +793,9 @@ class _OfferBannersState extends State<_OfferBanners> {
                   height: 7,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
-                    color: i == _page ? items[_page].$4 : const Color(0xFFD3DDD0),
+                    color: i == _page
+                        ? items[_page].$4
+                        : const Color(0xFFD3DDD0),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -587,120 +809,135 @@ class _OfferBannersState extends State<_OfferBanners> {
 }
 
 class _BannerCard extends StatelessWidget {
-  const _BannerCard({required this.banner});
+  const _BannerCard({required this.banner, required this.onTap});
 
   final (String, String, String, Color, Color) banner;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: banner.$4.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: banner.$4.withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: _BannerImage(path: banner.$3, title: banner.$1),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    banner.$4.withValues(alpha: 0.88),
-                    banner.$4.withValues(alpha: 0.56),
-                    Colors.black.withValues(alpha: 0.20),
-                  ],
-                  stops: const [0.0, 0.62, 1.0],
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(
+                child: _BannerImage(path: banner.$3, title: banner.$1),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        banner.$4.withValues(alpha: 0.88),
+                        banner.$4.withValues(alpha: 0.56),
+                        Colors.black.withValues(alpha: 0.20),
+                      ],
+                      stops: const [0.0, 0.62, 1.0],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Text content
-          Positioned(
-            left: 20,
-            top: 20,
-            bottom: 20,
-            right: 130,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    '🎉  Limited offer',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  banner.$1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  banner.$2,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.96),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+              // Text content
+              Positioned(
+                left: 20,
+                top: 20,
+                bottom: 20,
+                right: 130,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    'Shop now →',
-                    style: TextStyle(
-                      color: banner.$4,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        '🎉  Limited offer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    Text(
+                      banner.$1,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      banner.$2,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.96),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        'Shop now →',
+                        style: TextStyle(
+                          color: banner.$4,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -724,11 +961,19 @@ class _BannerImage extends StatelessWidget {
     final normalized = NetworkImageUrl.normalize(path);
     Widget img;
     if (normalized.startsWith('http')) {
-      img = Image.network(normalized, fit: BoxFit.cover, gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => _BannerFallback(title: title));
+      img = Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => _BannerFallback(title: title),
+      );
     } else {
-      img = Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => _BannerFallback(title: title));
+      img = Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => _BannerFallback(title: title),
+      );
     }
     return img;
   }
@@ -881,10 +1126,10 @@ class _CategoryTileState extends State<_CategoryTile>
     upperBound: 1,
   );
 
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.90).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.90,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -994,16 +1239,20 @@ class _CategoryImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
     if (normalized.startsWith('assets/')) {
-      return Image.asset(normalized,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => const _CategoryFallback());
+      return Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const _CategoryFallback(),
+      );
     }
     if (normalized.startsWith('http')) {
-      return Image.network(normalized,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => const _CategoryFallback());
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const _CategoryFallback(),
+      );
     }
     return const _CategoryFallback();
   }
@@ -1014,13 +1263,13 @@ class _CategoryFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Image.asset(
-        'assets/images/categories/vegetables.png',
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Center(
-          child: Icon(Icons.category_rounded, size: 34, color: _kGreen),
-        ),
-      );
+    'assets/images/categories/vegetables.png',
+    fit: BoxFit.cover,
+    gaplessPlayback: true,
+    errorBuilder: (_, __, ___) => const Center(
+      child: Icon(Icons.category_rounded, size: 34, color: _kGreen),
+    ),
+  );
 }
 
 List<Color> _categoryGradient(int i) {
@@ -1060,7 +1309,9 @@ class _ProductRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = state.products;
+        final products = state.products
+            .where((p) => p.dashboardSection == 'fresh_picks')
+            .toList();
         return SizedBox(
           height: 320,
           child: ListView.separated(
@@ -1080,17 +1331,28 @@ class _ProductRail extends StatelessWidget {
                     ctx,
                     products[i],
                     onAddToCart: (qty) async {
-                      final ok = await state.addToCart(products[i], quantity: qty);
+                      final ok = await state.addToCart(
+                        products[i],
+                        quantity: qty,
+                      );
                       if (!ctx.mounted) return;
-                      showToast(ctx,
-                          ok ? '${products[i].name} added to cart' : state.error ?? 'Please login first');
+                      showToast(
+                        ctx,
+                        ok
+                            ? '${products[i].name} added to cart'
+                            : state.error ?? 'Please login first',
+                      );
                     },
                   ),
                   onAdd: () async {
                     final ok = await state.addToCart(products[i]);
                     if (!ctx.mounted) return;
-                    showToast(ctx,
-                        ok ? '${products[i].name} added to cart' : state.error ?? 'Please login first');
+                    showToast(
+                      ctx,
+                      ok
+                          ? '${products[i].name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
                   },
                 ),
               ),
@@ -1119,8 +1381,10 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard>
     duration: const Duration(milliseconds: 480),
   );
 
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _c, curve: const Interval(0, 0.7, curve: Curves.easeOut));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(0, 0.7, curve: Curves.easeOut),
+  );
 
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0.12, 0),
@@ -1143,9 +1407,9 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard>
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(position: _slide, child: widget.child),
-      );
+    opacity: _fade,
+    child: SlideTransition(position: _slide, child: widget.child),
+  );
 }
 
 class _HomeFeedCard extends StatelessWidget {
@@ -1167,149 +1431,161 @@ class _HomeFeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(22),
-                  ),
-                  child: SizedBox(
-                    width: 120,
-                    height: 180,
-                    child: _HomeFeedImage(imageUrl: product.imageUrl),
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: _HomeRatingChip(
-                    rating: product.rating.toStringAsFixed(1),
-                  ),
-                ),
-                Positioned(
-                  left: 10,
-                  bottom: 10,
-                  child: _HomeTextChip(
-                    'PACK',
-                    subText: _unitLabel(product.unit),
-                  ),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              children: [
+                Stack(
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _kTextDark,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${product.category} • ${_unitLabel(product.unit)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: _kTextMid,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Fresh, handpicked and ready to add to your basket.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.2,
-                        color: Colors.black.withValues(alpha: 0.58),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Text(
-                          'Rs ${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                            color: _kTextDark,
-                          ),
-                        ),
-                        const Spacer(),
-                        _QuantityLikeFavorite(
-                          isFavorite: isFavorite,
-                          onTap: onFavoriteToggle,
-                        ),
-                        const SizedBox(width: 14),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: _kGreen,
-                        borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _kGreen.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                    ClipRRect(
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(22),
                       ),
                       child: SizedBox(
-                        width: 230,
-                        child: FilledButton(
-                          onPressed: onAdd,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            shadowColor: Colors.transparent,
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Add to Cart',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
+                        width: 120,
+                        height: 180,
+                        child: _HomeFeedImage(imageUrl: product.imageUrl),
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: _HomeRatingChip(
+                        rating: product.rating.toStringAsFixed(1),
+                      ),
+                    ),
+                    Positioned(
+                      left: 10,
+                      bottom: 10,
+                      child: _HomeTextChip(
+                        'PACK',
+                        subText: _unitLabel(product.unit),
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 14, 44, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _kTextDark,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${product.category} • ${_unitLabel(product.unit)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _kTextMid,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          product.description.isNotEmpty
+                              ? product.description
+                              : 'Fresh, handpicked and ready to add to your basket.',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.2,
+                            color: Colors.black.withValues(alpha: 0.58),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Text(
+                              'Rs ${product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color: _kTextDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: _kGreen,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kGreen.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: onAdd,
+                              icon: const Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                'Add to Cart',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                shadowColor: Colors.transparent,
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _QuantityLikeFavorite(
+              isFavorite: isFavorite,
+              onTap: onFavoriteToggle,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1388,7 +1664,11 @@ class _HomeFeedImage extends StatelessWidget {
     debugPrint('Cloudinary Image URL (home feed): $normalized');
     if (normalized.startsWith('assets/')) {
       return SizedBox.expand(
-        child: Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true),
+        child: Image.asset(
+          normalized,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+        ),
       );
     }
     if (normalized.startsWith('http')) {
@@ -1399,12 +1679,17 @@ class _HomeFeedImage extends StatelessWidget {
           gaplessPlayback: true,
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
           },
           errorBuilder: (context, error, stackTrace) {
             debugPrint('Image Load Error (home feed): $error');
             return const Center(
-              child: Icon(Icons.broken_image_outlined, color: Color(0xFF64748B)),
+              child: Icon(
+                Icons.broken_image_outlined,
+                color: Color(0xFF64748B),
+              ),
             );
           },
         ),
@@ -1439,10 +1724,7 @@ class _HomeBadgeButton extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: child,
-        ),
+        child: Padding(padding: const EdgeInsets.all(8), child: child),
       ),
     );
   }
@@ -1465,8 +1747,23 @@ class _HomeTextChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
-            Text(subText, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Text(
+              subText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ],
         ),
       ),
@@ -1476,7 +1773,13 @@ class _HomeTextChip extends StatelessWidget {
 
 // ─── Essentials ───────────────────────────────────────────────────────────────
 
-enum _EssentialsSort { relevance, priceLowHigh, priceHighLow, ratingHighLow, nameAZ }
+enum _EssentialsSort {
+  relevance,
+  priceLowHigh,
+  priceHighLow,
+  ratingHighLow,
+  nameAZ,
+}
 
 class _EssentialsGrid extends StatelessWidget {
   const _EssentialsGrid({required this.sort, required this.selectedCategory});
@@ -1487,10 +1790,15 @@ class _EssentialsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        var products = List<ProductModel>.from(state.products);
+        var products = state.products
+            .where((p) => p.dashboardSection == 'daily_essentials')
+            .toList();
         if (selectedCategory != 'All') {
           products = products
-              .where((p) => p.category.toLowerCase() == selectedCategory.toLowerCase())
+              .where(
+                (p) =>
+                    p.category.toLowerCase() == selectedCategory.toLowerCase(),
+              )
               .toList();
         }
         switch (sort) {
@@ -1501,7 +1809,9 @@ class _EssentialsGrid extends StatelessWidget {
           case _EssentialsSort.ratingHighLow:
             products.sort((a, b) => b.rating.compareTo(a.rating));
           case _EssentialsSort.nameAZ:
-            products.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+            products.sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
           default:
             break;
         }
@@ -1530,7 +1840,9 @@ class _EssentialsGrid extends StatelessWidget {
                   if (!ctx.mounted) return;
                   showToast(
                     ctx,
-                    ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                    ok
+                        ? '${product.name} added to cart'
+                        : state.error ?? 'Please login first',
                   );
                 },
               ),
@@ -1539,7 +1851,9 @@ class _EssentialsGrid extends StatelessWidget {
                 if (!ctx.mounted) return;
                 showToast(
                   ctx,
-                  ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                  ok
+                      ? '${product.name} added to cart'
+                      : state.error ?? 'Please login first',
                 );
               },
             );
@@ -1589,7 +1903,9 @@ class _PopularStyleProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(22),
+                    ),
                     child: _HomeFeedImage(imageUrl: product.imageUrl),
                   ),
                   Positioned(
@@ -1604,7 +1920,7 @@ class _PopularStyleProductCard extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 38,
+              flex: 45,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 child: Column(
@@ -1624,9 +1940,19 @@ class _PopularStyleProductCard extends StatelessWidget {
                     ),
                     Text(
                       '${product.category} • ${_unitLabel(product.unit)}',
-                      style: const TextStyle(
+                      style: const TextStyle(fontSize: 12, color: _kTextMid),
+                    ),
+                    Text(
+                      product.description.isNotEmpty
+                          ? product.description
+                          : 'Fresh, handpicked and ready to add to your basket.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
                         fontSize: 12,
-                        color: _kTextMid,
+                        height: 1.2,
+                        color: Colors.black.withValues(alpha: 0.58),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Row(
@@ -1709,7 +2035,9 @@ class _TopOffersFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = state.products;
+        final products = state.products
+            .where((p) => p.dashboardSection == 'popular_products')
+            .toList();
         if (products.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -1736,7 +2064,9 @@ class _TopOffersFeed extends StatelessWidget {
                   if (!ctx.mounted) return;
                   showToast(
                     ctx,
-                    ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                    ok
+                        ? '${product.name} added to cart'
+                        : state.error ?? 'Please login first',
                   );
                 },
               ),
@@ -1745,7 +2075,96 @@ class _TopOffersFeed extends StatelessWidget {
                 if (!ctx.mounted) return;
                 showToast(
                   ctx,
-                  ok ? '${product.name} added to cart' : state.error ?? 'Please login first',
+                  ok
+                      ? '${product.name} added to cart'
+                      : state.error ?? 'Please login first',
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _PopularProductsGrid extends StatelessWidget {
+  const _PopularProductsGrid({
+    required this.sort,
+    required this.selectedCategory,
+  });
+  final _EssentialsSort sort;
+  final String selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (ctx, state, _) {
+        var products = state.products
+            .where((p) => p.dashboardSection == 'popular_products')
+            .toList();
+        if (selectedCategory != 'All') {
+          products = products
+              .where(
+                (p) =>
+                    p.category.toLowerCase() == selectedCategory.toLowerCase(),
+              )
+              .toList();
+        }
+        switch (sort) {
+          case _EssentialsSort.priceLowHigh:
+            products.sort((a, b) => a.price.compareTo(b.price));
+          case _EssentialsSort.priceHighLow:
+            products.sort((a, b) => b.price.compareTo(a.price));
+          case _EssentialsSort.ratingHighLow:
+            products.sort((a, b) => b.rating.compareTo(a.rating));
+          case _EssentialsSort.nameAZ:
+            products.sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
+          default:
+            break;
+        }
+        if (products.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text('No popular products found'),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: products.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 18),
+          itemBuilder: (ctx, i) {
+            final product = products[i];
+            return _HomeFeedCard(
+              product: product,
+              isFavorite: state.isFavorite(product),
+              onFavoriteToggle: () => state.toggleFavorite(product),
+              onTap: () => showProductBottomSheet(
+                ctx,
+                product,
+                onAddToCart: (qty) async {
+                  final ok = await state.addToCart(product, quantity: qty);
+                  if (!ctx.mounted) return;
+                  showToast(
+                    ctx,
+                    ok
+                        ? '${product.name} added to cart'
+                        : state.error ?? 'Please login first',
+                  );
+                },
+              ),
+              onAdd: () async {
+                final ok = await state.addToCart(product);
+                if (!ctx.mounted) return;
+                showToast(
+                  ctx,
+                  ok
+                      ? '${product.name} added to cart'
+                      : state.error ?? 'Please login first',
                 );
               },
             );
@@ -1763,24 +2182,19 @@ class _EssentialsFilters extends StatelessWidget {
     required this.sort,
     required this.onFilterTap,
     required this.onSortTap,
-    required this.selectedCategory,
-    required this.onCategorySelected,
   });
   final _EssentialsSort sort;
   final VoidCallback onFilterTap;
   final VoidCallback onSortTap;
-  final String selectedCategory;
-  final ValueChanged<String> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
     final chips = [
-      _FeedChipData('Filter', Icons.tune_rounded, selectedCategory != 'All'),
-      _FeedChipData('Sort by', Icons.sort_rounded, sort != _EssentialsSort.relevance),
+      const _FeedChipData('Filter', Icons.tune_rounded, false),
       _FeedChipData(
-        selectedCategory == 'All' ? 'All Categories' : selectedCategory,
-        Icons.category_rounded,
-        selectedCategory != 'All',
+        'Sort by',
+        Icons.sort_rounded,
+        sort != _EssentialsSort.relevance,
       ),
     ];
     return SizedBox(
@@ -1796,11 +2210,51 @@ class _EssentialsFilters extends StatelessWidget {
             label: chip.label,
             icon: chip.icon,
             active: chip.active,
-            onTap: () => i == 0
-                ? onFilterTap()
-                : i == 1
-                    ? onSortTap()
-                    : onFilterTap(),
+            onTap: () => i == 0 ? onFilterTap() : onSortTap(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PopularFilters extends StatelessWidget {
+  const _PopularFilters({
+    required this.sort,
+    required this.selectedCategory,
+    required this.onFilterTap,
+    required this.onSortTap,
+  });
+
+  final _EssentialsSort sort;
+  final String selectedCategory;
+  final VoidCallback onFilterTap;
+  final VoidCallback onSortTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = selectedCategory != 'All';
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: 2,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _FeedChip(
+              label: 'Filter',
+              icon: Icons.tune_rounded,
+              active: active,
+              onTap: onFilterTap,
+            );
+          }
+          return _FeedChip(
+            label: 'Sort by',
+            icon: Icons.sort_rounded,
+            active: sort != _EssentialsSort.relevance,
+            onTap: onSortTap,
           );
         },
       ),
@@ -1839,10 +2293,10 @@ class _FeedChipState extends State<_FeedChip>
     lowerBound: 0,
     upperBound: 1,
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.92).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.92,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -1866,19 +2320,23 @@ class _FeedChipState extends State<_FeedChip>
           constraints: const BoxConstraints(minWidth: 92),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: widget.active
-                ? _kGreen
-                : Colors.white,
+            gradient: LinearGradient(
+              colors: widget.active
+                  ? const [Color(0xFFFFF0EB), Color(0xFFFFE3D3)]
+                  : const [Colors.white, Color(0xFFFFF7F2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: widget.active
-                  ? _kGreen
-                  : _kBorder,
+              color: widget.active ? _kGreen : const Color(0xFFF1CDBD),
+              width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
+                color: _kGreen.withValues(alpha: widget.active ? 0.28 : 0.16),
+                blurRadius: widget.active ? 18 : 14,
+                spreadRadius: widget.active ? 0.6 : 0,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -1886,16 +2344,14 @@ class _FeedChipState extends State<_FeedChip>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon,
-                  size: 16,
-                  color: widget.active ? Colors.white : _kTextDark),
+              Icon(widget.icon, size: 16, color: _kGreen),
               const SizedBox(width: 6),
               Text(
                 widget.label,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
-                  color: widget.active ? Colors.white : _kTextDark,
+                  color: _kGreen,
                 ),
               ),
             ],
@@ -1933,112 +2389,17 @@ class _SortTile extends StatelessWidget {
       trailing: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: selected
-            ? const Icon(Icons.check_circle_rounded, color: _kGreen, key: ValueKey(true))
-            : const Icon(Icons.circle_outlined, color: Color(0xFFB7B0A6), key: ValueKey(false)),
+            ? Icon(
+                Icons.check_circle_rounded,
+                color: _kGreen,
+                key: const ValueKey(true),
+              )
+            : const Icon(
+                Icons.circle_outlined,
+                color: Color(0xFFB7B0A6),
+                key: ValueKey(false),
+              ),
       ),
-    );
-  }
-}
-
-// ─── Operations Entry ─────────────────────────────────────────────────────────
-
-class _OperationsEntry extends StatelessWidget {
-  const _OperationsEntry();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: _kBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 18),
-          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-          shape: const Border(),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _kGreenLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.manage_accounts_rounded,
-                color: _kGreen, size: 20),
-          ),
-          title: const Text(
-            'Team access',
-            style: TextStyle(fontWeight: FontWeight.w800, color: _kTextDark),
-          ),
-          subtitle: const Text(
-            'Delivery, admin & super admin',
-            style: TextStyle(fontSize: 12, color: _kTextMid),
-          ),
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _TeamBtn(
-                  icon: Icons.delivery_dining_rounded,
-                  label: 'Delivery',
-                  onTap: () => Navigator.pushNamed(
-                      context, DeliveryHomeScreen.routeName),
-                ),
-                _TeamBtn(
-                  icon: Icons.admin_panel_settings_rounded,
-                  label: 'Admin',
-                  onTap: () => Navigator.pushNamed(
-                      context, AdminDashboardScreen.routeName),
-                ),
-                _TeamBtn(
-                  icon: Icons.insights_rounded,
-                  label: 'Super admin',
-                  onTap: () => Navigator.pushNamed(
-                      context, SuperAdminDashboardScreen.routeName),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TeamBtn extends StatelessWidget {
-  const _TeamBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _kGreen,
-        side: const BorderSide(color: _kBorder),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      ),
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }

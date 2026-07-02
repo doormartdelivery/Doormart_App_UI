@@ -201,8 +201,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(
-              context, '/admin/login', (_) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
         },
       ),
       body: _loading

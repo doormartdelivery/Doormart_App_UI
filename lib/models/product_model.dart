@@ -9,7 +9,9 @@ class ProductModel {
     required this.cost,
     required this.stock,
     required this.imageUrl,
-    this.rating = 4.5,
+    this.description = '',
+    this.dashboardSection = 'daily_essentials',
+    this.rating = 0,
     this.unit = 'item',
   });
 
@@ -20,6 +22,8 @@ class ProductModel {
   final double cost;
   final int stock;
   final String imageUrl;
+  final String description;
+  final String dashboardSection;
   final double rating;
   final String unit;
 
@@ -37,7 +41,9 @@ class ProductModel {
       cost: (json['cost'] as num? ?? 0).toDouble(),
       stock: (stockValue as num).toInt(),
       imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
-      rating: (json['rating'] as num? ?? 4.5).toDouble(),
+      description: json['description'] as String? ?? '',
+      dashboardSection: json['dashboardSection'] as String? ?? 'daily_essentials',
+      rating: (json['rating'] as num? ?? 0).toDouble(),
       unit: json['unit'] as String? ?? 'item',
     );
   }
@@ -51,6 +57,8 @@ class ProductModel {
     'cost': cost,
     'stock': stock,
     'imageUrl': imageUrl,
+    'description': description,
+    'dashboardSection': dashboardSection,
     'rating': rating,
     'unit': unit,
   };

@@ -59,14 +59,14 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: _kTextMid)),
+            child: const Text('Cancel', style: TextStyle(color: _kTextMid)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: _kOrange,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout'),
@@ -79,10 +79,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
     await context.read<DeliveryProvider>().logout();
     await context.read<AppState>().logout();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DeliveryLoginScreen.routeName,
-      (_) => false,
-    );
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
   }
 
   @override
@@ -90,8 +87,12 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
     final earnings = provider.earningsStats;
-    final totalEarnings = (earnings['total'] as num?)?.toDouble() ?? person?.todayEarnings ?? 0;
-    final completedOrders = (earnings['completedOrders'] as num?)?.toInt() ?? person?.completedOrders ?? 0;
+    final totalEarnings =
+        (earnings['total'] as num?)?.toDouble() ?? person?.todayEarnings ?? 0;
+    final completedOrders =
+        (earnings['completedOrders'] as num?)?.toInt() ??
+        person?.completedOrders ??
+        0;
     final activeSince = _activeSinceLabel(provider.statusDetails);
 
     return Scaffold(
@@ -154,18 +155,18 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
         onTap: (i) {
           setState(() => _navIndex = i);
           if (i == 0) {
-            Navigator.of(context)
-                .pushReplacementNamed(DeliveryHomeScreen.routeName);
+            Navigator.of(
+              context,
+            ).pushReplacementNamed(DeliveryHomeScreen.routeName);
           }
           if (i == 1) {
-            Navigator.of(context)
-                .pushReplacementNamed(DeliveryHistoryScreen.routeName);
+            Navigator.of(
+              context,
+            ).pushReplacementNamed(DeliveryHistoryScreen.routeName);
           }
           if (i == 2) {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const DeliveryEarningsScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
             );
           }
         },
@@ -176,15 +177,22 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
 
 String _activeSinceLabel(List<Map<String, dynamic>> logs) {
   final onlineLog = logs
-      .where((log) => (log['status']?.toString().toLowerCase() ?? '') == 'online')
+      .where(
+        (log) => (log['status']?.toString().toLowerCase() ?? '') == 'online',
+      )
       .where((log) => log['startedAt'] != null)
-      .where((log) => log['endedAt'] == null || log['endedAt'].toString().trim().isEmpty)
+      .where(
+        (log) =>
+            log['endedAt'] == null || log['endedAt'].toString().trim().isEmpty,
+      )
       .toList();
   if (onlineLog.isEmpty) {
     return 'Just now';
   }
   final latest = onlineLog.first;
-  final startedAt = DateTime.tryParse(latest['startedAt'].toString())?.toLocal();
+  final startedAt = DateTime.tryParse(
+    latest['startedAt'].toString(),
+  )?.toLocal();
   if (startedAt == null) {
     return 'Just now';
   }
@@ -235,8 +243,11 @@ class _AppBar extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(Icons.notifications_none_rounded,
-                  color: _kTextDark, size: 24),
+              const Icon(
+                Icons.notifications_none_rounded,
+                color: _kTextDark,
+                size: 24,
+              ),
               Positioned(
                 top: 0,
                 right: 0,
@@ -262,9 +273,12 @@ class _AppBar extends StatelessWidget {
             ),
             child: ClipOval(
               child: person?.avatarUrl?.startsWith('http') == true
-                  ? Image.network(person!.avatarUrl!, fit: BoxFit.cover,
+                  ? Image.network(
+                      person!.avatarUrl!,
+                      fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
-                          const _AvatarFallback(size: 36))
+                          const _AvatarFallback(size: 36),
+                    )
                   : const _AvatarFallback(size: 36),
             ),
           ),
@@ -305,9 +319,12 @@ class _ProfileHeader extends StatelessWidget {
               ),
               child: ClipOval(
                 child: person?.avatarUrl?.startsWith('http') == true
-                    ? Image.network(person!.avatarUrl!, fit: BoxFit.cover,
+                    ? Image.network(
+                        person!.avatarUrl!,
+                        fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
-                            const _AvatarFallback(size: 100))
+                            const _AvatarFallback(size: 100),
+                      )
                     : const _AvatarFallback(size: 100),
               ),
             ),
@@ -323,8 +340,11 @@ class _ProfileHeader extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(Icons.verified_rounded,
-                    size: 14, color: Colors.white),
+                child: const Icon(
+                  Icons.verified_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -414,10 +434,7 @@ class _Badge extends StatelessWidget {
 // ─── Shift Status Card ────────────────────────────────────────────────────────
 
 class _ShiftStatusCard extends StatelessWidget {
-  const _ShiftStatusCard({
-    required this.online,
-    required this.activeSince,
-  });
+  const _ShiftStatusCard({required this.online, required this.activeSince});
   final bool online;
   final String activeSince;
 
@@ -466,9 +483,7 @@ class _ShiftStatusCard extends StatelessWidget {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: online
-                            ? const Color(0xFF22C55E)
-                            : Colors.grey,
+                        color: online ? const Color(0xFF22C55E) : Colors.grey,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -480,9 +495,7 @@ class _ShiftStatusCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: online
-                            ? _kOrange
-                            : _kTextMid,
+                        color: online ? _kOrange : _kTextMid,
                       ),
                     ),
                   ],
@@ -498,8 +511,11 @@ class _ShiftStatusCard extends StatelessWidget {
               color: _kOrangeLight,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.wifi_tethering_rounded,
-                color: _kOrange, size: 24),
+            child: const Icon(
+              Icons.wifi_tethering_rounded,
+              color: _kOrange,
+              size: 24,
+            ),
           ),
         ],
       ),
@@ -557,7 +573,9 @@ class _StatsBanner extends StatelessWidget {
               // Top badge
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.20),
                   borderRadius: BorderRadius.circular(999),
@@ -684,7 +702,9 @@ class _AccountSettingsCard extends StatelessWidget {
           onSave: (value) async {
             final message = await provider.updateProfile(phone: value);
             if (context.mounted && message != null) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message)));
             }
           },
         ),
@@ -702,7 +722,9 @@ class _AccountSettingsCard extends StatelessWidget {
           onSave: (value) async {
             final message = await provider.updateProfile(vehicleNumber: value);
             if (context.mounted && message != null) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message)));
             }
           },
         ),
@@ -712,9 +734,7 @@ class _AccountSettingsCard extends StatelessWidget {
         label: 'Earnings Detail',
         subtitle: 'View daily, weekly and monthly earnings',
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const DeliveryEarningsScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
         ),
       ),
       _SettingItem(
@@ -801,7 +821,9 @@ Future<void> _editField(
     backgroundColor: Colors.transparent,
     builder: (sheetContext) {
       return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
         child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -823,14 +845,22 @@ Future<void> _editField(
                 ),
               ),
               const SizedBox(height: 16),
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
                 keyboardType: keyboardType,
                 decoration: InputDecoration(
                   hintText: hint,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -838,7 +868,8 @@ Future<void> _editField(
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: _kOrange),
-                  onPressed: () => Navigator.pop(sheetContext, controller.text.trim()),
+                  onPressed: () =>
+                      Navigator.pop(sheetContext, controller.text.trim()),
                   child: const Text('Save'),
                 ),
               ),
@@ -852,7 +883,11 @@ Future<void> _editField(
   await onSave(result);
 }
 
-void _showInfoSheet(BuildContext context, {required String title, required String body}) {
+void _showInfoSheet(
+  BuildContext context, {
+  required String title,
+  required String body,
+}) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -878,9 +913,19 @@ void _showInfoSheet(BuildContext context, {required String title, required Strin
               ),
             ),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 12),
-            Text(body, style: const TextStyle(fontSize: 14, color: _kTextMid, height: 1.5)),
+            Text(
+              body,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _kTextMid,
+                height: 1.5,
+              ),
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -921,7 +966,10 @@ void _showEarningsSheet(BuildContext context) {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Earnings Detail', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const Text(
+              'Earnings Detail',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 12),
             _earningsRow('Today', today),
             _earningsRow('Weekly', weekly),
@@ -940,8 +988,16 @@ Widget _earningsRow(String label, double value) {
     padding: const EdgeInsets.only(bottom: 10),
     child: Row(
       children: [
-        Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
-        Text('₹${value.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, color: _kOrange)),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        Text(
+          '₹${value.toStringAsFixed(2)}',
+          style: const TextStyle(fontWeight: FontWeight.w900, color: _kOrange),
+        ),
       ],
     ),
   );
@@ -976,10 +1032,10 @@ class _SettingRowState extends State<_SettingRow>
     vsync: this,
     duration: const Duration(milliseconds: 100),
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.97).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.97,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -1002,8 +1058,7 @@ class _SettingRowState extends State<_SettingRow>
           children: [
             Container(
               color: Colors.transparent,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 18, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               child: Row(
                 children: [
                   // Icon box
@@ -1014,8 +1069,7 @@ class _SettingRowState extends State<_SettingRow>
                       color: _kBg,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(widget.item.icon,
-                        size: 20, color: _kTextDark),
+                    child: Icon(widget.item.icon, size: 20, color: _kTextDark),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1041,18 +1095,16 @@ class _SettingRowState extends State<_SettingRow>
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 20, color: _kTextMid),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: _kTextMid,
+                  ),
                 ],
               ),
             ),
             if (!widget.item.isLast)
-              Divider(
-                height: 1,
-                indent: 72,
-                endIndent: 18,
-                color: _kBorder,
-              ),
+              Divider(height: 1, indent: 72, endIndent: 18, color: _kBorder),
           ],
         ),
       ),
@@ -1076,10 +1128,10 @@ class _LogoutButtonState extends State<_LogoutButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -1158,11 +1210,8 @@ class _Footer extends StatelessWidget {
         ),
         SizedBox(height: 4),
         Text(
-          '© 2024 Delivery Pro Logistics',
-          style: TextStyle(
-            fontSize: 12,
-            color: _kTextMid,
-          ),
+          '© 2026 Delivery Pro Logistics',
+          style: TextStyle(fontSize: 12, color: _kTextMid),
         ),
       ],
     );
@@ -1253,8 +1302,7 @@ class _AvatarFallback extends StatelessWidget {
       width: size,
       height: size,
       color: _kOrangeLight,
-      child: Icon(Icons.person_rounded,
-          size: size * 0.55, color: _kOrange),
+      child: Icon(Icons.person_rounded, size: size * 0.55, color: _kOrange),
     );
   }
 }

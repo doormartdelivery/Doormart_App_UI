@@ -34,8 +34,8 @@ class CartLine {
 
 class AppState extends ChangeNotifier {
   AppState({ApiService? apiService, SocketService? socketService})
-      : apiService = apiService ?? ApiService(),
-        socketService = socketService ?? SocketService();
+    : apiService = apiService ?? ApiService(),
+      socketService = socketService ?? SocketService();
 
   final ApiService apiService;
   final SocketService socketService;
@@ -58,10 +58,13 @@ class AppState extends ChangeNotifier {
   Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
   int dashboardRefreshTick = 0;
+  double deliveryChargeAmount = 35;
+  double gstPercent = 0;
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
-  double get deliveryFee => cart.isEmpty ? 0 : 35;
-  double get total => subtotal + deliveryFee;
+  double get deliveryFee => cart.isEmpty ? 0 : deliveryChargeAmount;
+  double get gstAmount => cart.isEmpty ? 0 : subtotal * (gstPercent / 100);
+  double get total => subtotal + deliveryFee + gstAmount;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
   bool get signedIn => token != null;
@@ -74,6 +77,7 @@ class AppState extends ChangeNotifier {
         loadProducts(),
         loadCategories(),
         loadBanners(),
+        loadCheckoutSettings(),
       ]);
       if (token != null && user?.role == UserRoles.user) {
         await _restoreSession();
@@ -88,7 +92,8 @@ class AppState extends ChangeNotifier {
         if (user?.role == UserRoles.user) {
           await loadFavorites();
         }
-        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }
       }
@@ -106,7 +111,12 @@ class AppState extends ChangeNotifier {
     required String password,
     bool silent = false,
   }) async {
-    await _run(() async {
+    if (!silent) {
+      loading = true;
+      error = null;
+      notifyListeners();
+    }
+    try {
       final data =
           await apiService.post(
                 '/auth/login',
@@ -131,7 +141,14 @@ class AppState extends ChangeNotifier {
       if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
         await loadAdminOrders();
       }
-    }, silent: silent);
+      error = null;
+    } catch (e) {
+      error = e.toString();
+      rethrow;
+    } finally {
+      if (!silent) loading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> sendOtp({required String email}) async {
@@ -266,10 +283,9 @@ class AppState extends ChangeNotifier {
     if (token == null) return;
     try {
       final data =
-          await apiService.get('/support/tickets', token: token) as List<dynamic>;
-      supportTickets = data
-          .whereType<Map<String, dynamic>>()
-          .toList();
+          await apiService.get('/support/tickets', token: token)
+              as List<dynamic>;
+      supportTickets = data.whereType<Map<String, dynamic>>().toList();
       notifyListeners();
     } catch (e) {
       debugPrint('Support tickets skipped: $e');
@@ -284,17 +300,19 @@ class AppState extends ChangeNotifier {
     String imageUrl = '',
   }) async {
     if (token == null) throw StateError('Please login first');
-    final data = await apiService.post(
-      '/support/tickets',
-      token: token,
-      body: {
-        'subject': subject,
-        'issueType': issueType,
-        'description': description,
-        'orderId': orderId,
-        'imageUrl': imageUrl,
-      },
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post(
+              '/support/tickets',
+              token: token,
+              body: {
+                'subject': subject,
+                'issueType': issueType,
+                'description': description,
+                'orderId': orderId,
+                'imageUrl': imageUrl,
+              },
+            )
+            as Map<String, dynamic>;
     await loadSupportTickets();
     return data;
   }
@@ -345,10 +363,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> removeFavorite(String productId) async {
     if (token == null) throw StateError('Please login first');
-    await apiService.delete(
-      '/wishlist/remove/$productId',
-      token: token,
-    );
+    await apiService.delete('/wishlist/remove/$productId', token: token);
     await loadFavorites();
   }
 
@@ -364,9 +379,11 @@ class AppState extends ChangeNotifier {
         if (category != null && category != 'All') 'category=$category',
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
-      final data = await apiService
-              .get('/products${query.isEmpty ? '' : '?$query'}')
-              .timeout(const Duration(seconds: 8)) as List<dynamic>;
+      final data =
+          await apiService
+                  .get('/products${query.isEmpty ? '' : '?$query'}')
+                  .timeout(const Duration(seconds: 8))
+              as List<dynamic>;
       products = data
           .cast<Map<String, dynamic>>()
           .map(ProductModel.fromJson)
@@ -376,9 +393,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> loadCategories() async {
     try {
-      final data = await apiService
-          .get('/categories')
-          .timeout(const Duration(seconds: 8)) as List<dynamic>;
+      final data =
+          await apiService
+                  .get('/categories')
+                  .timeout(const Duration(seconds: 8))
+              as List<dynamic>;
       categoryCatalog = data
           .cast<Map<String, dynamic>>()
           .map(CategoryModel.fromJson)
@@ -391,9 +410,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> loadBanners() async {
     try {
-      final data = await apiService
-          .get('/banners')
-          .timeout(const Duration(seconds: 8)) as List<dynamic>;
+      final data =
+          await apiService.get('/banners').timeout(const Duration(seconds: 8))
+              as List<dynamic>;
       banners = data
           .cast<Map<String, dynamic>>()
           .where((item) => item['active'] != false)
@@ -417,11 +436,7 @@ class AppState extends ChangeNotifier {
     await apiService.post(
       '/categories',
       token: token,
-      body: {
-        'name': name,
-        'description': description,
-        'imageUrl': imageUrl,
-      },
+      body: {'name': name, 'description': description, 'imageUrl': imageUrl},
     );
     await loadCategories();
   }
@@ -439,11 +454,7 @@ class AppState extends ChangeNotifier {
     await apiService.put(
       '/categories/$categoryId',
       token: token,
-      body: {
-        'name': name,
-        'description': description,
-        'imageUrl': imageUrl,
-      },
+      body: {'name': name, 'description': description, 'imageUrl': imageUrl},
     );
     await loadCategories();
   }
@@ -467,14 +478,16 @@ class AppState extends ChangeNotifier {
       throw StateError('Admin login required');
     }
 
-    final data = await apiService.uploadImage(
-      '/categories/upload-image',
-      token: token,
-      filePath: filePath,
-      bytes: bytes,
-      fileName: fileName,
-      fieldName: 'image',
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.uploadImage(
+              '/categories/upload-image',
+              token: token,
+              filePath: filePath,
+              bytes: bytes,
+              fileName: fileName,
+              fieldName: 'image',
+            )
+            as Map<String, dynamic>;
 
     return NetworkImageUrl.normalize(data['url'] as String?);
   }
@@ -489,14 +502,16 @@ class AppState extends ChangeNotifier {
       throw StateError('Admin login required');
     }
 
-    final data = await apiService.uploadImage(
-      '/products/upload-image',
-      token: token,
-      filePath: filePath,
-      bytes: bytes,
-      fileName: fileName,
-      fieldName: 'image',
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.uploadImage(
+              '/products/upload-image',
+              token: token,
+              filePath: filePath,
+              bytes: bytes,
+              fileName: fileName,
+              fieldName: 'image',
+            )
+            as Map<String, dynamic>;
 
     return NetworkImageUrl.normalize(data['url'] as String?);
   }
@@ -508,6 +523,9 @@ class AppState extends ChangeNotifier {
     required double cost,
     required int stock,
     required String unit,
+    required double rating,
+    String description = '',
+    String dashboardSection = 'daily_essentials',
     String imageUrl = '',
   }) async {
     if (token == null ||
@@ -526,6 +544,9 @@ class AppState extends ChangeNotifier {
                 'cost': cost,
                 'stock': stock,
                 'unit': unit,
+                'rating': rating,
+                'description': description,
+                'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
               },
             )
@@ -546,6 +567,9 @@ class AppState extends ChangeNotifier {
     required double cost,
     required int stock,
     required String unit,
+    required double rating,
+    String description = '',
+    String dashboardSection = 'daily_essentials',
     String imageUrl = '',
   }) async {
     if (token == null ||
@@ -564,6 +588,9 @@ class AppState extends ChangeNotifier {
                 'cost': cost,
                 'stock': stock,
                 'unit': unit,
+                'rating': rating,
+                'description': description,
+                'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
               },
             )
@@ -648,6 +675,7 @@ class AppState extends ChangeNotifier {
               body: {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
+                'gstPercent': gstPercent,
                 'address': address,
                 'paymentMethod': paymentMethod,
                 if (paymentId != null) 'paymentId': paymentId,
@@ -671,6 +699,7 @@ class AppState extends ChangeNotifier {
               body: {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
+                'gstPercent': gstPercent,
               },
             )
             as Map<String, dynamic>;
@@ -686,6 +715,50 @@ class AppState extends ChangeNotifier {
     }
     return await apiService.get('/admin/dashboard', token: token)
         as Map<String, dynamic>;
+  }
+
+  Future<void> loadCheckoutSettings() async {
+    try {
+      final data = await apiService.get('/settings/public') as List<dynamic>;
+      final map = {
+        for (final item in data.whereType<Map<String, dynamic>>())
+          (item['key'] ?? '').toString(): item['value'],
+      };
+      deliveryChargeAmount = _asDouble(
+        map['delivery_charge_amount'],
+        fallback: deliveryChargeAmount,
+      );
+      gstPercent = _asDouble(map['gst_percent'], fallback: gstPercent);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Checkout settings load skipped: $e');
+    }
+  }
+
+  Future<void> saveCheckoutSettings({
+    required double deliveryChargeAmount,
+    required double gstPercent,
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    await apiService.put(
+      '/admin/settings',
+      token: token,
+      body: {
+        'delivery_charge_amount': deliveryChargeAmount,
+        'gst_percent': gstPercent,
+      },
+    );
+    this.deliveryChargeAmount = deliveryChargeAmount;
+    this.gstPercent = gstPercent;
+    notifyListeners();
+  }
+
+  double _asDouble(dynamic value, {double fallback = 0}) {
+    final n = value is num ? value.toDouble() : double.tryParse('$value');
+    return n ?? fallback;
   }
 
   Future<Map<String, dynamic>> superAdminAnalytics() async {
@@ -765,8 +838,8 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.get('/admin/users', token: token)
-        as List<dynamic>;
+    final data =
+        await apiService.get('/admin/users', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(UserModel.fromJson).toList();
   }
 
@@ -775,8 +848,8 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.get('/admin/delivery', token: token)
-        as List<dynamic>;
+    final data =
+        await apiService.get('/admin/delivery', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>();
   }
 
@@ -785,11 +858,13 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.put(
-      '/admin/users/$userId',
-      token: token,
-      body: {'role': role},
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.put(
+              '/admin/users/$userId',
+              token: token,
+              body: {'role': role},
+            )
+            as Map<String, dynamic>;
     return UserModel.fromJson(data);
   }
 
@@ -814,11 +889,9 @@ class AppState extends ChangeNotifier {
       if (role != null) 'role': role,
       if (status != null) 'status': status,
     };
-    final data = await apiService.put(
-      '/admin/users/$userId',
-      token: token,
-      body: body,
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.put('/admin/users/$userId', token: token, body: body)
+            as Map<String, dynamic>;
     return UserModel.fromJson(data);
   }
 
@@ -834,18 +907,20 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.post(
-      '/admin/users',
-      token: token,
-      body: {
-        'name': name,
-        'phone': phone,
-        'email': email,
-        'avatarUrl': avatarUrl,
-        'role': role,
-        'status': status,
-      },
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post(
+              '/admin/users',
+              token: token,
+              body: {
+                'name': name,
+                'phone': phone,
+                'email': email,
+                'avatarUrl': avatarUrl,
+                'role': role,
+                'status': status,
+              },
+            )
+            as Map<String, dynamic>;
     return UserModel.fromJson(data);
   }
 
@@ -862,7 +937,8 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.get('/admin/banners', token: token) as List<dynamic>;
+    final data =
+        await apiService.get('/admin/banners', token: token) as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(BannerModel.fromJson).toList();
   }
 
@@ -875,11 +951,13 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.post(
-      '/admin/banners',
-      token: token,
-      body: {'title': title, 'imageUrl': imageUrl, 'active': active},
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post(
+              '/admin/banners',
+              token: token,
+              body: {'title': title, 'imageUrl': imageUrl, 'active': active},
+            )
+            as Map<String, dynamic>;
     await loadBanners();
     return BannerModel.fromJson(data);
   }
@@ -894,11 +972,13 @@ class AppState extends ChangeNotifier {
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
-    final data = await apiService.put(
-      '/admin/banners/$bannerId',
-      token: token,
-      body: {'title': title, 'imageUrl': imageUrl, 'active': active},
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.put(
+              '/admin/banners/$bannerId',
+              token: token,
+              body: {'title': title, 'imageUrl': imageUrl, 'active': active},
+            )
+            as Map<String, dynamic>;
     await loadBanners();
     return BannerModel.fromJson(data);
   }
@@ -916,8 +996,9 @@ class AppState extends ChangeNotifier {
     if (token == null || user?.role != UserRoles.deliveryPerson) {
       throw StateError('Delivery login required');
     }
-    final data = await apiService.get('/delivery/available-orders', token: token)
-        as List<dynamic>;
+    final data =
+        await apiService.get('/delivery/available-orders', token: token)
+            as List<dynamic>;
     return data.cast<Map<String, dynamic>>().map(OrderModel.fromJson).toList();
   }
 
@@ -935,10 +1016,9 @@ class AppState extends ChangeNotifier {
     if (token == null || user?.role != UserRoles.deliveryPerson) {
       throw StateError('Delivery login required');
     }
-    final data = await apiService.post(
-      '/delivery/accept/$orderId',
-      token: token,
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post('/delivery/accept/$orderId', token: token)
+            as Map<String, dynamic>;
     final order = OrderModel.fromJson(data);
     await loadOrders();
     return order;
@@ -948,10 +1028,9 @@ class AppState extends ChangeNotifier {
     if (token == null || user?.role != UserRoles.deliveryPerson) {
       throw StateError('Delivery login required');
     }
-    final data = await apiService.post(
-      '/delivery/pickup/$orderId',
-      token: token,
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post('/delivery/pickup/$orderId', token: token)
+            as Map<String, dynamic>;
     final order = OrderModel.fromJson(data);
     await loadOrders();
     return order;
@@ -961,10 +1040,9 @@ class AppState extends ChangeNotifier {
     if (token == null || user?.role != UserRoles.deliveryPerson) {
       throw StateError('Delivery login required');
     }
-    final data = await apiService.post(
-      '/delivery/delivered/$orderId',
-      token: token,
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post('/delivery/delivered/$orderId', token: token)
+            as Map<String, dynamic>;
     final order = OrderModel.fromJson(data);
     await loadOrders();
     return order;
@@ -1008,16 +1086,18 @@ class AppState extends ChangeNotifier {
     required String pincode,
   }) async {
     if (token == null) throw StateError('Please login first');
-    final data = await apiService.post(
-      '/addresses',
-      token: token,
-      body: {
-        'label': label,
-        'line1': line1,
-        'city': city,
-        'pincode': pincode,
-      },
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.post(
+              '/addresses',
+              token: token,
+              body: {
+                'label': label,
+                'line1': line1,
+                'city': city,
+                'pincode': pincode,
+              },
+            )
+            as Map<String, dynamic>;
     final address = AddressModel.fromJson(data);
     await loadAddresses();
     return address;
@@ -1031,16 +1111,18 @@ class AppState extends ChangeNotifier {
     required String pincode,
   }) async {
     if (token == null) throw StateError('Please login first');
-    final data = await apiService.put(
-      '/addresses/$addressId',
-      token: token,
-      body: {
-        'label': label,
-        'line1': line1,
-        'city': city,
-        'pincode': pincode,
-      },
-    ) as Map<String, dynamic>;
+    final data =
+        await apiService.put(
+              '/addresses/$addressId',
+              token: token,
+              body: {
+                'label': label,
+                'line1': line1,
+                'city': city,
+                'pincode': pincode,
+              },
+            )
+            as Map<String, dynamic>;
     final address = AddressModel.fromJson(data);
     await loadAddresses();
     return address;
@@ -1106,7 +1188,8 @@ class AppState extends ChangeNotifier {
         await loadCart();
         await loadAddresses();
         _connectSocket();
-        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }
       }
@@ -1135,11 +1218,14 @@ class AppState extends ChangeNotifier {
         dashboardRefreshTick++;
         if (data is Map<String, dynamic>) {
           final order = OrderModel.fromJson(data);
-          if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+          if (user?.role == UserRoles.admin ||
+              user?.role == UserRoles.superAdmin) {
             upsertAdminOrder(order);
           }
           if (user?.role == UserRoles.user) {
-            final index = orders.indexWhere((existing) => existing.id == order.id);
+            final index = orders.indexWhere(
+              (existing) => existing.id == order.id,
+            );
             if (index == -1) {
               orders = [order, ...orders];
             } else {
@@ -1171,13 +1257,15 @@ class AppState extends ChangeNotifier {
         await loadOrders();
         await loadAdminOrders();
         final navContext = DoormartDeliveryApp.navigatorKey.currentContext;
-        if (navContext != null) showToast(navContext, 'Order delivered successfully');
+        if (navContext != null)
+          showToast(navContext, 'Order delivered successfully');
       },
       onStockUpdated: (_) async {
         debugPrint('Socket stock updated event received; reloading products.');
         dashboardRefreshTick++;
         await loadProducts();
-        if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+        if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }
         notifyListeners();

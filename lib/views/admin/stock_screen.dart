@@ -29,8 +29,11 @@ class _StockScreenState extends State<StockScreen>
   late Future<Map<String, dynamic>> _dashboardFuture;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _deliveryChargeController = TextEditingController();
+  final TextEditingController _gstController = TextEditingController();
   String _filter = 'All';
   int _lastRefreshTick = 0;
+  bool _settingsLoaded = false;
 
   @override
   void initState() {
@@ -46,6 +49,8 @@ class _StockScreenState extends State<StockScreen>
   void dispose() {
     _controller.dispose();
     _searchController.dispose();
+    _deliveryChargeController.dispose();
+    _gstController.dispose();
     super.dispose();
   }
 
@@ -70,6 +75,40 @@ class _StockScreenState extends State<StockScreen>
         ..reset()
         ..forward();
     }
+    if (!_settingsLoaded) {
+      _settingsLoaded = true;
+      final state = context.read<AppState>();
+      _deliveryChargeController.text = state.deliveryChargeAmount.toStringAsFixed(0);
+      _gstController.text = state.gstPercent.toStringAsFixed(0);
+    }
+  }
+
+  Future<void> _saveCheckoutSettings() async {
+    final state = context.read<AppState>();
+    final deliveryCharge = double.tryParse(_deliveryChargeController.text.trim());
+    final gst = double.tryParse(_gstController.text.trim());
+    if (deliveryCharge == null || deliveryCharge < 0 || gst == null || gst < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid GST and delivery charge values')),
+      );
+      return;
+    }
+    try {
+      await state.saveCheckoutSettings(
+        deliveryChargeAmount: deliveryCharge,
+        gstPercent: gst,
+      );
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checkout settings saved')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   @override
@@ -83,7 +122,7 @@ class _StockScreenState extends State<StockScreen>
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/admin/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         },
       ),
       body: SafeArea(
@@ -148,12 +187,24 @@ class _StockScreenState extends State<StockScreen>
                     _AnimatedIn(
                       animation: _controller,
                       index: 2,
-                      child: _CriticalAlertsPanel(items: lowStockItems),
+                      child: _CheckoutConfigCard(
+                        deliveryChargeController: _deliveryChargeController,
+                        gstController: _gstController,
+                        currentDeliveryCharge: context.read<AppState>().deliveryChargeAmount,
+                        currentGstPercent: context.read<AppState>().gstPercent,
+                        onSave: _saveCheckoutSettings,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _AnimatedIn(
                       animation: _controller,
                       index: 3,
+                      child: _CriticalAlertsPanel(items: lowStockItems),
+                    ),
+                    const SizedBox(height: 16),
+                    _AnimatedIn(
+                      animation: _controller,
+                      index: 4,
                       child: _StockSearchBar(
                         controller: _searchController,
                         onChanged: (_) => setState(() {}),
@@ -162,7 +213,7 @@ class _StockScreenState extends State<StockScreen>
                     const SizedBox(height: 12),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 4,
+                      index: 5,
                       child: _StockFilterChips(
                         selected: _filter,
                         onChanged: (value) => setState(() => _filter = value),
@@ -171,13 +222,13 @@ class _StockScreenState extends State<StockScreen>
                     const SizedBox(height: 14),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 5,
+                      index: 6,
                       child: _StockTable(rows: visibleRows),
                     ),
                     const SizedBox(height: 16),
                     _AnimatedIn(
                       animation: _controller,
-                      index: 6,
+                      index: 7,
                       child: _RestockPlanner(items: lowStockItems),
                     ),
                   ],
@@ -338,6 +389,91 @@ class _StockMetrics extends StatelessWidget {
           itemBuilder: (context, index) => cards[index],
         );
       },
+    );
+  }
+}
+
+class _CheckoutConfigCard extends StatelessWidget {
+  const _CheckoutConfigCard({
+    required this.deliveryChargeController,
+    required this.gstController,
+    required this.currentDeliveryCharge,
+    required this.currentGstPercent,
+    required this.onSave,
+  });
+
+  final TextEditingController deliveryChargeController;
+  final TextEditingController gstController;
+  final double currentDeliveryCharge;
+  final double currentGstPercent;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1E3D8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Checkout charges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(
+            'Update delivery fee and GST from the stock page. Checkout will use these values automatically.',
+            style: TextStyle(color: const Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: deliveryChargeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Delivery charge',
+                    prefixText: 'Rs ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: gstController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'GST %',
+                    suffixText: '%',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text('Current delivery fee: Rs ${currentDeliveryCharge.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(width: 16),
+              Text('Current GST: ${currentGstPercent.toStringAsFixed(0)}%',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: onSave,
+              child: const Text('Save charges'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

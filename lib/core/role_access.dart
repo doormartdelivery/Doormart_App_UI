@@ -22,7 +22,6 @@ class RoleAccess {
 
   static bool canAccessRoute(String? role, String routeName) {
     if (routeName == '/login' ||
-        routeName == '/select-role' ||
         routeName == '/signup' ||
         routeName == '/splash') {
       return true;

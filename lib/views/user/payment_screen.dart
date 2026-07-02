@@ -240,6 +240,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     builder: (context, state, _) => _SummaryCard(
                       subtotal: state.subtotal,
                       deliveryFee: state.deliveryFee,
+                      gstAmount: state.gstAmount,
                       total: state.total,
                     ),
                   ),
@@ -280,11 +281,13 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.subtotal,
     required this.deliveryFee,
+    required this.gstAmount,
     required this.total,
   });
 
   final double subtotal;
   final double deliveryFee;
+  final double gstAmount;
   final double total;
 
   @override
@@ -308,6 +311,8 @@ class _SummaryCard extends StatelessWidget {
           _row('Subtotal', subtotal),
           const SizedBox(height: 8),
           _row('Delivery fee', deliveryFee),
+          const SizedBox(height: 8),
+          _row('GST', gstAmount),
           const Divider(height: 24),
           _row('Total', total, bold: true),
         ],

@@ -50,15 +50,27 @@ class ProductCard extends StatelessWidget {
                     Positioned(
                       top: 10,
                       right: 10,
-                      child: _GlassPill(
-                        tint: Colors.black.withValues(alpha: 0.28),
+                      child: GestureDetector(
                         onTap: onFavoriteToggle,
-                        child: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          size: 16,
-                          color: isFavorite
-                              ? const Color(0xFFFF5C7A)
-                              : Colors.white,
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFE8541A).withValues(alpha: 0.18),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            size: 18,
+                            color: isFavorite ? const Color(0xFFE8541A) : const Color(0xFFAAAAAA),
+                          ),
                         ),
                       ),
                     ),

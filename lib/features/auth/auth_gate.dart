@@ -6,7 +6,7 @@ import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../features/delivery/screens/delivery_home_screen.dart';
 import '../../views/user/user_home_screen.dart';
-import '../../views/select_role_screen.dart';
+import '../../views/user/login_screen.dart';
 import '../../views/admin/admin_dashboard_screen.dart';
 import '../../views/super_admin/super_admin_dashboard_screen.dart';
 
@@ -60,7 +60,7 @@ class _AuthGateState extends State<AuthGate> {
       final role = state.user?.role;
       final token = state.token;
       if (token == null || role == null) {
-        _target = null;
+        _target = const LoginScreen();
         return;
       }
       _target = switch (role) {
@@ -77,17 +77,10 @@ class _AuthGateState extends State<AuthGate> {
       setState(() => _checking = false);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (_target == null) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            SelectRoleScreen.routeName,
-            (route) => false,
-          );
-        } else {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => _target!),
-            (route) => false,
-          );
-        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => _target ?? const LoginScreen()),
+          (route) => false,
+        );
       });
     }
   }

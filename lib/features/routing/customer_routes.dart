@@ -12,6 +12,7 @@ import '../../views/user/product_category_screen.dart';
 import '../../views/user/product_list_screen.dart';
 import '../../views/user/search_screen.dart';
 import '../../views/user/payment_screen.dart';
+import '../../views/user/privacy_policy_screen.dart';
 import '../../views/user/profile_screen.dart';
 import '../../views/user/scheduled_order_screen.dart';
 import '../../views/user/signup_screen.dart';
@@ -39,5 +40,6 @@ class CustomerRoutes {
     NotificationScreen.routeName: (_) => const NotificationScreen(),
     ProfileScreen.routeName: (_) => const ProfileScreen(),
     WishlistScreen.routeName: (_) => const WishlistScreen(),
+    PrivacyPolicyScreen.routeName: (_) => const PrivacyPolicyScreen(),
   };
 }

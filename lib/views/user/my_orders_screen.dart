@@ -83,11 +83,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             if (orders.isEmpty) return const Text('No orders yet');
 
             final currentOrders = _currentOrdersFrom(orders);
-            final previousOrders = orders.where((order) => order.status == OrderStatus.delivered).toList();
+            final previousOrders = orders
+                .where((order) => order.status == OrderStatus.delivered)
+                .toList();
             final totalOrders = orders.length;
-            final activeOrders = orders.where((order) => _isActive(order.status)).length;
-            final deliveredOrders = orders.where((order) => order.status == OrderStatus.delivered).length;
-            final totalSpent = orders.fold<double>(0, (sum, order) => sum + order.total);
+            final activeOrders = orders
+                .where((order) => _isActive(order.status))
+                .length;
+            final deliveredOrders = orders
+                .where((order) => order.status == OrderStatus.delivered)
+                .length;
+            final totalSpent = orders.fold<double>(
+              0,
+              (sum, order) => sum + order.total,
+            );
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +114,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     key: ValueKey(currentOrders.length),
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SectionHeader(title: 'Current Orders', count: currentOrders.length),
+                      _SectionHeader(
+                        title: 'Current Orders',
+                        count: currentOrders.length,
+                      ),
                       const SizedBox(height: 12),
                       if (currentOrders.isEmpty)
                         const Text('No active orders right now')
@@ -116,9 +128,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                             final columns = width >= 1100
                                 ? 2
                                 : width >= 700
-                                    ? 2
-                                    : 1;
-                            final cardWidth = columns == 1 ? width : (width - 14) / 2;
+                                ? 2
+                                : 1;
+                            final cardWidth = columns == 1
+                                ? width
+                                : (width - 14) / 2;
                             return Wrap(
                               spacing: 14,
                               runSpacing: 14,
@@ -127,9 +141,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                     (order) => SizedBox(
                                       width: cardWidth,
                                       child: AnimatedSwitcher(
-                                        duration: const Duration(milliseconds: 220),
+                                        duration: const Duration(
+                                          milliseconds: 220,
+                                        ),
                                         child: _CurrentOrderCard(
-                                          key: ValueKey('current-${order.id}-${order.status.name}'),
+                                          key: ValueKey(
+                                            'current-${order.id}-${order.status.name}',
+                                          ),
                                           order: order,
                                         ),
                                       ),
@@ -143,7 +161,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                 ),
                 const SizedBox(height: 22),
-                _SectionHeader(title: 'Previous Orders', count: previousOrders.length),
+                _SectionHeader(
+                  title: 'Previous Orders',
+                  count: previousOrders.length,
+                ),
                 const SizedBox(height: 12),
                 if (previousOrders.isEmpty)
                   const Text('No previous orders yet')
@@ -154,8 +175,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       final columns = width >= 1100
                           ? 2
                           : width >= 700
-                              ? 2
-                              : 1;
+                          ? 2
+                          : 1;
                       final cardWidth = columns == 1 ? width : (width - 14) / 2;
                       return Wrap(
                         spacing: 14,
@@ -167,7 +188,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                 child: AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 220),
                                   child: _PreviousOrderCard(
-                                    key: ValueKey('previous-${order.id}-${order.status.name}'),
+                                    key: ValueKey(
+                                      'previous-${order.id}-${order.status.name}',
+                                    ),
                                     order: order,
                                   ),
                                 ),
@@ -196,7 +219,11 @@ bool _isActive(OrderStatus status) {
 
 List<OrderModel> _currentOrdersFrom(List<OrderModel> orders) {
   return orders
-      .where((order) => order.status != OrderStatus.delivered && order.status != OrderStatus.cancelled)
+      .where(
+        (order) =>
+            order.status != OrderStatus.delivered &&
+            order.status != OrderStatus.cancelled,
+      )
       .toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 }
@@ -231,13 +258,16 @@ class _CurrentOrderCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF0EB),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                                          'ORDER #${order.displayOrderId}',
+                    'ORDER #${order.displayOrderId}',
                     style: const TextStyle(
                       color: Color(0xFFE8541A),
                       fontWeight: FontWeight.w900,
@@ -376,9 +406,11 @@ class _CurrentOrderCard extends StatelessWidget {
     final day = local.day.toString().padLeft(2, '0');
     final month = local.month.toString().padLeft(2, '0');
     final year = local.year;
-    final hour = local.hour.toString().padLeft(2, '0');
+    final hour24 = local.hour;
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
     final minute = local.minute.toString().padLeft(2, '0');
-    return '$day/$month/$year, $hour:$minute';
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    return '$day/$month/$year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
   }
 }
 
@@ -411,7 +443,10 @@ class _PreviousOrderCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(999),
@@ -446,7 +481,10 @@ class _PreviousOrderCard extends StatelessWidget {
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF0EB),
                   borderRadius: BorderRadius.circular(16),
@@ -513,9 +551,11 @@ class _PreviousOrderCard extends StatelessWidget {
     final day = local.day.toString().padLeft(2, '0');
     final month = local.month.toString().padLeft(2, '0');
     final year = local.year;
-    final hour = local.hour.toString().padLeft(2, '0');
+    final hour24 = local.hour;
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
     final minute = local.minute.toString().padLeft(2, '0');
-    return '$day/$month/$year, $hour:$minute';
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    return '$day/$month/$year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
   }
 
   Widget _info(String label, String value) {
@@ -606,11 +646,20 @@ class _SummaryPanel extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _SummaryTile(label: 'Total', value: '$totalOrders')),
+              Expanded(
+                child: _SummaryTile(label: 'Total', value: '$totalOrders'),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _SummaryTile(label: 'Active', value: '$activeOrders')),
+              Expanded(
+                child: _SummaryTile(label: 'Active', value: '$activeOrders'),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: _SummaryTile(label: 'Delivered', value: '$deliveredOrders')),
+              Expanded(
+                child: _SummaryTile(
+                  label: 'Delivered',
+                  value: '$deliveredOrders',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -626,7 +675,11 @@ class _SummaryPanel extends StatelessWidget {
 }
 
 class _SummaryTile extends StatelessWidget {
-  const _SummaryTile({required this.label, required this.value, this.wide = false});
+  const _SummaryTile({
+    required this.label,
+    required this.value,
+    this.wide = false,
+  });
 
   final String label;
   final String value;
@@ -689,7 +742,9 @@ class _StatusTimeline extends StatelessWidget {
                   width: 14,
                   height: 14,
                   decoration: BoxDecoration(
-                    color: step.done ? const Color(0xFFE8541A) : const Color(0xFFE5E7EB),
+                    color: step.done
+                        ? const Color(0xFFE8541A)
+                        : const Color(0xFFE5E7EB),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -697,7 +752,9 @@ class _StatusTimeline extends StatelessWidget {
                   Container(
                     width: 2,
                     height: 34,
-                    color: step.done ? const Color(0xFFE8541A) : const Color(0xFFE5E7EB),
+                    color: step.done
+                        ? const Color(0xFFE8541A)
+                        : const Color(0xFFE5E7EB),
                   ),
               ],
             ),
@@ -714,13 +771,14 @@ class _StatusTimeline extends StatelessWidget {
                           child: Text(
                             step.title,
                             style: TextStyle(
-                              color: step.done ? const Color(0xFFE8541A) : const Color(0xFF111827),
+                              color: step.done
+                                  ? const Color(0xFFE8541A)
+                                  : const Color(0xFF111827),
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        if (step.isLive)
-                          const _LiveBadge(),
+                        if (step.isLive) const _LiveBadge(),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -795,11 +853,16 @@ class _TimelineStep {
 }
 
 List<_TimelineStep> _timelineFor(OrderStatus status) {
-  final placed = _TimelineStep(title: 'Order Placed', subtitle: 'Received by system', done: true);
+  final placed = _TimelineStep(
+    title: 'Order Placed',
+    subtitle: 'Received by system',
+    done: true,
+  );
   final processing = _TimelineStep(
     title: 'Processing',
     subtitle: 'Order is being prepared',
-    done: status == OrderStatus.accepted ||
+    done:
+        status == OrderStatus.accepted ||
         status == OrderStatus.packed ||
         status == OrderStatus.assigned ||
         status == OrderStatus.deliveryAccepted ||
@@ -810,7 +873,8 @@ List<_TimelineStep> _timelineFor(OrderStatus status) {
   final inTransit = _TimelineStep(
     title: 'In Transit',
     subtitle: 'Delivery is on the way',
-    done: status == OrderStatus.pickedUp ||
+    done:
+        status == OrderStatus.pickedUp ||
         status == OrderStatus.deliveryAccepted ||
         status == OrderStatus.delivered,
   );
@@ -829,7 +893,8 @@ class _LiveBadge extends StatefulWidget {
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
 
-class _LiveBadgeState extends State<_LiveBadge> with SingleTickerProviderStateMixin {
+class _LiveBadgeState extends State<_LiveBadge>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1200),

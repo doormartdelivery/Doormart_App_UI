@@ -244,11 +244,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/admin/login',
-            (route) => false,
-          );
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         },
       ),
       body: SafeArea(

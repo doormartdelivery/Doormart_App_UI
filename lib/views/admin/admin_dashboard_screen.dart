@@ -55,7 +55,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           if (!context.mounted) return;
           Navigator.pushNamedAndRemoveUntil(
             context,
-            '/admin/login',
+            '/login',
             (route) => false,
           );
         },

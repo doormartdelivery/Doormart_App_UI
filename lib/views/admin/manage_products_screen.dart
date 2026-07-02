@@ -84,6 +84,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
         _ => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       };
     }
+
     sorted.sort((a, b) => _sortAscending ? compare(a, b) : -compare(a, b));
     return sorted;
   }
@@ -145,8 +146,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(
-              context, '/admin/login', (_) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
         },
       ),
       leading: Builder(
@@ -185,10 +185,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _HeroCard(
-                  products: allProducts,
-                  onAdd: _openAddProductForm,
-                ),
+                _HeroCard(products: allProducts, onAdd: _openAddProductForm),
                 const SizedBox(height: 14),
                 _SearchField(
                   controller: _searchController,
@@ -231,19 +228,28 @@ class _DeleteDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      icon: const Icon(Icons.delete_outline_rounded,
-          color: Color(0xFFDC2626), size: 44),
-      title: const Text('Delete product',
-          style: TextStyle(fontWeight: FontWeight.w900)),
-      content: Text('Remove "$name" from the product table?',
-          textAlign: TextAlign.center),
+      icon: const Icon(
+        Icons.delete_outline_rounded,
+        color: Color(0xFFDC2626),
+        size: 44,
+      ),
+      title: const Text(
+        'Delete product',
+        style: TextStyle(fontWeight: FontWeight.w900),
+      ),
+      content: Text(
+        'Remove "$name" from the product table?',
+        textAlign: TextAlign.center,
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
           child: const Text('Cancel'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFDC2626),
+          ),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete'),
         ),
@@ -266,12 +272,21 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard_rounded, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long_rounded, AdminOrdersScreen.routeName),
-      ('Notifications', Icons.notifications_active_rounded, AdminNotificationsScreen.routeName),
+      (
+        'Notifications',
+        Icons.notifications_active_rounded,
+        AdminNotificationsScreen.routeName,
+      ),
       ('Products', Icons.inventory_2_rounded, ManageProductsScreen.routeName),
       ('Categories', Icons.category_rounded, ManageCategoriesScreen.routeName),
       ('Banners', Icons.slideshow_rounded, ManageBannersScreen.routeName),
-      if (isSuperAdmin) ('Users', Icons.groups_rounded, ManageUsersScreen.routeName),
-      ('Delivery partners', Icons.delivery_dining_rounded, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin)
+        ('Users', Icons.groups_rounded, ManageUsersScreen.routeName),
+      (
+        'Delivery partners',
+        Icons.delivery_dining_rounded,
+        ManageDeliveryScreen.routeName,
+      ),
       ('Stock alerts', Icons.warning_amber_rounded, StockScreen.routeName),
     ];
 
@@ -286,22 +301,31 @@ class _AdminDrawer extends StatelessWidget {
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: Color(0xFFFFF0EB),
-                    child: Icon(Icons.admin_panel_settings_rounded,
-                        color: Color(0xFFE8541A)),
+                    child: Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: Color(0xFFE8541A),
+                    ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Admin menu',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF1A1A1A))),
+                        Text(
+                          'Admin menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
                         SizedBox(height: 2),
-                        Text('Control centre',
-                            style: TextStyle(color: Color(0xFF9E9E9E),
-                                fontSize: 12)),
+                        Text(
+                          'Control centre',
+                          style: TextStyle(
+                            color: Color(0xFF9E9E9E),
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -318,9 +342,7 @@ class _AdminDrawer extends StatelessWidget {
                   final item = items[i];
                   final sel = item.$3 == ManageProductsScreen.routeName;
                   return Material(
-                    color: sel
-                        ? const Color(0xFFFFF0EB)
-                        : Colors.white,
+                    color: sel ? const Color(0xFFFFF0EB) : Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
@@ -333,31 +355,38 @@ class _AdminDrawer extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE8541A)
-                                    .withValues(alpha: sel ? 0.18 : 0.08),
+                                color: const Color(
+                                  0xFFE8541A,
+                                ).withValues(alpha: sel ? 0.18 : 0.08),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(item.$2,
-                                  color: sel
-                                      ? const Color(0xFFE8541A)
-                                      : const Color(0xFF555555),
-                                  size: 20),
+                              child: Icon(
+                                item.$2,
+                                color: sel
+                                    ? const Color(0xFFE8541A)
+                                    : const Color(0xFF555555),
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(item.$1,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: sel
-                                        ? const Color(0xFFE8541A)
-                                        : const Color(0xFF1A1A1A),
-                                  )),
+                              child: Text(
+                                item.$1,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: sel
+                                      ? const Color(0xFFE8541A)
+                                      : const Color(0xFF1A1A1A),
+                                ),
+                              ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                color: sel
-                                    ? const Color(0xFFE8541A)
-                                    : const Color(0xFFCCCCCC),
-                                size: 18),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: sel
+                                  ? const Color(0xFFE8541A)
+                                  : const Color(0xFFCCCCCC),
+                              size: 18,
+                            ),
                           ],
                         ),
                       ),
@@ -378,11 +407,14 @@ class _AdminDrawer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: const Color(0xFFFFF0EB),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Logout',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  label: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -404,8 +436,10 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lowStock = products.where((p) => p.stock <= 10).length;
     final categories = products.map((p) => p.category).toSet().length;
-    final inventoryValue =
-        products.fold<double>(0, (s, p) => s + p.cost * p.stock);
+    final inventoryValue = products.fold<double>(
+      0,
+      (s, p) => s + p.cost * p.stock,
+    );
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -433,8 +467,10 @@ class _HeroCard extends StatelessWidget {
                   color: const Color(0xFFFFF0EB),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.inventory_2_rounded,
-                    color: Color(0xFFE8541A)),
+                child: const Icon(
+                  Icons.inventory_2_rounded,
+                  color: Color(0xFFE8541A),
+                ),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -451,14 +487,19 @@ class _HeroCard extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFE8541A),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 onPressed: onAdd,
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add Product',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'Add Product',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ],
           ),
@@ -467,14 +508,34 @@ class _HeroCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _Metric('${products.length}', 'Products',
-                  Icons.widgets_rounded, const Color(0xFFE8541A), const Color(0xFFFFF0EB)),
-              _Metric('$categories', 'Categories',
-                  Icons.category_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF)),
-              _Metric('$lowStock', 'Low stock',
-                  Icons.warning_amber_rounded, const Color(0xFFB45309), const Color(0xFFFFF7ED)),
-              _Metric('Rs ${inventoryValue.toStringAsFixed(0)}', 'Stock value',
-                  Icons.payments_rounded, const Color(0xFFBE185D), const Color(0xFFFCE7F3)),
+              _Metric(
+                '${products.length}',
+                'Products',
+                Icons.widgets_rounded,
+                const Color(0xFFE8541A),
+                const Color(0xFFFFF0EB),
+              ),
+              _Metric(
+                '$categories',
+                'Categories',
+                Icons.category_rounded,
+                const Color(0xFF2563EB),
+                const Color(0xFFEFF6FF),
+              ),
+              _Metric(
+                '$lowStock',
+                'Low stock',
+                Icons.warning_amber_rounded,
+                const Color(0xFFB45309),
+                const Color(0xFFFFF7ED),
+              ),
+              _Metric(
+                'Rs ${inventoryValue.toStringAsFixed(0)}',
+                'Stock value',
+                Icons.payments_rounded,
+                const Color(0xFFBE185D),
+                const Color(0xFFFCE7F3),
+              ),
             ],
           ),
         ],
@@ -499,9 +560,10 @@ class _Metric extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4)),
+            color: color.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -511,23 +573,31 @@ class _Metric extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-                color: tint, borderRadius: BorderRadius.circular(10)),
+              color: tint,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF1A1A1A))),
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF9E9E9E))),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF9E9E9E),
+                ),
+              ),
             ],
           ),
         ],
@@ -539,10 +609,11 @@ class _Metric extends StatelessWidget {
 // ─── Search Field ─────────────────────────────────────────────────────────────
 
 class _SearchField extends StatelessWidget {
-  const _SearchField(
-      {required this.controller,
-      required this.onChanged,
-      required this.onClear});
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback? onClear;
@@ -559,21 +630,22 @@ class _SearchField extends StatelessWidget {
             ? null
             : IconButton(
                 icon: const Icon(Icons.close_rounded),
-                onPressed: onClear),
+                onPressed: onClear,
+              ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide:
-              const BorderSide(color: Color(0xFFE8541A), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.5),
         ),
       ),
     );
@@ -608,9 +680,10 @@ class _ProductsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFF0F0F0)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 6)),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: ClipRRect(
@@ -619,42 +692,49 @@ class _ProductsTable extends StatelessWidget {
           builder: (_, constraints) => SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(minWidth: constraints.maxWidth),
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: DataTable(
                 sortColumnIndex: sortColumnIndex,
                 sortAscending: sortAscending,
                 headingRowColor: WidgetStateProperty.all(
-                    const Color(0xFFFFF5EF)),
+                  const Color(0xFFFFF5EF),
+                ),
                 headingTextStyle: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontWeight: FontWeight.w900),
+                  color: Color(0xFF0F172A),
+                  fontWeight: FontWeight.w900,
+                ),
                 dataTextStyle: const TextStyle(
-                    color: Color(0xFF334155),
-                    fontWeight: FontWeight.w600),
+                  color: Color(0xFF334155),
+                  fontWeight: FontWeight.w600,
+                ),
                 dataRowMinHeight: 68,
                 dataRowMaxHeight: 80,
                 columnSpacing: 24,
                 horizontalMargin: 16,
                 columns: [
                   DataColumn(
-                      label: const Text('Product'),
-                      onSort: (_, __) => onSort(0)),
+                    label: const Text('Product'),
+                    onSort: (_, __) => onSort(0),
+                  ),
                   DataColumn(
-                      label: const Text('Category'),
-                      onSort: (_, __) => onSort(1)),
+                    label: const Text('Category'),
+                    onSort: (_, __) => onSort(1),
+                  ),
                   DataColumn(
-                      label: const Text('Stock'),
-                      numeric: true,
-                      onSort: (_, __) => onSort(2)),
+                    label: const Text('Stock'),
+                    numeric: true,
+                    onSort: (_, __) => onSort(2),
+                  ),
                   DataColumn(
-                      label: const Text('Cost'),
-                      numeric: true,
-                      onSort: (_, __) => onSort(3)),
+                    label: const Text('Cost'),
+                    numeric: true,
+                    onSort: (_, __) => onSort(3),
+                  ),
                   DataColumn(
-                      label: const Text('Price'),
-                      numeric: true,
-                      onSort: (_, __) => onSort(4)),
+                    label: const Text('Price'),
+                    numeric: true,
+                    onSort: (_, __) => onSort(4),
+                  ),
                   const DataColumn(label: Text('Unit')),
                   const DataColumn(label: Text('Actions')),
                 ],
@@ -666,42 +746,44 @@ class _ProductsTable extends StatelessWidget {
                       if (s.contains(WidgetState.hovered)) {
                         return const Color(0xFFFFF5EF);
                       }
-                      return i.isEven
-                          ? Colors.white
-                          : const Color(0xFFF8FAFC);
+                      return i.isEven ? Colors.white : const Color(0xFFF8FAFC);
                     }),
                     cells: [
                       DataCell(_ProductNameCell(product: p)),
                       DataCell(_CategoryBadge(category: p.category)),
                       DataCell(_StockBadge(stock: p.stock)),
-                      DataCell(Text(
-                          'Rs ${p.cost.toStringAsFixed(0)}')),
-                      DataCell(Text(
-                        'Rs ${p.price.toStringAsFixed(0)}',
-                        style: const TextStyle(
+                      DataCell(Text('Rs ${p.cost.toStringAsFixed(0)}')),
+                      DataCell(
+                        Text(
+                          'Rs ${p.price.toStringAsFixed(0)}',
+                          style: const TextStyle(
                             color: Color(0xFF0F766E),
-                            fontWeight: FontWeight.w900),
-                      )),
-                      DataCell(Text(p.unit)),
-                      DataCell(Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            icon: const Icon(Icons.edit_rounded,
-                                size: 20),
-                            onPressed: () => onEdit(p),
+                            fontWeight: FontWeight.w900,
                           ),
-                          IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(
+                        ),
+                      ),
+                      DataCell(Text(p.unit)),
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Edit',
+                              icon: const Icon(Icons.edit_rounded, size: 20),
+                              onPressed: () => onEdit(p),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete',
+                              icon: const Icon(
                                 Icons.delete_outline_rounded,
                                 size: 20,
-                                color: Color(0xFFDC2626)),
-                            onPressed: () => onDelete(p),
-                          ),
-                        ],
-                      )),
+                                color: Color(0xFFDC2626),
+                              ),
+                              onPressed: () => onDelete(p),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   );
                 }).toList(),
@@ -730,10 +812,12 @@ class _ProductNameCell extends StatelessWidget {
             width: 42,
             height: 42,
             child: product.imageUrl.startsWith('http')
-                ? Image.network(product.imageUrl,
+                ? Image.network(
+                    product.imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) =>
-                        _ProductIconFallback(color: color))
+                        _ProductIconFallback(color: color),
+                  )
                 : _ProductIconFallback(color: color),
           ),
         ),
@@ -744,8 +828,9 @@ class _ProductNameCell extends StatelessWidget {
             product.name,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontWeight: FontWeight.w900),
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
@@ -779,8 +864,10 @@ class _CategoryBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(category,
-          style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+      child: Text(
+        category,
+        style: TextStyle(color: color, fontWeight: FontWeight.w800),
+      ),
     );
   }
 }
@@ -794,17 +881,18 @@ class _StockBadge extends StatelessWidget {
     final color = stock <= 10
         ? const Color(0xFFDC2626)
         : stock <= 40
-            ? const Color(0xFFB45309)
-            : const Color(0xFF16A34A);
+        ? const Color(0xFFB45309)
+        : const Color(0xFF16A34A);
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text('$stock',
-          style: TextStyle(color: color, fontWeight: FontWeight.w900)),
+      child: Text(
+        '$stock',
+        style: TextStyle(color: color, fontWeight: FontWeight.w900),
+      ),
     );
   }
 }
@@ -827,13 +915,16 @@ class _ProductDialogState extends State<_ProductDialog> {
   final _costCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _stockCtrl = TextEditingController();
+  final _ratingCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   final _unitCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
 
   String? _selectedCategory;
+  String _dashboardSection = 'daily_essentials';
   bool _saving = false;
   bool _uploading = false;
-  String? _uploadError;   // shown inline, does NOT block save
+  String? _uploadError; // shown inline, does NOT block save
   String? _saveError;
 
   bool get _isEdit => widget.product != null;
@@ -847,8 +938,11 @@ class _ProductDialogState extends State<_ProductDialog> {
     _costCtrl.text = p.cost.toStringAsFixed(0);
     _priceCtrl.text = p.price.toStringAsFixed(0);
     _stockCtrl.text = p.stock.toString();
+    _ratingCtrl.text = p.rating.toStringAsFixed(1);
     _imageCtrl.text = p.imageUrl;
     _unitCtrl.text = p.unit;
+    _descriptionCtrl.text = p.description;
+    _dashboardSection = p.dashboardSection;
     _selectedCategory = p.category;
   }
 
@@ -858,8 +952,10 @@ class _ProductDialogState extends State<_ProductDialog> {
     _costCtrl.dispose();
     _priceCtrl.dispose();
     _stockCtrl.dispose();
+    _ratingCtrl.dispose();
     _imageCtrl.dispose();
     _unitCtrl.dispose();
+    _descriptionCtrl.dispose();
     super.dispose();
   }
 
@@ -871,8 +967,10 @@ class _ProductDialogState extends State<_ProductDialog> {
     });
 
     try {
-      final picked = await ImagePicker()
-          .pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
       if (picked == null) {
         setState(() => _uploading = false);
         return;
@@ -886,10 +984,10 @@ class _ProductDialogState extends State<_ProductDialog> {
       }
 
       final url = await context.read<AppState>().uploadProductImage(
-            path,
-            bytes: bytes,
-            fileName: picked.name,
-          );
+        path,
+        bytes: bytes,
+        fileName: picked.name,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -899,7 +997,8 @@ class _ProductDialogState extends State<_ProductDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _uploadError = 'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}';
+        _uploadError =
+            'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}';
         _uploading = false;
       });
     }
@@ -934,6 +1033,9 @@ class _ProductDialogState extends State<_ProductDialog> {
           cost: double.parse(_costCtrl.text.trim()),
           stock: int.parse(_stockCtrl.text.trim()),
           unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
+          rating: double.parse(_ratingCtrl.text.trim()),
+          description: _descriptionCtrl.text.trim(),
+          dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
         );
       } else {
@@ -944,6 +1046,9 @@ class _ProductDialogState extends State<_ProductDialog> {
           cost: double.parse(_costCtrl.text.trim()),
           stock: int.parse(_stockCtrl.text.trim()),
           unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
+          rating: double.parse(_ratingCtrl.text.trim()),
+          description: _descriptionCtrl.text.trim(),
+          dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
         );
       }
@@ -972,10 +1077,13 @@ class _ProductDialogState extends State<_ProductDialog> {
         }
 
         return AlertDialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28)),
+            borderRadius: BorderRadius.circular(28),
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -988,15 +1096,19 @@ class _ProductDialogState extends State<_ProductDialog> {
                   color: const Color(0xFFFFF0EB),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.inventory_2_rounded,
-                    color: Color(0xFFE8541A)),
+                child: const Icon(
+                  Icons.inventory_2_rounded,
+                  color: Color(0xFFE8541A),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _isEdit ? 'Edit product' : 'Add product',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w900, fontSize: 18),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             ],
@@ -1041,33 +1153,35 @@ class _ProductDialogState extends State<_ProductDialog> {
                             : null,
                         decoration: InputDecoration(
                           labelText: 'Category *',
-                          prefixIcon: const Icon(
-                              Icons.category_rounded),
+                          prefixIcon: const Icon(Icons.category_rounded),
                           filled: true,
                           fillColor: const Color(0xFFF8F8F8),
                           border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(
-                                color: Color(0xFFE8E8E8)),
+                              color: Color(0xFFE8E8E8),
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(
-                                color: Color(0xFFE8541A), width: 1.5),
+                              color: Color(0xFFE8541A),
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         items: cats
-                            .map((c) => DropdownMenuItem(
-                                value: c, child: Text(c)))
+                            .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)),
+                            )
                             .toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedCategory = v),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty)
-                                ? 'Category is required'
-                                : null,
+                        onChanged: (v) => setState(() => _selectedCategory = v),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Category is required'
+                            : null,
                       ),
                     ),
 
@@ -1112,6 +1226,30 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ],
                     ),
 
+                    // ── Rating ──────────────────────────────────────────
+                    const SizedBox(height: 12),
+                    _Field(
+                      controller: _ratingCtrl,
+                      label: 'Rating * (0 to 5)',
+                      icon: Icons.star_rounded,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) {
+                        if (v?.trim().isEmpty ?? true) {
+                          return 'Required';
+                        }
+                        final value = double.tryParse(v!.trim());
+                        if (value == null) {
+                          return 'Invalid number';
+                        }
+                        if (value < 0 || value > 5) {
+                          return 'Rating must be between 0 and 5';
+                        }
+                        return null;
+                      },
+                    ),
+
                     // ── Stock + Unit ────────────────────────────────────
                     Row(
                       children: [
@@ -1144,6 +1282,65 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ],
                     ),
 
+                    // ── Description ──────────────────────────────────
+                    _Field(
+                      controller: _descriptionCtrl,
+                      label: 'Description',
+                      icon: Icons.description_rounded,
+                      required: false,
+                      maxLines: 3,
+                    ),
+
+                    // ── Dashboard section ─────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: DropdownButtonFormField<String>(
+                        value: _dashboardSection,
+                        decoration: InputDecoration(
+                          labelText: 'Dashboard section *',
+                          prefixIcon: const Icon(Icons.view_agenda_rounded),
+                          filled: true,
+                          fillColor: const Color(0xFFF8F8F8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE8E8E8),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE8541A),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'fresh_picks',
+                            child: Text('Fresh picks'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'daily_essentials',
+                            child: Text('Daily essentials'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'popular_products',
+                            child: Text('Popular products'),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _dashboardSection = v);
+                        },
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Dashboard section is required'
+                            : null,
+                      ),
+                    ),
+
                     // ── Save error ──────────────────────────────────────
                     if (_saveError != null)
                       Container(
@@ -1153,14 +1350,16 @@ class _ProductDialogState extends State<_ProductDialog> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF1F2),
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: const Color(0xFFFFCDD2)),
+                          border: Border.all(color: const Color(0xFFFFCDD2)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.error_outline_rounded,
-                                color: Color(0xFFDC2626), size: 18),
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Color(0xFFDC2626),
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -1182,17 +1381,19 @@ class _ProductDialogState extends State<_ProductDialog> {
           ),
           actions: [
             TextButton(
-              onPressed:
-                  _saving ? null : () => Navigator.pop(context, false),
+              onPressed: _saving ? null : () => Navigator.pop(context, false),
               child: const Text('Cancel'),
             ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFE8541A),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
               onPressed: _saving ? null : _save,
               icon: _saving
@@ -1200,7 +1401,9 @@ class _ProductDialogState extends State<_ProductDialog> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.check_rounded, size: 18),
               label: Text(
@@ -1234,8 +1437,8 @@ class _ImageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = imageUrl.startsWith('http') ||
-        imageUrl.startsWith('assets/');
+    final hasImage =
+        imageUrl.startsWith('http') || imageUrl.startsWith('assets/');
 
     return Container(
       decoration: BoxDecoration(
@@ -1248,8 +1451,7 @@ class _ImageSection extends StatelessWidget {
         children: [
           // Preview
           ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(17)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
             child: SizedBox(
               height: 170,
               width: double.infinity,
@@ -1257,13 +1459,10 @@ class _ImageSection extends StatelessWidget {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) =>
-                          progress == null
-                              ? child
-                              : const Center(
-                                  child: CircularProgressIndicator()),
-                      errorBuilder: (_, __, ___) =>
-                          const _ImagePlaceholder(),
+                      loadingBuilder: (_, child, progress) => progress == null
+                          ? child
+                          : const Center(child: CircularProgressIndicator()),
+                      errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
                     )
                   : const _ImagePlaceholder(),
             ),
@@ -1284,8 +1483,9 @@ class _ImageSection extends StatelessWidget {
                           const Text(
                             'Product image',
                             style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -1309,9 +1509,12 @@ class _ImageSection extends StatelessWidget {
                             ? const Color(0xFFCCCCCC)
                             : const Color(0xFFE8541A),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
                       onPressed: uploading ? null : onPickImage,
                       icon: uploading
@@ -1319,14 +1522,17 @@ class _ImageSection extends StatelessWidget {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.upload_rounded, size: 18),
                       label: Text(
                         uploading ? 'Uploading…' : 'Upload',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 13),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -1338,8 +1544,11 @@ class _ImageSection extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded,
-                            color: Color(0xFFB45309), size: 14),
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFB45309),
+                          size: 14,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -1374,13 +1583,19 @@ class _ImagePlaceholder extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_photo_alternate_rounded,
-                size: 48, color: Color(0xFFCCCCCC)),
+            Icon(
+              Icons.add_photo_alternate_rounded,
+              size: 48,
+              color: Color(0xFFCCCCCC),
+            ),
             SizedBox(height: 8),
-            Text('No image',
-                style: TextStyle(
-                    color: Color(0xFFAAAAAA),
-                    fontWeight: FontWeight.w600)),
+            Text(
+              'No image',
+              style: TextStyle(
+                color: Color(0xFFAAAAAA),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -1398,6 +1613,7 @@ class _Field extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.required = true,
+    this.maxLines = 1,
   });
 
   final TextEditingController controller;
@@ -1406,6 +1622,7 @@ class _Field extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final bool required;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -1414,28 +1631,28 @@ class _Field extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
           filled: true,
           fillColor: const Color(0xFFF8F8F8),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(
-                color: Color(0xFFE8541A), width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFDC2626)),
           ),
         ),
-        validator: validator ??
+        validator:
+            validator ??
             (v) {
               if (!required) return null;
               return (v?.trim().isEmpty ?? true) ? '$label is required' : null;
@@ -1462,25 +1679,34 @@ class _EmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.inventory_2_rounded,
-              size: 56, color: Color(0xFFEEEEEE)),
+          const Icon(
+            Icons.inventory_2_rounded,
+            size: 56,
+            color: Color(0xFFEEEEEE),
+          ),
           const SizedBox(height: 12),
-          const Text('No products yet',
-              style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  color: Color(0xFF888888))),
+          const Text(
+            'No products yet',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+              color: Color(0xFF888888),
+            ),
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFE8541A),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: onAdd,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add first product',
-                style: TextStyle(fontWeight: FontWeight.w800)),
+            label: const Text(
+              'Add first product',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
         ],
       ),
@@ -1502,13 +1728,15 @@ class _NothingFound extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(Icons.search_off_rounded,
-              color: Color(0xFFCCCCCC), size: 32),
+          Icon(Icons.search_off_rounded, color: Color(0xFFCCCCCC), size: 32),
           SizedBox(width: 14),
-          Text('No products match your search',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF888888))),
+          Text(
+            'No products match your search',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF888888),
+            ),
+          ),
         ],
       ),
     );
@@ -1530,14 +1758,16 @@ class _ErrorCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFDC2626)),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(message,
-                style: const TextStyle(
-                    color: Color(0xFFDC2626),
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFDC2626),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),

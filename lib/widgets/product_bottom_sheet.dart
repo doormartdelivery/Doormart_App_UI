@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
 
+const _kOrange = Color(0xFFE8541A);
+const _kOrangeLight = Color(0xFFFFF0EB);
+
 Future<void> showProductBottomSheet(
   BuildContext context,
   ProductModel product, {
@@ -58,6 +61,10 @@ Future<void> showProductBottomSheet(
                             Align(
                               alignment: Alignment.topRight,
                               child: IconButton.filledTonal(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _kOrangeLight,
+                                  foregroundColor: _kOrange,
+                                ),
                                 onPressed: () => Navigator.pop(context),
                                 icon: const Icon(Icons.close),
                               ),
@@ -161,6 +168,10 @@ class _QuantityAddToCartBarState extends State<_QuantityAddToCartBar> {
       child: Row(
         children: [
           IconButton.filledTonal(
+            style: IconButton.styleFrom(
+              backgroundColor: _kOrange,
+              foregroundColor: Colors.white,
+            ),
             onPressed: _decrement,
             icon: const Icon(Icons.remove),
           ),
@@ -175,22 +186,47 @@ class _QuantityAddToCartBarState extends State<_QuantityAddToCartBar> {
           ),
           const SizedBox(width: 8),
           IconButton.filledTonal(
+            style: IconButton.styleFrom(
+              backgroundColor: _kOrange,
+              foregroundColor: Colors.white,
+            ),
             onPressed: _increment,
             icon: const Icon(Icons.add),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: ElevatedButton(
-              onPressed: () => widget.onAddToCart(_quantity),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF14532D),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kOrange.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () => widget.onAddToCart(_quantity),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.shopping_cart_outlined, size: 18),
+                    SizedBox(width: 6),
+                    Text('Add to Cart'),
+                  ],
                 ),
               ),
-              child: const Text('Add to Cart'),
             ),
           ),
         ],

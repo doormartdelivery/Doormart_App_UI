@@ -196,10 +196,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             final summary = snapshot.data ?? state.checkoutSummary;
                             final subtotal = (summary?['subtotal'] as num?)?.toDouble() ?? state.subtotal;
                             final deliveryFee = (summary?['deliveryFee'] as num?)?.toDouble() ?? state.deliveryFee;
+                            final gstAmount = (summary?['gstAmount'] as num?)?.toDouble() ?? state.gstAmount;
                             final total = (summary?['total'] as num?)?.toDouble() ?? state.total;
                             return _SummaryCard(
                               subtotal: subtotal,
                               deliveryFee: deliveryFee,
+                              gstAmount: gstAmount,
                               total: total,
                               loading: snapshot.connectionState == ConnectionState.waiting && summary == null,
                             );
@@ -214,7 +216,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                         // COD button
                         _ActionButton(
-                          label: 'Place COD Order',
+                          label: 'Place Cash On Delivery Order',
                           icon: Icons.money_rounded,
                           loading: _processingCod,
                           enabled: canOrder,
@@ -432,12 +434,14 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.subtotal,
     required this.deliveryFee,
+    required this.gstAmount,
     required this.total,
     this.loading = false,
   });
 
   final double subtotal;
   final double deliveryFee;
+  final double gstAmount;
   final double total;
   final bool loading;
 
@@ -465,6 +469,8 @@ class _SummaryCard extends StatelessWidget {
           _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
           _SummaryRow(label: 'Delivery fee', value: deliveryFee),
+          const SizedBox(height: 10),
+          _SummaryRow(label: 'GST', value: gstAmount),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(

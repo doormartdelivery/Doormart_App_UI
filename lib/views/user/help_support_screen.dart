@@ -9,6 +9,9 @@ import '../../providers/app_state.dart';
 import '../../models/order_model.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../user/my_orders_screen.dart';
+import '../admin/admin_login_screen.dart';
+import '../delivery/delivery_login_screen.dart';
+import '../super_admin/super_admin_login_screen.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -57,24 +60,25 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Future<void> _callSupport() => _launch(Uri.parse('tel:+919999999999'));
 
   Future<void> _whatsappSupport() => _launch(
-        Uri.parse(
-          'https://wa.me/919999999999?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
-        ),
-      );
+    Uri.parse(
+      'https://wa.me/919999999999?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
+    ),
+  );
 
   Future<void> _emailSupport() => _launch(
-        Uri(
-          scheme: 'mailto',
-          path: 'support@doormart.com',
-          queryParameters: {
-            'subject': 'Doormart Support',
-            'body': 'Hello Doormart support team,\n\nI need help with...',
-          },
-        ),
-      );
+    Uri(
+      scheme: 'mailto',
+      path: 'support@doormart.com',
+      queryParameters: {
+        'subject': 'Doormart Support',
+        'body': 'Hello Doormart support team,\n\nI need help with...',
+      },
+    ),
+  );
 
   Future<void> _submitTicket() async {
-    if (_subjectCtrl.text.trim().isEmpty || _descriptionCtrl.text.trim().isEmpty) {
+    if (_subjectCtrl.text.trim().isEmpty ||
+        _descriptionCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Subject and description are required')),
       );
@@ -83,20 +87,20 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     setState(() => _submittingTicket = true);
     try {
       await context.read<AppState>().createSupportTicket(
-            subject: _subjectCtrl.text.trim(),
-            issueType: _issueType,
-            description: _descriptionCtrl.text.trim(),
-            orderId: _orderId ?? '',
-            imageUrl: _imageUrl ?? '',
-          );
+        subject: _subjectCtrl.text.trim(),
+        issueType: _issueType,
+        description: _descriptionCtrl.text.trim(),
+        orderId: _orderId ?? '',
+        imageUrl: _imageUrl ?? '',
+      );
       _subjectCtrl.clear();
       _descriptionCtrl.clear();
       _imageUrl = null;
       _imageName = null;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Support ticket submitted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Support ticket submitted')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +112,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 
   Future<void> _pickAndUploadImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() {
       _uploadingImage = true;
@@ -140,9 +147,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
     } finally {
       if (mounted) setState(() => _uploadingImage = false);
     }
@@ -154,7 +161,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     final tickets = state.supportTickets;
     final orders = state.orders;
     final filteredTickets = tickets.where((ticket) {
-      final text = '${ticket['subject'] ?? ''} ${ticket['description'] ?? ''}'.toLowerCase();
+      final text = '${ticket['subject'] ?? ''} ${ticket['description'] ?? ''}'
+          .toLowerCase();
       return text.contains(_searchCtrl.text.toLowerCase());
     }).toList();
 
@@ -168,13 +176,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            _TopBar(
-              onBack: () => Navigator.maybePop(context),
-            ),
+            _TopBar(onBack: () => Navigator.maybePop(context)),
             const SizedBox(height: 16),
             const _HeroCard(),
             const SizedBox(height: 16),
-            _SearchBar(controller: _searchCtrl, onChanged: () => setState(() {})),
+            _SearchBar(
+              controller: _searchCtrl,
+              onChanged: () => setState(() {}),
+            ),
             const SizedBox(height: 16),
             const _SectionTitle('Quick Help Categories'),
             const SizedBox(height: 10),
@@ -240,6 +249,50 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const _SectionTitle('Legal'),
             const SizedBox(height: 10),
             const _LegalList(),
+            const SizedBox(height: 18),
+            const _SectionTitle('Team Access'),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.05,
+              children: [
+                _TeamAccessTile(
+                  label: 'Delivery Person',
+                  subtitle: 'Partner login',
+                  icon: Icons.delivery_dining_rounded,
+                  accent: const Color(0xFFE8541A),
+                  background: const Color(0xFFFFF6F1),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    DeliveryLoginScreen.routeName,
+                  ),
+                ),
+                _TeamAccessTile(
+                  label: 'Admin',
+                  subtitle: 'Management login',
+                  icon: Icons.admin_panel_settings_rounded,
+                  accent: const Color(0xFF2563EB),
+                  background: const Color(0xFFF3F7FF),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AdminLoginScreen.routeName),
+                ),
+                _TeamAccessTile(
+                  label: 'Super Admin',
+                  subtitle: 'Owner access',
+                  icon: Icons.workspace_premium_rounded,
+                  accent: const Color(0xFF7C3AED),
+                  background: const Color(0xFFF7F3FF),
+                  onTap: () => Navigator.pushNamed(
+                    context,
+                    SuperAdminLoginScreen.routeName,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -329,7 +382,11 @@ class _HeroCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 32),
+            child: const Icon(
+              Icons.support_agent_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -338,7 +395,11 @@ class _HeroCard extends StatelessWidget {
               children: [
                 Text(
                   'How can we help?',
-                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 SizedBox(height: 5),
                 Text(
@@ -368,7 +429,10 @@ class _SearchBar extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
@@ -379,9 +443,13 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   @override
   Widget build(BuildContext context) => Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-      );
+    title,
+    style: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w900,
+      color: Color(0xFF1A1A1A),
+    ),
+  );
 }
 
 class _CategoryGrid extends StatelessWidget {
@@ -421,7 +489,10 @@ class _CategoryGrid extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(c.$1, style: const TextStyle(fontWeight: FontWeight.w800)),
+                child: Text(
+                  c.$1,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ],
           ),
@@ -453,11 +524,7 @@ class _FaqSection extends StatelessWidget {
         'Wrong item delivered',
         'Damaged product',
       ],
-      'Account': [
-        'Change password',
-        'Update mobile number',
-        'Delete account',
-      ],
+      'Account': ['Change password', 'Update mobile number', 'Delete account'],
     };
     return Column(
       children: faqs.entries.map((entry) {
@@ -469,19 +536,28 @@ class _FaqSection extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE3E8DF)),
           ),
           child: ExpansionTile(
-            title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w800)),
+            title: Text(
+              entry.key,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             children: entry.value
-                .map((q) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.fiber_manual_record, size: 8, color: Color(0xFFE8541A)),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(q)),
-                        ],
-                      ),
-                    ))
+                .map(
+                  (q) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.fiber_manual_record,
+                          size: 8,
+                          color: Color(0xFFE8541A),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(q)),
+                      ],
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         );
@@ -491,7 +567,12 @@ class _FaqSection extends StatelessWidget {
 }
 
 class _ContactCard extends StatelessWidget {
-  const _ContactCard({required this.title, required this.subtitle, required this.icon, required this.onTap});
+  const _ContactCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
   final String title;
   final String subtitle;
   final IconData icon;
@@ -589,9 +670,14 @@ class _TicketForm extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE8541A),
+                  width: 1.8,
+                ),
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               filled: true,
               fillColor: const Color(0xFFFFF7F3),
             ),
@@ -615,9 +701,14 @@ class _TicketForm extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE8541A),
+                  width: 1.8,
+                ),
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               filled: true,
               fillColor: const Color(0xFFFFF7F3),
             ),
@@ -637,7 +728,7 @@ class _TicketForm extends StatelessWidget {
                 ),
               ),
             ],
-              onChanged: onOrderChanged,
+            onChanged: onOrderChanged,
             decoration: InputDecoration(
               labelText: 'Order Selection (Optional)',
               labelStyle: const TextStyle(color: Color(0xFFE8541A)),
@@ -648,9 +739,14 @@ class _TicketForm extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE8541A),
+                  width: 1.8,
+                ),
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               filled: true,
               fillColor: const Color(0xFFFFF7F3),
             ),
@@ -670,9 +766,14 @@ class _TicketForm extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE8541A), width: 1.8),
+                borderSide: const BorderSide(
+                  color: Color(0xFFE8541A),
+                  width: 1.8,
+                ),
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               filled: true,
               fillColor: const Color(0xFFFFF7F3),
             ),
@@ -741,7 +842,9 @@ class _TicketForm extends StatelessWidget {
                   return const Color(0xFFE8541A).withValues(alpha: 0.12);
                 }),
                 shape: MaterialStatePropertyAll(
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
               onPressed: submitting ? null : onSubmit,
@@ -749,9 +852,15 @@ class _TicketForm extends StatelessWidget {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2, valueColor: AlwaysStoppedAnimation(Colors.white)),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
                     )
-                  : const Text('Submit Ticket', style: TextStyle(fontWeight: FontWeight.w800)),
+                  : const Text(
+                      'Submit Ticket',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
             ),
           ),
         ],
@@ -766,7 +875,8 @@ class _TicketTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (ticket['status'] as String? ?? 'open').replaceAll('_', ' ');
-    final statusColor = switch ((ticket['status'] as String? ?? 'open').toLowerCase()) {
+    final statusColor = switch ((ticket['status'] as String? ?? 'open')
+        .toLowerCase()) {
       'in_progress' => Colors.blue,
       'resolved' => Colors.green,
       'closed' => Colors.grey,
@@ -786,14 +896,23 @@ class _TicketTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(ticket['ticketNumber']?.toString() ?? 'TKT-00000', style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  ticket['ticketNumber']?.toString() ?? 'TKT-00000',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 4),
-                Text(ticket['subject']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  ticket['subject']?.toString() ?? '',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 4),
-        Text(
-          _formatTicketDate(ticket['createdAt']?.toString()),
-          style: const TextStyle(color: Color(0xFF667064), fontSize: 12),
-        ),
+                Text(
+                  _formatTicketDate(ticket['createdAt']?.toString()),
+                  style: const TextStyle(
+                    color: Color(0xFF667064),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -803,7 +922,14 @@ class _TicketTile extends StatelessWidget {
               color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.w800, fontSize: 11)),
+            child: Text(
+              status.toUpperCase(),
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
           ),
         ],
       ),
@@ -821,35 +947,35 @@ class _LegalList extends StatelessWidget {
         [
           'We collect only the data needed to process orders and support requests.',
           'Your data is protected and never shared without a valid business reason.',
-        ]
+        ],
       ),
       (
         'Terms & Conditions',
         [
           'Using the app means you agree to DoorMart service terms and order policies.',
           'Orders, refunds, and cancellations follow the app rules and local laws.',
-        ]
+        ],
       ),
       (
         'Refund Policy',
         [
           'Refunds are processed for eligible orders after verification.',
           'The amount is returned to the original payment method when applicable.',
-        ]
+        ],
       ),
       (
         'Cancellation Policy',
         [
           'Orders can be cancelled before they are packed or assigned for delivery.',
           'Some orders may not be cancellable after the preparation stage starts.',
-        ]
+        ],
       ),
       (
         'About DoorMart',
         [
           'DoorMart delivers groceries, daily essentials, and household items quickly.',
           'We focus on speed, freshness, and reliable customer support.',
-        ]
+        ],
       ),
     ];
     return Column(
@@ -863,7 +989,10 @@ class _LegalList extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFE3E8DF)),
               ),
               child: ExpansionTile(
-                title: Text(item.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
+                title: Text(
+                  item.$1,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: item.$2
                     .map(
@@ -872,7 +1001,11 @@ class _LegalList extends StatelessWidget {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.fiber_manual_record, size: 8, color: Color(0xFFE8541A)),
+                            const Icon(
+                              Icons.fiber_manual_record,
+                              size: 8,
+                              color: Color(0xFFE8541A),
+                            ),
                             const SizedBox(width: 10),
                             Expanded(child: Text(line)),
                           ],
@@ -888,8 +1021,131 @@ class _LegalList extends StatelessWidget {
   }
 }
 
+class _TeamAccessTile extends StatelessWidget {
+  const _TeamAccessTile({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.background,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.28),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: accent.withValues(alpha: 0.18)),
+                ),
+                child: Icon(icon, color: accent, size: 26),
+              ),
+              const Spacer(),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: const Color(0xFF1A1A1A),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11.5,
+                  color: accent.withValues(alpha: 0.85),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TeamAccessButton extends StatelessWidget {
+  const _TeamAccessButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFE8541A),
+            side: const BorderSide(color: Color(0xFFFFC9B4)),
+            backgroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.title, required this.subtitle});
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
   final IconData icon;
   final String title;
   final String subtitle;
@@ -897,11 +1153,11 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFE3E8DF)),
-        ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE3E8DF)),
+      ),
       child: Column(
         children: [
           Icon(icon, size: 42, color: const Color(0xFF667064)),

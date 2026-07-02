@@ -4,7 +4,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../providers/app_state.dart';
 import 'login_screen.dart';
-import '../delivery/delivery_home_screen.dart';
+import '../../features/delivery/screens/delivery_home_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
 import 'user_home_screen.dart';
@@ -20,6 +20,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   late final VideoPlayerController _controller;
   late final Future<void> _videoInitFuture;
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -42,7 +43,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final state = context.watch<AppState>();
-    if (!state.initialized) return;
+    if (_navigated || !state.initialized) return;
+    _navigated = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final target = switch (state.user?.role) {

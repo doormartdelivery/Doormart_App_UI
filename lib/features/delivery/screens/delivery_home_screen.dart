@@ -36,11 +36,13 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<DeliveryProvider>();
       final appState = context.read<AppState>();
+      await provider.bootstrap();
       if (appState.token != null && appState.user != null) {
         provider.hydrateFromSession(
           token: appState.token!,
           user: appState.user!,
         );
+        await provider.syncOnlineState();
       }
       await provider.loadDashboard();
     });
@@ -118,8 +120,11 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                   color: _kBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.notifications_none_rounded,
-                    color: _kTextDark, size: 22),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: _kTextDark,
+                  size: 22,
+                ),
               ),
               Positioned(
                 top: 6,
@@ -168,32 +173,32 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           else if (!statsLoaded)
             const _MetricsSkeleton()
           else
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.delivery_dining_rounded,
-                  iconBg: const Color(0xFFFFF0EB),
-                  iconColor: _kOrange,
-                  label: 'ORDERS COMPLETED',
-                  value: completed == null ? '0' : '$completed',
-                  tag: _range.label,
+            Row(
+              children: [
+                Expanded(
+                  child: _MetricCard(
+                    icon: Icons.delivery_dining_rounded,
+                    iconBg: const Color(0xFFFFF0EB),
+                    iconColor: _kOrange,
+                    label: 'ORDERS COMPLETED',
+                    value: completed == null ? '0' : '$completed',
+                    tag: _range.label,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.account_balance_wallet_rounded,
-                  iconBg: const Color(0xFFEEF2FF),
-                  iconColor: const Color(0xFF6366F1),
-                  label: 'EARNINGS EARNED',
-                  value: '₹${(earnings ?? 0).toStringAsFixed(2)}',
-                  tag: _range.label,
-                  largeValue: true,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _MetricCard(
+                    icon: Icons.account_balance_wallet_rounded,
+                    iconBg: const Color(0xFFEEF2FF),
+                    iconColor: const Color(0xFF6366F1),
+                    label: 'EARNINGS EARNED',
+                    value: '₹${(earnings ?? 0).toStringAsFixed(2)}',
+                    tag: _range.label,
+                    largeValue: true,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
           const SizedBox(height: 24),
 
@@ -213,7 +218,9 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                 if (provider.pendingRequests.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _kOrangeLight,
                       borderRadius: BorderRadius.circular(999),
@@ -303,8 +310,9 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
-                  onTap: () => Navigator.of(context)
-                      .pushNamed(ActiveOrderScreen.routeName),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pushNamed(ActiveOrderScreen.routeName),
                   child: _ActiveOrderCard(order: provider.activeOrder!),
                 ),
               ],
@@ -324,19 +332,15 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
         onTap: (i) {
           setState(() => _navIndex = i);
           if (i == 1) {
-            Navigator.of(context)
-                .pushNamed(DeliveryHistoryScreen.routeName);
+            Navigator.of(context).pushNamed(DeliveryHistoryScreen.routeName);
           }
           if (i == 2) {
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const DeliveryEarningsScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
             );
           }
           if (i == 3) {
-            Navigator.of(context)
-                .pushNamed(DeliveryProfileScreen.routeName);
+            Navigator.of(context).pushNamed(DeliveryProfileScreen.routeName);
           }
         },
       ),
@@ -397,9 +401,11 @@ class _ProfileCard extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: imageUrl.startsWith('http')
-                      ? Image.network(imageUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const _AvatarFallback())
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const _AvatarFallback(),
+                        )
                       : const _AvatarFallback(),
                 ),
               ),
@@ -480,8 +486,7 @@ class _ProfileCard extends StatelessWidget {
                         value: online,
                         onChanged: onToggle,
                         activeColor: _kOrange,
-                        activeTrackColor:
-                            _kOrange.withValues(alpha: 0.25),
+                        activeTrackColor: _kOrange.withValues(alpha: 0.25),
                       ),
                     ),
                   ],
@@ -616,7 +621,9 @@ class _MetricRangeToggle extends StatelessWidget {
             ),
             selectedColor: _kOrange,
             backgroundColor: Colors.white,
-            side: BorderSide(color: selected ? _kOrange : const Color(0xFFE5E7EB)),
+            side: BorderSide(
+              color: selected ? _kOrange : const Color(0xFFE5E7EB),
+            ),
           ),
         );
       }).toList(),
@@ -690,17 +697,20 @@ enum _MetricRange { today, weekly, monthly }
 
 extension on _MetricRange {
   String get label => switch (this) {
-        _MetricRange.today => 'Today',
-        _MetricRange.weekly => 'Weekly',
-        _MetricRange.monthly => 'Monthly',
-      };
+    _MetricRange.today => 'Today',
+    _MetricRange.weekly => 'Weekly',
+    _MetricRange.monthly => 'Monthly',
+  };
 }
 
 int? _completedOrdersForRange(Map<String, dynamic> stats, _MetricRange range) {
   final value = switch (range) {
-    _MetricRange.today => stats['todayCompletedOrders'] ?? stats['completedOrders'],
-    _MetricRange.weekly => stats['weeklyCompletedOrders'] ?? stats['completedOrders'],
-    _MetricRange.monthly => stats['monthlyCompletedOrders'] ?? stats['completedOrders'],
+    _MetricRange.today =>
+      stats['todayCompletedOrders'] ?? stats['completedOrders'],
+    _MetricRange.weekly =>
+      stats['weeklyCompletedOrders'] ?? stats['completedOrders'],
+    _MetricRange.monthly =>
+      stats['monthlyCompletedOrders'] ?? stats['completedOrders'],
   };
   return (value as num?)?.toInt();
 }
@@ -713,7 +723,6 @@ double? _earningsForRange(Map<String, dynamic> stats, _MetricRange range) {
   };
   return (value as num?)?.toDouble();
 }
-
 
 // ─── New Request Card ─────────────────────────────────────────────────────────
 
@@ -733,7 +742,6 @@ class _NewRequestCard extends StatefulWidget {
 }
 
 class _NewRequestCardState extends State<_NewRequestCard> {
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -753,17 +761,20 @@ class _NewRequestCardState extends State<_NewRequestCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header: restaurant + timer ───────────────────────────────
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: _kOrangeLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.storefront_rounded,
-                    color: _kOrange, size: 24),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: _kOrange,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -784,34 +795,46 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     ),
                   ],
                 ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => _showItemsSheet(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: _kOrange,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _showItemsSheet(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: _kOrange,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
-                  child: const Text(
-                    'View Items',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              ],
-            ),
+                child: const Text(
+                  'View Items',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
-            _detailLine('Phone', _text(widget.order.customerPhone, fallback: '—')),
-            _detailLine('Address', _text(widget.order.customerAddress, fallback: '—')),
-            _detailLine('Order Amount', '₹${_amount(widget.order).toStringAsFixed(2)}'),
-            _detailLine('Payment', _text(widget.order.paymentType, fallback: 'Online')),
+          _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
+          _detailLine(
+            'Phone',
+            _text(widget.order.customerPhone, fallback: '—'),
+          ),
+          _detailLine(
+            'Address',
+            _text(widget.order.customerAddress, fallback: '—'),
+          ),
+          _detailLine(
+            'Order Amount',
+            '₹${_amount(widget.order).toStringAsFixed(2)}',
+          ),
+          _detailLine(
+            'Payment',
+            _text(widget.order.paymentType, fallback: 'Online'),
+          ),
 
           // ── Pickup ────────────────────────────────────────────────────
           const SizedBox(height: 12),
@@ -824,7 +847,9 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                 onTap: widget.onAccept,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFFF26522), Color(0xFFE8401A)],
@@ -853,7 +878,6 @@ class _NewRequestCardState extends State<_NewRequestCard> {
               ),
             ],
           ),
-
         ],
       ),
     );
@@ -894,18 +918,39 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   Text(
                     'Order Details',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: _kTextDark,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  _detailLine('Customer', _text(widget.order.customerName, fallback: '—')),
-                  _detailLine('Phone', _text(widget.order.customerPhone, fallback: '—')),
-                  _detailLine('Address', _text(widget.order.customerAddress, fallback: '—')),
-                  _detailLine('Area', _text(widget.order.customerArea, fallback: '—')),
-                  _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
-                  _detailLine('Order Amount', '₹${_amount(widget.order).toStringAsFixed(2)}'),
-                  _detailLine('Payment', _text(widget.order.paymentType, fallback: 'Online')),
+                  _detailLine(
+                    'Customer',
+                    _text(widget.order.customerName, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Phone',
+                    _text(widget.order.customerPhone, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Address',
+                    _text(widget.order.customerAddress, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Area',
+                    _text(widget.order.customerArea, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Placed',
+                    _formatDate(_orderCreatedAt(widget.order)),
+                  ),
+                  _detailLine(
+                    'Order Amount',
+                    '₹${_amount(widget.order).toStringAsFixed(2)}',
+                  ),
+                  _detailLine(
+                    'Payment',
+                    _text(widget.order.paymentType, fallback: 'Online'),
+                  ),
                   const SizedBox(height: 18),
                   const Text(
                     'Ordered Items',
@@ -1015,7 +1060,8 @@ class _RequestItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = _text(_value(item, 'name'), fallback: 'Item');
     final qty = (_value(item, 'quantity') as num?)?.toInt() ?? 1;
-    final price = (_value(item, 'unitPrice') as num?)?.toDouble() ??
+    final price =
+        (_value(item, 'unitPrice') as num?)?.toDouble() ??
         (_value(item, 'price') as num?)?.toDouble() ??
         0.0;
     final imageUrl = _text(_value(item, 'imageUrl'));
@@ -1045,10 +1091,7 @@ class _RequestItemRow extends StatelessWidget {
                         color: _kOrange,
                       ),
                     )
-                  : const Icon(
-                      Icons.shopping_bag_outlined,
-                      color: _kOrange,
-                    ),
+                  : const Icon(Icons.shopping_bag_outlined, color: _kOrange),
             ),
           ),
           const SizedBox(width: 10),
@@ -1069,10 +1112,7 @@ class _RequestItemRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Qty: $qty • ₹${price.toStringAsFixed(2)} each',
-                  style: const TextStyle(
-                    color: _kTextMid,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: _kTextMid, fontSize: 11),
                 ),
               ],
             ),
@@ -1175,10 +1215,7 @@ class _RouteRow extends StatelessWidget {
                 if (line2.isNotEmpty)
                   TextSpan(
                     text: '\n$line2',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kTextMid,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: _kTextMid),
                   ),
               ],
             ),
@@ -1218,8 +1255,10 @@ class _ActiveOrderCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _kOrangeLight,
                     borderRadius: BorderRadius.circular(999),
@@ -1241,8 +1280,11 @@ class _ActiveOrderCard extends StatelessWidget {
                     color: _kOrangeLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.delivery_dining_rounded,
-                      color: _kOrange, size: 18),
+                  child: const Icon(
+                    Icons.delivery_dining_rounded,
+                    color: _kOrange,
+                    size: 18,
+                  ),
                 ),
               ],
             ),
@@ -1257,10 +1299,22 @@ class _ActiveOrderCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _detailRow('Customer phone', _text(order.customerPhone, fallback: '—')),
-            _detailRow('Customer address', _text(order.customerAddress, fallback: '—')),
-            _detailRow('Customer area', _text(order.customerArea, fallback: '—')),
-            _detailRow('Payment method', _text(order.paymentType, fallback: '—')),
+            _detailRow(
+              'Customer phone',
+              _text(order.customerPhone, fallback: '—'),
+            ),
+            _detailRow(
+              'Customer address',
+              _text(order.customerAddress, fallback: '—'),
+            ),
+            _detailRow(
+              'Customer area',
+              _text(order.customerArea, fallback: '—'),
+            ),
+            _detailRow(
+              'Payment method',
+              _text(order.paymentType, fallback: '—'),
+            ),
             _detailRow(
               'Total amount',
               '₹${_amount(order).toStringAsFixed(2)}',
@@ -1324,8 +1378,9 @@ class _ActiveOrderStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -1492,10 +1547,10 @@ class _SpringButtonState extends State<_SpringButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.93).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.93,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {

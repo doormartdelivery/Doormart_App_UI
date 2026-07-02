@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/gestures.dart';
 
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
@@ -30,8 +31,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   // ── Tab ──────────────────────────────────────────────────────────────────
-  late final TabController _tabCtrl =
-      TabController(length: 2, vsync: this);
+  late final TabController _tabCtrl = TabController(length: 2, vsync: this);
 
   // ── Form keys ─────────────────────────────────────────────────────────────
   final _loginFormKey = GlobalKey<FormState>();
@@ -62,8 +62,10 @@ class _LoginScreenState extends State<LoginScreen>
     duration: const Duration(milliseconds: 600),
   )..forward();
 
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _entryCtrl,
+    curve: Curves.easeOut,
+  );
 
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.06),
@@ -91,9 +93,10 @@ class _LoginScreenState extends State<LoginScreen>
     if (pwd.length >= 6) s++;
     if (pwd.length >= 10 &&
         RegExp(r'[A-Z]').hasMatch(pwd) &&
-        RegExp(r'[0-9]').hasMatch(pwd)) s++;
-    if (pwd.length >= 8 &&
-        RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pwd)) s++;
+        RegExp(r'[0-9]').hasMatch(pwd))
+      s++;
+    if (pwd.length >= 8 && RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pwd))
+      s++;
     return s.clamp(0, 3);
   }
 
@@ -111,24 +114,36 @@ class _LoginScreenState extends State<LoginScreen>
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        UserHomeScreen.routeName,
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _continueAsGuest() async {
+    if (_loading) return;
+    setState(() => _error = null);
+    HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
   }
 
   Future<void> _signUp() async {
     setState(() => _error = null);
     if (!_signupFormKey.currentState!.validate()) return;
     if (!_agreed) {
-      setState(() =>
-          _error = 'Please agree to the Terms of Service and Privacy Policy');
+      setState(
+        () =>
+            _error = 'Please agree to the Terms of Service and Privacy Policy',
+      );
       return;
     }
     setState(() => _loading = true);
@@ -145,10 +160,9 @@ class _LoginScreenState extends State<LoginScreen>
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        UserHomeScreen.routeName,
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -189,6 +203,7 @@ class _LoginScreenState extends State<LoginScreen>
                         loading: _loading,
                         error: _error,
                         onLogin: _login,
+                        onGuest: _continueAsGuest,
                         onGoRegister: () => _tabCtrl.animateTo(1),
                       ),
 
@@ -294,9 +309,10 @@ class _HeroHeader extends StatelessWidget {
                             borderRadius: BorderRadius.circular(11),
                           ),
                           child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 16),
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
                       ),
                       const Spacer(),
@@ -308,8 +324,11 @@ class _HeroHeader extends StatelessWidget {
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: const Icon(Icons.storefront_rounded,
-                            color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.storefront_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -337,7 +356,7 @@ class _HeroHeader extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // Tab bar — sits at bottom of header
                 Padding(
@@ -366,9 +385,13 @@ class _HeroHeader extends StatelessWidget {
                       labelColor: _kOrange,
                       unselectedLabelColor: Colors.white,
                       labelStyle: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 14),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
                       unselectedLabelStyle: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                       tabs: const [
                         Tab(text: 'Log In'),
                         Tab(text: 'Sign Up'),
@@ -377,7 +400,7 @@ class _HeroHeader extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 0),
+                const SizedBox(height: 8),
 
                 // White curve at bottom of header
                 Container(
@@ -410,6 +433,7 @@ class _LoginTab extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.onLogin,
+    required this.onGuest,
     required this.onGoRegister,
   });
 
@@ -421,13 +445,14 @@ class _LoginTab extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onLogin;
+  final VoidCallback onGuest;
   final VoidCallback onGoRegister;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       child: Form(
         key: formKey,
         child: Column(
@@ -440,7 +465,7 @@ class _LoginTab extends StatelessWidget {
               subtitle: 'Login to order fresh groceries',
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             _FieldLabel('Email address'),
             const SizedBox(height: 8),
@@ -467,8 +492,7 @@ class _LoginTab extends StatelessWidget {
               hint: 'Enter your password',
               icon: Icons.lock_rounded,
               obscure: obscure,
-              suffix: _EyeToggle(
-                  obscure: obscure, onToggle: onToggleObscure),
+              suffix: _EyeToggle(obscure: obscure, onToggle: onToggleObscure),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Enter your password' : null,
             ),
@@ -484,9 +508,10 @@ class _LoginTab extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('Forgot password?',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13)),
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
               ),
             ),
 
@@ -504,32 +529,9 @@ class _LoginTab extends StatelessWidget {
               onTap: onLogin,
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            const _OrDivider(),
-
-            const SizedBox(height: 20),
-
-            // Social buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _SocialBtn(
-                    icon: Icons.g_mobiledata_rounded,
-                    label: 'Google',
-                    onTap: () {},
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SocialBtn(
-                    icon: Icons.apple_rounded,
-                    label: 'Apple',
-                    onTap: () {},
-                  ),
-                ),
-              ],
-            ),
+            _GuestBtn(loading: loading, onTap: onGuest),
 
             const SizedBox(height: 24),
 
@@ -637,8 +639,9 @@ class _SignupTab extends StatelessWidget {
                 if (v == null || v.trim().isEmpty) {
                   return 'Enter your email';
                 }
-                if (!RegExp(r'^[\w\.\-]+@[\w\-]+\.[\w\.\-]+$')
-                    .hasMatch(v.trim())) {
+                if (!RegExp(
+                  r'^[\w\.\-]+@[\w\-]+\.[\w\.\-]+$',
+                ).hasMatch(v.trim())) {
                   return 'Enter a valid email';
                 }
                 return null;
@@ -677,8 +680,7 @@ class _SignupTab extends StatelessWidget {
               hint: 'At least 6 characters',
               icon: Icons.lock_rounded,
               obscure: obscurePass,
-              suffix: _EyeToggle(
-                  obscure: obscurePass, onToggle: onTogglePass),
+              suffix: _EyeToggle(obscure: obscurePass, onToggle: onTogglePass),
               onChanged: (_) => onPasswordChanged(),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Create a password';
@@ -692,8 +694,7 @@ class _SignupTab extends StatelessWidget {
             const SizedBox(height: 8),
 
             // Password strength bar
-            if (passCtrl.text.isNotEmpty)
-              _StrengthBar(strength: strength),
+            if (passCtrl.text.isNotEmpty) _StrengthBar(strength: strength),
 
             const SizedBox(height: 16),
 
@@ -706,7 +707,9 @@ class _SignupTab extends StatelessWidget {
               icon: Icons.lock_outlined,
               obscure: obscureConfirm,
               suffix: _EyeToggle(
-                  obscure: obscureConfirm, onToggle: onToggleConfirm),
+                obscure: obscureConfirm,
+                onToggle: onToggleConfirm,
+              ),
               validator: (v) {
                 if (v == null || v.isEmpty) {
                   return 'Confirm your password';
@@ -774,8 +777,7 @@ class _WelcomeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kOrangeLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: _kOrange.withValues(alpha: 0.18)),
+        border: Border.all(color: _kOrange.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
@@ -818,8 +820,7 @@ class _WelcomeCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                      fontSize: 12.5, color: _kTextMid),
+                  style: const TextStyle(fontSize: 12.5, color: _kTextMid),
                 ),
               ],
             ),
@@ -901,16 +902,19 @@ class _Field extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-              color: _kTextMid.withValues(alpha: 0.6), fontSize: 14),
+            color: _kTextMid.withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
-              vertical: 16, horizontal: 14),
+            vertical: 16,
+            horizontal: 14,
+          ),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Icon(icon, color: _kOrange, size: 20),
           ),
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 46),
+          prefixIconConstraints: const BoxConstraints(minWidth: 46),
           suffixIcon: suffix,
           errorStyle: const TextStyle(
             color: _kRed,
@@ -934,9 +938,7 @@ class _EyeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: Icon(
-        obscure
-            ? Icons.visibility_off_rounded
-            : Icons.visibility_rounded,
+        obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
         color: _kTextMid,
         size: 20,
       ),
@@ -999,6 +1001,108 @@ class _TermsRow extends StatelessWidget {
   final bool agreed;
   final VoidCallback onToggle;
 
+  void _showPolicySheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.86,
+          minChildSize: 0.55,
+          maxChildSize: 0.96,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Terms of Service & Privacy Policy',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: _kTextDark,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(sheetContext),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF0EB),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: _kOrange,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        children: const [
+                          _PolicyBlock(
+                            title: 'Terms of Service',
+                            body:
+                                'By using Doormart, you agree to use the app responsibly, provide accurate information, and comply with applicable laws. Orders, offers, availability, and delivery times may change based on stock, location, and operational conditions.',
+                          ),
+                          _PolicyBlock(
+                            title: 'Account Responsibility',
+                            body:
+                                'You are responsible for keeping your login details secure and for any activity carried out under your account. Please notify support immediately if you suspect unauthorised access.',
+                          ),
+                          _PolicyBlock(
+                            title: 'Privacy Policy',
+                            body:
+                                'We collect the information needed to process orders, deliver items, provide support, and improve the service. This includes name, phone number, email, delivery address, and order history.',
+                          ),
+                          _PolicyBlock(
+                            title: 'How We Use Data',
+                            body:
+                                'Your information helps us fulfil orders, coordinate delivery, communicate order updates, prevent fraud, and support product improvements. We do not sell your personal data.',
+                          ),
+                          _PolicyBlock(
+                            title: 'Sharing & Security',
+                            body:
+                                'We only share information with trusted service providers and delivery personnel when required to complete your order or operate the app. We use reasonable safeguards, but no system is completely secure.',
+                          ),
+                          _PolicyBlock(
+                            title: 'Updates',
+                            body:
+                                'We may update these terms and the privacy policy from time to time. Continued use of the app after updates means you accept the revised terms.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -1014,7 +1118,8 @@ class _TermsRow extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: agreed
                   ? const LinearGradient(
-                      colors: [Color(0xFFF26522), Color(0xFFD44010)])
+                      colors: [Color(0xFFF26522), Color(0xFFD44010)],
+                    )
                   : null,
               color: agreed ? null : _kCard,
               borderRadius: BorderRadius.circular(7),
@@ -1028,36 +1133,89 @@ class _TermsRow extends StatelessWidget {
                         color: _kOrange.withValues(alpha: 0.30),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
-                      )
+                      ),
                     ]
                   : [],
             ),
             child: agreed
-                ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 14)
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
                 : null,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: RichText(
-              text: const TextSpan(
-                style: TextStyle(
-                    color: _kTextMid, fontSize: 12.5, height: 1.5),
+              text: TextSpan(
+                style: const TextStyle(
+                  color: _kTextMid,
+                  fontSize: 12.5,
+                  height: 1.5,
+                ),
                 children: [
-                  TextSpan(text: "I agree to Doormart's "),
+                  const TextSpan(text: "I agree to Doormart's "),
                   TextSpan(
                     text: 'Terms of Service',
-                    style: TextStyle(
-                        color: _kOrange, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: _kOrange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _showPolicySheet(context),
                   ),
-                  TextSpan(text: ' and '),
+                  const TextSpan(text: ' and '),
                   TextSpan(
                     text: 'Privacy Policy',
-                    style: TextStyle(
-                        color: _kOrange, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: _kOrange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _showPolicySheet(context),
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PolicyBlock extends StatelessWidget {
+  const _PolicyBlock({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFDFD),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8E8E8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: _kTextDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.6,
+              color: Colors.black.withValues(alpha: 0.70),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -1080,8 +1238,7 @@ class _ErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: _kRed.withValues(alpha: 0.25)),
+        border: Border.all(color: _kRed.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,106 +1262,6 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 // ─── Or divider ───────────────────────────────────────────────────────────────
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: _kBorder)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Text(
-            'Or continue with',
-            style: TextStyle(
-                fontSize: 13,
-                color: _kTextMid.withValues(alpha: 0.8),
-                fontWeight: FontWeight.w500),
-          ),
-        ),
-        const Expanded(child: Divider(color: _kBorder)),
-      ],
-    );
-  }
-}
-
-// ─── Social button ────────────────────────────────────────────────────────────
-
-class _SocialBtn extends StatefulWidget {
-  const _SocialBtn(
-      {required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  State<_SocialBtn> createState() => _SocialBtnState();
-}
-
-class _SocialBtnState extends State<_SocialBtn>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 100),
-  );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.95).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _c.forward(),
-      onTapUp: (_) {
-        _c.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _c.reverse(),
-      child: ScaleTransition(
-        scale: _s,
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: _kCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _kBorder, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(widget.icon, size: 22, color: _kTextDark),
-              const SizedBox(width: 8),
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: _kTextDark,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ─── Primary button ───────────────────────────────────────────────────────────
 
@@ -1230,10 +1287,10 @@ class _PrimaryBtnState extends State<_PrimaryBtn>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -1265,9 +1322,7 @@ class _PrimaryBtnState extends State<_PrimaryBtn>
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
-            color: widget.loading
-                ? const Color(0xFFE0E0E0)
-                : null,
+            color: widget.loading ? const Color(0xFFE0E0E0) : null,
             borderRadius: BorderRadius.circular(16),
             boxShadow: widget.loading
                 ? []
@@ -1285,15 +1340,14 @@ class _PrimaryBtnState extends State<_PrimaryBtn>
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation(Colors.white)),
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(widget.icon,
-                          color: Colors.white, size: 20),
+                      Icon(widget.icon, color: Colors.white, size: 20),
                       const SizedBox(width: 8),
                       Text(
                         widget.label,
@@ -1306,6 +1360,80 @@ class _PrimaryBtnState extends State<_PrimaryBtn>
                       ),
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestBtn extends StatefulWidget {
+  const _GuestBtn({required this.loading, required this.onTap});
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  State<_GuestBtn> createState() => _GuestBtnState();
+}
+
+class _GuestBtnState extends State<_GuestBtn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 110),
+  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.loading ? null : (_) => _c.forward(),
+      onTapUp: widget.loading
+          ? null
+          : (_) {
+              _c.reverse();
+              widget.onTap();
+            },
+      onTapCancel: () => _c.reverse(),
+      child: ScaleTransition(
+        scale: _s,
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _kOrange.withValues(alpha: 0.28),
+              width: 1.2,
+            ),
+          ),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.person_outline_rounded, color: _kOrange, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Continue as Guest',
+                  style: TextStyle(
+                    color: _kOrangeDeep,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1334,8 +1462,9 @@ class _SwitchPrompt extends StatelessWidget {
             style: const TextStyle(fontSize: 13.5),
             children: [
               TextSpan(
-                  text: question,
-                  style: const TextStyle(color: _kTextMid)),
+                text: question,
+                style: const TextStyle(color: _kTextMid),
+              ),
               TextSpan(
                 text: action,
                 style: const TextStyle(
@@ -1370,8 +1499,7 @@ class _PerksStrip extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kOrangeLight,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: _kOrange.withValues(alpha: 0.18)),
+        border: Border.all(color: _kOrange.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
