@@ -12,7 +12,7 @@ class _WalkingMascotWidgetState extends State<WalkingMascotWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  static const int _stepsPerTrip = 10; // strides across the screen, one-way
+  static const int _stepsPerTrip = 10;
   static const double _mascotWidth = 64;
   static const double _mascotHeight = 70;
 
@@ -31,51 +31,62 @@ class _WalkingMascotWidgetState extends State<WalkingMascotWidget>
     super.dispose();
   }
 
+  double _pingPong(double value) {
+    if (value < 0.5) {
+      return value * 2;
+    }
+    return (1 - value) * 2;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final trackWidth = math.max(0.0, screenWidth - _mascotWidth);
+
     return SizedBox(
-      height: _mascotHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double trackWidth =
-              math.max(0.0, constraints.maxWidth - _mascotWidth);
+      width: screenWidth,
+      height: _mascotHeight + 8,
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            final goingRight = t < 0.5;
+            final progress = _pingPong(t);
+            final dx = progress * trackWidth;
 
-          return AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) {
-              final double t = _controller.value; // 0..1 loop (there & back)
-              final bool goingRight = t < 0.5;
-              final double half = goingRight ? t * 2 : (1 - t) * 2; // 0..1
-              final double dx = half * trackWidth;
+            final phase = t * _stepsPerTrip * 2 * math.pi * 2;
+            final legSwing = math.sin(phase);
+            final armSwing = math.sin(phase + math.pi);
+            final bounce = math.sin(phase * 2).abs() * 3.2;
 
-              // Continuous stride phase drives legs/arms/bounce.
-              final double phase = t * _stepsPerTrip * 2 * math.pi * 2;
-              final double legSwing = math.sin(phase);
-              final double armSwing = math.sin(phase + math.pi);
-              final double bounce = math.sin(phase * 2).abs() * 3.2;
-
-              return Semantics(
-                label: 'Walking grocery mascot',
-                child: Transform.translate(
-                  offset: Offset(dx, 0),
-                  child: Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..scale(goingRight ? 1.0 : -1.0, 1.0),
-                    child: CustomPaint(
-                      size: const Size(_mascotWidth, _mascotHeight),
-                      painter: _BabyMascotPainter(
-                        legSwing: legSwing,
-                        armSwing: armSwing,
-                        bounce: bounce,
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: dx,
+                  bottom: 0,
+                  child: Semantics(
+                    label: 'Walking grocery mascot',
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..scale(goingRight ? 1.0 : -1.0, 1.0),
+                      child: CustomPaint(
+                        size: const Size(_mascotWidth, _mascotHeight),
+                        painter: _BabyMascotPainter(
+                          legSwing: legSwing,
+                          armSwing: armSwing,
+                          bounce: bounce,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              );
-            },
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -88,9 +99,9 @@ class _BabyMascotPainter extends CustomPainter {
     required this.bounce,
   });
 
-  final double legSwing; // -1..1
-  final double armSwing; // -1..1
-  final double bounce; // 0..~3.2
+  final double legSwing;
+  final double armSwing;
+  final double bounce;
 
   static const Color skin = Color(0xFFFFD9B3);
   static const Color skinShade = Color(0xFFF5B98A);
@@ -122,18 +133,21 @@ class _BabyMascotPainter extends CustomPainter {
       width: 24,
       height: 26,
     );
+
     canvas.drawRRect(
       RRect.fromRectAndRadius(bodyRect, const Radius.circular(12)),
       Paint()..color = onesie,
     );
+
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         bodyRect.deflate(3).translate(0, 4),
         const Radius.circular(10),
       ),
-      Paint()..color = onesieShade.withOpacity(0.35),
+      Paint()..color = onesieShade.withValues(alpha: 0.35),
     );
-    final buttonPaint = Paint()..color = Colors.white.withOpacity(0.85);
+
+    final buttonPaint = Paint()..color = Colors.white.withValues(alpha: 0.85);
     for (int i = 0; i < 2; i++) {
       canvas.drawCircle(Offset(cx, bodyTopY + 6 + i * 7), 1.6, buttonPaint);
     }
@@ -142,19 +156,29 @@ class _BabyMascotPainter extends CustomPainter {
 
     final headCenter = Offset(cx, headCenterY);
     canvas.drawCircle(headCenter, 13, Paint()..color = skin);
-    canvas.drawCircle(Offset(cx - 12, headCenterY + 1), 3.2, Paint()..color = skin);
-    canvas.drawCircle(Offset(cx + 12, headCenterY + 1), 3.2, Paint()..color = skin);
+    canvas.drawCircle(
+      Offset(cx - 12, headCenterY + 1),
+      3.2,
+      Paint()..color = skin,
+    );
+    canvas.drawCircle(
+      Offset(cx + 12, headCenterY + 1),
+      3.2,
+      Paint()..color = skin,
+    );
 
     final hairPath = Path()
       ..moveTo(cx - 9, headCenterY - 9)
       ..quadraticBezierTo(cx, headCenterY - 22, cx + 9, headCenterY - 9)
       ..quadraticBezierTo(cx, headCenterY - 13, cx - 9, headCenterY - 9)
       ..close();
+
     canvas.drawPath(hairPath, Paint()..color = hair);
 
     final curlPath = Path()
       ..moveTo(cx - 1, headCenterY - 18)
       ..quadraticBezierTo(cx + 4, headCenterY - 24, cx + 1, headCenterY - 16);
+
     canvas.drawPath(
       curlPath,
       Paint()
@@ -164,35 +188,25 @@ class _BabyMascotPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    canvas.drawCircle(Offset(cx - 6.5, headCenterY + 3.5), 2.1,
-        Paint()..color = cheek.withOpacity(0.7));
-    canvas.drawCircle(Offset(cx + 6.5, headCenterY + 3.5), 2.1,
-        Paint()..color = cheek.withOpacity(0.7));
+    canvas.drawCircle(
+      Offset(cx - 6.5, headCenterY + 3.5),
+      2.1,
+      Paint()..color = cheek.withValues(alpha: 0.7),
+    );
+    canvas.drawCircle(
+      Offset(cx + 6.5, headCenterY + 3.5),
+      2.1,
+      Paint()..color = cheek.withValues(alpha: 0.7),
+    );
 
-    final bool squint = bounce > 2.6;
-    if (squint) {
-      final eyeStroke = Paint()
-        ..color = const Color(0xFF3B2A20)
-        ..strokeWidth = 1.6
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(
-        Rect.fromCenter(center: Offset(cx - 4.2, headCenterY), width: 5, height: 5),
-        0.2, 2.7, false, eyeStroke,
-      );
-      canvas.drawArc(
-        Rect.fromCenter(center: Offset(cx + 4.2, headCenterY), width: 5, height: 5),
-        0.2, 2.7, false, eyeStroke,
-      );
-    } else {
-      final eyePaint = Paint()..color = const Color(0xFF3B2A20);
-      canvas.drawCircle(Offset(cx - 4.2, headCenterY), 1.5, eyePaint);
-      canvas.drawCircle(Offset(cx + 4.2, headCenterY), 1.5, eyePaint);
-    }
+    final eyePaint = Paint()..color = const Color(0xFF3B2A20);
+    canvas.drawCircle(Offset(cx - 4.2, headCenterY), 1.5, eyePaint);
+    canvas.drawCircle(Offset(cx + 4.2, headCenterY), 1.5, eyePaint);
 
     final smilePath = Path()
       ..moveTo(cx - 3.5, headCenterY + 5)
       ..quadraticBezierTo(cx, headCenterY + 8.5, cx + 3.5, headCenterY + 5);
+
     canvas.drawPath(
       smilePath,
       Paint()
@@ -218,37 +232,52 @@ class _BabyMascotPainter extends CustomPainter {
     );
   }
 
-  void _drawLeg(Canvas canvas, Offset hip, double swing, double groundY,
-      {required bool back}) {
+  void _drawLeg(
+    Canvas canvas,
+    Offset hip,
+    double swing,
+    double groundY, {
+    required bool back,
+  }) {
     final double angle = swing * 0.6;
     final double legLength = groundY - hip.dy;
+
     final Offset foot = Offset(
       hip.dx + math.sin(angle) * legLength * 0.6,
       hip.dy + math.cos(angle) * legLength,
     );
+
     canvas.drawLine(
       hip,
       foot,
       Paint()
-        ..color = back ? skinShade.withOpacity(0.9) : skin
+        ..color = back ? skinShade.withValues(alpha: 0.9) : skin
         ..strokeWidth = 7
         ..strokeCap = StrokeCap.round,
     );
+
     canvas.drawCircle(foot, 4.2, Paint()..color = back ? onesieShade : onesie);
   }
 
-  void _drawArm(Canvas canvas, Offset shoulder, double swing, {required bool back}) {
+  void _drawArm(
+    Canvas canvas,
+    Offset shoulder,
+    double swing, {
+    required bool back,
+  }) {
     final double angle = swing * 0.5;
     const double armLength = 16;
+
     final Offset hand = Offset(
       shoulder.dx + math.sin(angle) * armLength * 0.5,
       shoulder.dy + math.cos(angle) * armLength,
     );
+
     canvas.drawLine(
       shoulder,
       hand,
       Paint()
-        ..color = back ? skinShade.withOpacity(0.85) : skin
+        ..color = back ? skinShade.withValues(alpha: 0.85) : skin
         ..strokeWidth = 6
         ..strokeCap = StrokeCap.round,
     );
@@ -257,6 +286,7 @@ class _BabyMascotPainter extends CustomPainter {
   void _drawGroceryBag(Canvas canvas, Offset shoulder, double swing) {
     final double angle = swing * 0.5;
     const double armLength = 16;
+
     final Offset hand = Offset(
       shoulder.dx + math.sin(angle) * armLength * 0.5,
       shoulder.dy + math.cos(angle) * armLength,
@@ -267,6 +297,7 @@ class _BabyMascotPainter extends CustomPainter {
     canvas.rotate(angle * 0.4);
 
     final bagRect = Rect.fromCenter(center: Offset.zero, width: 16, height: 18);
+
     final bagRRect = RRect.fromRectAndCorners(
       bagRect,
       topLeft: const Radius.circular(2),
@@ -274,12 +305,18 @@ class _BabyMascotPainter extends CustomPainter {
       bottomLeft: const Radius.circular(5),
       bottomRight: const Radius.circular(5),
     );
+
     canvas.drawRRect(bagRRect, Paint()..color = bagColor);
-    canvas.drawRRect(bagRRect.deflate(2), Paint()..color = bagShade.withOpacity(0.3));
+    canvas.drawRRect(
+      bagRRect.deflate(2),
+      Paint()..color = bagShade.withValues(alpha: 0.3),
+    );
+
     canvas.drawRect(
       Rect.fromCenter(center: const Offset(0, -8), width: 12, height: 4),
       Paint()..color = bagShade,
     );
+
     canvas.drawCircle(const Offset(-3, -10), 3, Paint()..color = carrotOrange);
 
     final leafPath = Path()
@@ -287,6 +324,7 @@ class _BabyMascotPainter extends CustomPainter {
       ..quadraticBezierTo(6, -16, 2, -17)
       ..quadraticBezierTo(0, -13, 3, -9)
       ..close();
+
     canvas.drawPath(leafPath, Paint()..color = leafGreen);
 
     canvas.restore();

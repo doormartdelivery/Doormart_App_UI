@@ -8,6 +8,7 @@ import '../../core/constants.dart';
 import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
@@ -198,6 +199,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
       drawer: AdminSidebarDrawer(
         currentRoute: ManageDeliveryScreen.routeName,
         onLogout: () async {
+          if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;

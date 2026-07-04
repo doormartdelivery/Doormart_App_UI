@@ -74,94 +74,109 @@ class _UserHomeScreenState extends State<UserHomeScreen>
           opacity: _pageFade,
           child: SlideTransition(
             position: _pageSlide,
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(child: _HomeHeader()),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CustomScrollView(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  slivers: [
+                    SliverToBoxAdapter(child: _HomeHeader()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                // ── Sticky search ──────────────────────────────────────
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _SearchBarDelegate(),
-                ),
+                    // ── Sticky search ──────────────────────────────────────
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _SearchBarDelegate(),
+                    ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                const SliverToBoxAdapter(child: _OfferBanners()),
-                const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                const SliverToBoxAdapter(
-                  child: _SectionTitle('Shop by category'),
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    const SliverToBoxAdapter(child: _OfferBanners()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle('Shop by category'),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    const SliverToBoxAdapter(child: _CategoryGrid()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle(
+                        'Fresh picks today',
+                        actionColor: _kGreen,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    const SliverToBoxAdapter(child: _ProductRail()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                    const SliverToBoxAdapter(child: _SummerSipSection()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle(
+                        'Daily essentials',
+                        actionColor: _kGreen,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _EssentialsFilters(
+                        sort: _sort,
+                        onFilterTap: _showFilterSheet,
+                        onSortTap: _showSortSheet,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _EssentialsGrid(
+                        sort: _sort,
+                        selectedCategory: _selectedCategory,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                    const SliverToBoxAdapter(child: _GroceryComboSection()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    const SliverToBoxAdapter(
+                      child: _SectionTitle('Popular Products'),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    SliverToBoxAdapter(
+                      child: _PopularFilters(
+                        sort: _popularSort,
+                        selectedCategory: _popularSelectedCategory,
+                        onFilterTap: _showPopularFilterSheet,
+                        onSortTap: _showPopularSortSheet,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _PopularProductsGrid(
+                        sort: _popularSort,
+                        selectedCategory: _popularSelectedCategory,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 170)),
+                    SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
+                  ],
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                const SliverToBoxAdapter(child: _CategoryGrid()),
-                const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                const SliverToBoxAdapter(
-                  child: _SectionTitle(
-                    'Fresh picks today',
-                    actionColor: _kGreen,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: BottomNavBar(
+                    index: 0,
+                    onTap: (index) => BottomNavBar.navigate(context, index),
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                const SliverToBoxAdapter(child: _ProductRail()),
-                const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                const SliverToBoxAdapter(child: _SummerSipSection()),
-                const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                const SliverToBoxAdapter(
-                  child: _SectionTitle(
-                    'Daily essentials',
-                    actionColor: _kGreen,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 25 + bottomInset,
+                  child: const IgnorePointer(
+                    child: WalkingMascotWidget(),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: _EssentialsFilters(
-                    sort: _sort,
-                    onFilterTap: _showFilterSheet,
-                    onSortTap: _showSortSheet,
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: _EssentialsGrid(
-                    sort: _sort,
-                    selectedCategory: _selectedCategory,
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                const SliverToBoxAdapter(child: _GroceryComboSection()),
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                const SliverToBoxAdapter(
-                  child: _SectionTitle('Popular Products'),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                SliverToBoxAdapter(
-                  child: _PopularFilters(
-                    sort: _popularSort,
-                    selectedCategory: _popularSelectedCategory,
-                    onFilterTap: _showPopularFilterSheet,
-                    onSortTap: _showPopularSortSheet,
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: _PopularProductsGrid(
-                    sort: _popularSort,
-                    selectedCategory: _popularSelectedCategory,
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                const SliverToBoxAdapter(child: WalkingMascotWidget()),
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
-                SliverToBoxAdapter(child: SizedBox(height: 96 + bottomInset)),
               ],
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavBar(
-        index: 0,
-        onTap: (index) => BottomNavBar.navigate(context, index),
       ),
     );
   }

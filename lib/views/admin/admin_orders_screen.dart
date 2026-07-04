@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'manage_products_screen.dart';
@@ -140,6 +141,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
       drawer: AdminSidebarDrawer(
         currentRoute: AdminOrdersScreen.routeName,
         onLogout: () async {
+          if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;

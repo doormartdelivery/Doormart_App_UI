@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
 import 'help_support_management_screen.dart';
 import 'admin_notifications_screen.dart';
@@ -150,7 +151,10 @@ class AdminSidebarDrawer extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: onLogout,
+                    onPressed: () async {
+                      if (!await confirmAdminLogout(context)) return;
+                      await onLogout();
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _kOrange,
                       side: const BorderSide(color: _kOrange),

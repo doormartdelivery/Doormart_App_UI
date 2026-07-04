@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
+import 'admin_logout_confirm.dart';
 import '../../services/api_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_orders_screen.dart';
@@ -37,7 +38,6 @@ class AdminNotificationsScreen extends StatefulWidget {
 
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   static const _prefsKeyScheduleLater = 'admin_notifications_schedule_later';
-  static const _prefsKeyDailySchedule = 'admin_notifications_daily_schedule';
   static const _prefsKeySelectedType = 'admin_notifications_selected_type';
   static const _prefsKeySelectedAudience = 'admin_notifications_selected_audience';
   static const _prefsKeyScheduledAt = 'admin_notifications_scheduled_at';
@@ -64,7 +64,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   bool _pushEnabled = true;
   bool _logHistory = true;
   bool _scheduleLater = false;
-  bool _dailySchedule = false;
   bool _isUploading = false;
   DateTime? _scheduledAt;
   String? _bannerUrl;
@@ -103,7 +102,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       _selectedType = prefs.getString(_prefsKeySelectedType) ?? _selectedType;
       _selectedAudience = prefs.getString(_prefsKeySelectedAudience) ?? _selectedAudience;
       _scheduleLater = prefs.getBool(_prefsKeyScheduleLater) ?? _scheduleLater;
-      _dailySchedule = prefs.getBool(_prefsKeyDailySchedule) ?? _dailySchedule;
       final scheduledAtIso = prefs.getString(_prefsKeyScheduledAt);
       if (scheduledAtIso != null && scheduledAtIso.isNotEmpty) {
         final parsed = DateTime.tryParse(scheduledAtIso);
@@ -123,7 +121,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     await prefs.setString(_prefsKeySelectedType, _selectedType);
     await prefs.setString(_prefsKeySelectedAudience, _selectedAudience);
     await prefs.setBool(_prefsKeyScheduleLater, _scheduleLater);
-    await prefs.setBool(_prefsKeyDailySchedule, _dailySchedule);
     if (_scheduledAt != null) {
       await prefs.setString(_prefsKeyScheduledAt, _scheduledAt!.toUtc().toIso8601String());
       await prefs.setString(_prefsKeyScheduleLabel, _scheduleController.text.trim());
@@ -236,11 +233,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     if (_scheduleLater && _scheduledAt != null) {
       body['scheduledAt'] = _scheduledAt!.toUtc().toIso8601String();
     }
-    if (_dailySchedule && _scheduledAt != null) {
-      body['recurrence'] = 'daily';
-      body['recurrenceTime'] =
-          '${_scheduledAt!.hour.toString().padLeft(2, '0')}:${_scheduledAt!.minute.toString().padLeft(2, '0')}';
-    }
 
     try {
       setState(() => _saving = true);
@@ -262,13 +254,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       if (mode == 'send') {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_prefsKeyScheduleLater);
-        await prefs.remove(_prefsKeyDailySchedule);
         await prefs.remove(_prefsKeyScheduledAt);
         await prefs.remove(_prefsKeyScheduleLabel);
         if (!mounted) return;
         setState(() {
           _scheduleLater = false;
-          _dailySchedule = false;
           _scheduledAt = null;
           _scheduleController.clear();
         });
@@ -360,6 +350,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       drawer: AdminSidebarDrawer(
         currentRoute: AdminNotificationsScreen.routeName,
         onLogout: () async {
+          if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
@@ -592,15 +583,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                   await _persistDraftState();
                 },
               ),
-              if (_scheduleLater)
-                _ToggleRow(
-                  label: 'Repeat daily',
-                  value: _dailySchedule,
-                  onChanged: (value) async {
-                    setState(() => _dailySchedule = value);
-                    await _persistDraftState();
-                  },
-                ),
               if (_scheduleLater) ...[
                 const SizedBox(height: 12),
                 _InputField(
@@ -632,11 +614,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                     onPressed: _saving ? null : () => _submit('draft'),
                     child: const Text('Save Draft'),
                   ),
-              if (_scheduleLater)
+                  if (_scheduleLater)
                     OutlinedButton.icon(
                       onPressed: _saving ? null : () => _submit('schedule'),
                       icon: const Icon(Icons.schedule_rounded),
-                      label: Text(_dailySchedule ? 'Save Daily Schedule' : 'Save Schedule'),
+                      label: const Text('Save Schedule'),
                     ),
                 ],
               ),

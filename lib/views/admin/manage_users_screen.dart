@@ -7,6 +7,7 @@ import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../app_page.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
@@ -241,6 +242,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
       drawer: AdminSidebarDrawer(
         currentRoute: ManageUsersScreen.routeName,
         onLogout: () async {
+          if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;

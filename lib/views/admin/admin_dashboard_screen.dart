@@ -5,6 +5,7 @@ import '../../core/constants.dart';
 import '../../mascot/walking_mascot_widget.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_notifications_screen.dart';
 import 'admin_orders_screen.dart';
 import 'help_support_management_screen.dart';
@@ -50,6 +51,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Navigator.pop(context);
         },
         onLogout: () async {
+          if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
