@@ -9,6 +9,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
@@ -25,7 +26,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         onTap: (index) => BottomNavBar.navigate(context, index),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
         children: const [
           _PolicyHero(),
           SizedBox(height: 16),

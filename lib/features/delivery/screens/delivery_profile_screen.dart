@@ -84,6 +84,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
     final earnings = provider.earningsStats;
@@ -106,7 +107,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
             // ── Scrollable body ──────────────────────────────────────────
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 100 + bottomInset),
                 children: [
                   // ── Profile header ─────────────────────────────────────
                   _ProfileHeader(person: person),
@@ -367,7 +368,7 @@ class _ProfileHeader extends StatelessWidget {
 
         // ID
         Text(
-          'ID: #${person?.id ?? 'DEL-0000'}',
+          'ID: ${_shortId(person?.id)}',
           style: const TextStyle(
             fontSize: 14,
             color: _kTextMid,
@@ -1193,6 +1194,14 @@ class _LogoutButtonState extends State<_LogoutButton>
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
+String _shortId(String? id) {
+  final value = (id ?? '').trim();
+  if (value.isEmpty) return 'DEL-0000';
+  final cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (cleaned.length <= 8) return cleaned.toUpperCase();
+  return cleaned.substring(0, 8).toUpperCase();
+}
+
 class _Footer extends StatelessWidget {
   const _Footer();
 
@@ -1234,57 +1243,64 @@ class _BottomNav extends StatelessWidget {
       (Icons.person_rounded, 'Profile'),
     ];
 
-    return Container(
-      height: 76,
-      decoration: BoxDecoration(
-        color: _kCard,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: items.asMap().entries.map((e) {
-          final i = e.key;
-          final item = e.value;
-          final selected = i == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onTap(i),
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: selected ? _kOrange : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      item.$1,
-                      size: 22,
-                      color: selected ? Colors.white : _kTextMid,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.$2,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: selected ? _kOrange : _kTextMid,
-                    ),
-                  ),
-                ],
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Container(
+          height: 76,
+          decoration: BoxDecoration(
+            color: _kCard,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
               ),
-            ),
-          );
-        }).toList(),
+            ],
+          ),
+          child: Row(
+            children: items.asMap().entries.map((e) {
+              final i = e.key;
+              final item = e.value;
+              final selected = i == index;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: selected ? _kOrange : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          item.$1,
+                          size: 22,
+                          color: selected ? Colors.white : _kTextMid,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.$2,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? _kOrange : _kTextMid,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

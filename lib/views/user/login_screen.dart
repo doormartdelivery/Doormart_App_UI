@@ -40,6 +40,10 @@ class _LoginScreenState extends State<LoginScreen>
   // ── Login controllers ──────────────────────────────────────────────────────
   final _loginEmailCtrl = TextEditingController();
   final _loginPassCtrl = TextEditingController();
+  final _loginOtpCtrl = TextEditingController();
+  bool _otpSent = false;
+  _LoginMode _loginMode = _LoginMode.password;
+  bool _obscureLoginPass = true;
 
   // ── Signup controllers ─────────────────────────────────────────────────────
   final _nameCtrl = TextEditingController();
@@ -49,7 +53,6 @@ class _LoginScreenState extends State<LoginScreen>
   final _confirmPassCtrl = TextEditingController();
 
   // ── State ─────────────────────────────────────────────────────────────────
-  bool _obscureLogin = true;
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _agreed = false;
@@ -78,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen>
     _entryCtrl.dispose();
     _loginEmailCtrl.dispose();
     _loginPassCtrl.dispose();
+    _loginOtpCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -108,10 +112,24 @@ class _LoginScreenState extends State<LoginScreen>
       _error = null;
     });
     try {
-      await context.read<AppState>().loginWithPassword(
-        email: _loginEmailCtrl.text.trim(),
-        password: _loginPassCtrl.text,
-      );
+      final email = _loginEmailCtrl.text.trim();
+      if (_loginMode == _LoginMode.otp && !_otpSent) {
+        await context.read<AppState>().sendOtp(email: email);
+        if (!mounted) return;
+        setState(() => _otpSent = true);
+        return;
+      }
+      if (_loginMode == _LoginMode.password) {
+        await context.read<AppState>().loginWithPassword(
+          email: email,
+          password: _loginPassCtrl.text.trim(),
+        );
+      } else {
+        await context.read<AppState>().verifyOtp(
+          email: email,
+          otp: _loginOtpCtrl.text.trim(),
+        );
+      }
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       Navigator.of(
@@ -197,14 +215,36 @@ class _LoginScreenState extends State<LoginScreen>
                         formKey: _loginFormKey,
                         emailCtrl: _loginEmailCtrl,
                         passCtrl: _loginPassCtrl,
-                        obscure: _obscureLogin,
-                        onToggleObscure: () =>
-                            setState(() => _obscureLogin = !_obscureLogin),
+                        otpCtrl: _loginOtpCtrl,
+                        otpSent: _otpSent,
+                        loginMode: _loginMode,
+                        obscurePass: _obscureLoginPass,
+                        onTogglePass: () =>
+                            setState(() => _obscureLoginPass = !_obscureLoginPass),
+                        onChangeMode: (mode) {
+                          setState(() {
+                            _loginMode = mode;
+                            _otpSent = false;
+                            _error = null;
+                          });
+                        },
                         loading: _loading,
                         error: _error,
                         onLogin: _login,
                         onGuest: _continueAsGuest,
                         onGoRegister: () => _tabCtrl.animateTo(1),
+                        onResendOtp: () async {
+                          setState(() {
+                            _error = null;
+                            _otpSent = false;
+                          });
+                          await context.read<AppState>().sendOtp(
+                            email: _loginEmailCtrl.text.trim(),
+                          );
+                          if (mounted) {
+                            setState(() => _otpSent = true);
+                          }
+                        },
                       ),
 
                       // ── Sign up tab ───────────────────────────────
@@ -428,25 +468,35 @@ class _LoginTab extends StatelessWidget {
     required this.formKey,
     required this.emailCtrl,
     required this.passCtrl,
-    required this.obscure,
-    required this.onToggleObscure,
+    required this.otpCtrl,
+    required this.otpSent,
+    required this.loginMode,
+    required this.obscurePass,
+    required this.onTogglePass,
+    required this.onChangeMode,
     required this.loading,
     required this.error,
     required this.onLogin,
     required this.onGuest,
     required this.onGoRegister,
+    required this.onResendOtp,
   });
 
   final GlobalKey<FormState> formKey;
   final TextEditingController emailCtrl;
   final TextEditingController passCtrl;
-  final bool obscure;
-  final VoidCallback onToggleObscure;
+  final TextEditingController otpCtrl;
+  final bool otpSent;
+  final _LoginMode loginMode;
+  final bool obscurePass;
+  final VoidCallback onTogglePass;
+  final ValueChanged<_LoginMode> onChangeMode;
   final bool loading;
   final String? error;
   final VoidCallback onLogin;
   final VoidCallback onGuest;
   final VoidCallback onGoRegister;
+  final Future<void> Function() onResendOtp;
 
   @override
   Widget build(BuildContext context) {
@@ -467,6 +517,42 @@ class _LoginTab extends StatelessWidget {
 
             const SizedBox(height: 20),
 
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Password'),
+                    selected: loginMode == _LoginMode.password,
+                    onSelected: (_) => onChangeMode(_LoginMode.password),
+                    selectedColor: _kOrangeLight,
+                    labelStyle: TextStyle(
+                      color: loginMode == _LoginMode.password
+                          ? _kOrange
+                          : _kTextDark,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Text('Email OTP'),
+                    selected: loginMode == _LoginMode.otp,
+                    onSelected: (_) => onChangeMode(_LoginMode.otp),
+                    selectedColor: _kOrangeLight,
+                    labelStyle: TextStyle(
+                      color: loginMode == _LoginMode.otp
+                          ? _kOrange
+                          : _kTextDark,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
             _FieldLabel('Email address'),
             const SizedBox(height: 8),
             _Field(
@@ -485,35 +571,47 @@ class _LoginTab extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            _FieldLabel('Password'),
-            const SizedBox(height: 8),
-            _Field(
-              controller: passCtrl,
-              hint: 'Enter your password',
-              icon: Icons.lock_rounded,
-              obscure: obscure,
-              suffix: _EyeToggle(obscure: obscure, onToggle: onToggleObscure),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Enter your password' : null,
-            ),
+            if (loginMode == _LoginMode.password) ...[
+              _FieldLabel('Password'),
+              const SizedBox(height: 8),
+              _Field(
+                controller: passCtrl,
+                hint: 'Enter your password',
+                icon: Icons.lock_rounded,
+                obscure: obscurePass,
+                suffix: _EyeToggle(obscure: obscurePass, onToggle: onTogglePass),
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Enter your password' : null,
+              ),
+            ] else ...[
+              _FieldLabel('OTP'),
+              const SizedBox(height: 8),
+              _Field(
+                controller: otpCtrl,
+                hint: 'Enter the 6 digit OTP',
+                icon: Icons.password_rounded,
+                keyboardType: TextInputType.number,
+                validator: (v) =>
+                    otpSent && (v == null || v.isEmpty) ? 'Enter OTP' : null,
+              ),
 
-            // Forgot password
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  foregroundColor: _kOrange,
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'Forgot password?',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: otpSent ? onResendOtp : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kOrange,
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Resend OTP',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
                 ),
               ),
-            ),
+            ],
 
             if (error != null) ...[
               const SizedBox(height: 4),
@@ -523,8 +621,12 @@ class _LoginTab extends StatelessWidget {
             const SizedBox(height: 20),
 
             _PrimaryBtn(
-              label: 'Login to Doormart',
-              icon: Icons.login_rounded,
+              label: loginMode == _LoginMode.password
+                  ? 'Login with Password'
+                  : (otpSent ? 'Verify OTP' : 'Send OTP'),
+              icon: loginMode == _LoginMode.password
+                  ? Icons.login_rounded
+                  : (otpSent ? Icons.verified_rounded : Icons.send_rounded),
               loading: loading,
               onTap: onLogin,
             ),
@@ -546,6 +648,8 @@ class _LoginTab extends StatelessWidget {
     );
   }
 }
+
+enum _LoginMode { password, otp }
 
 // ─── Sign Up Tab ──────────────────────────────────────────────────────────────
 

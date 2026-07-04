@@ -21,6 +21,7 @@ class NotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -117,7 +118,7 @@ class NotificationScreen extends StatelessWidget {
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
                       sliver: _NotificationList(
                         notifications: notifications,
                         loading: snapshot.connectionState != ConnectionState.done,

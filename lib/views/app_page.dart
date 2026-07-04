@@ -26,9 +26,10 @@ class AppPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final safeBottomInset = MediaQuery.of(context).padding.bottom;
     final bottomNavPadding = bottomNavIndex == null
         ? 0.0
-        : kBottomNavigationBarHeight;
+        : kBottomNavigationBarHeight + safeBottomInset;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),

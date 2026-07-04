@@ -27,6 +27,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       body: SafeArea(
@@ -72,18 +73,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         active: _sort != _WishlistSort.relevance,
                         onTap: () => _showSortSheet(context),
                       ),
-                      _FilterPill(
-                        label: 'Fast Delivery',
-                        active: _fastDeliveryOnly,
-                        onTap: () => setState(
-                          () => _fastDeliveryOnly = !_fastDeliveryOnly,
-                        ),
-                      ),
-                      _FilterPill(
-                        label: 'Ratings 4.0+',
-                        active: _ratingOnly,
-                        onTap: () => setState(() => _ratingOnly = !_ratingOnly),
-                      ),
                     ],
                   ),
                 ),
@@ -92,7 +81,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                   child: favorites.isEmpty
                       ? const _EmptyFavoritesCard()
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                          padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + bottomInset),
                           itemCount: favorites.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 16),
@@ -172,30 +161,91 @@ class _WishlistScreenState extends State<WishlistScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Fast Delivery only'),
-                subtitle: const Text('Show faster items first'),
-                value: _fastDeliveryOnly,
-                onChanged: (v) => setModalState(() => _fastDeliveryOnly = v),
+              Text(
+                'Choose filter',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF1E1C1A),
+                ),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Rating 4.0+'),
-                subtitle: const Text('Only top rated favorites'),
-                value: _ratingOnly,
-                onChanged: (v) => setModalState(() => _ratingOnly = v),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Fast Delivery'),
+                    selected: _fastDeliveryOnly,
+                    onSelected: (_) => setModalState(
+                      () => _fastDeliveryOnly = !_fastDeliveryOnly,
+                    ),
+                    selectedColor: const Color(0xFFFFF0EB),
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: _fastDeliveryOnly
+                          ? const Color(0xFFE8541A)
+                          : const Color(0xFF4E4A47),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    side: BorderSide(
+                      color: _fastDeliveryOnly
+                          ? const Color(0xFFE8541A)
+                          : const Color(0xFFE6D7CE),
+                    ),
+                    checkmarkColor: const Color(0xFFE8541A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Ratings 4.0+'),
+                    selected: _ratingOnly,
+                    onSelected: (_) => setModalState(
+                      () => _ratingOnly = !_ratingOnly,
+                    ),
+                    selectedColor: const Color(0xFFFFF0EB),
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: _ratingOnly
+                          ? const Color(0xFFE8541A)
+                          : const Color(0xFF4E4A47),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    side: BorderSide(
+                      color: _ratingOnly
+                          ? const Color(0xFFE8541A)
+                          : const Color(0xFFE6D7CE),
+                    ),
+                    checkmarkColor: const Color(0xFFE8541A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8541A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   onPressed: () {
                     setState(() {});
                     Navigator.pop(sheetContext);
@@ -214,12 +264,25 @@ class _WishlistScreenState extends State<WishlistScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Sort by',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF1E1C1A),
+                ),
+              ),
+              const SizedBox(height: 12),
               _SortTile(
                 label: 'Relevance',
                 selected: _sort == _WishlistSort.relevance,
@@ -253,6 +316,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8541A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   onPressed: () {
                     setState(() {});
                     Navigator.pop(sheetContext);
@@ -634,41 +705,49 @@ class _FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 10, top: 8, bottom: 8),
-      child: GestureDetector(
+      padding: const EdgeInsets.only(right: 10),
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: active ? const Color(0xFFE8541A) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: active
+                  ? const [Color(0xFFFFF0EB), Color(0xFFFFE3D3)]
+                  : const [Colors.white, Color(0xFFFFF7F2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: active ? const Color(0xFFE8541A) : const Color(0xFFF1CDBD),
+              width: 1.4,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: const Color(
+                  0xFFE8541A,
+                ).withValues(alpha: active ? 0.28 : 0.16),
+                blurRadius: active ? 18 : 14,
+                spreadRadius: active ? 0.6 : 0,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(icon!, size: 18, color: const Color(0xFFE8541A)),
+              const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: active ? Colors.white : const Color(0xFF1E1C1A),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
+                  color: Color(0xFFE8541A),
                 ),
               ),
-              if (icon != null) ...[
-                const SizedBox(width: 4),
-                Icon(
-                  icon,
-                  size: 16,
-                  color: active ? Colors.white : const Color(0xFF1E1C1A),
-                ),
-              ],
             ],
           ),
         ),

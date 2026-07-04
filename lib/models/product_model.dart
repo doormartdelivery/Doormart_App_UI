@@ -12,6 +12,7 @@ class ProductModel {
     this.description = '',
     this.dashboardSection = 'daily_essentials',
     this.rating = 0,
+    this.mrp = 0,
     this.unit = 'item',
   });
 
@@ -25,6 +26,7 @@ class ProductModel {
   final String description;
   final String dashboardSection;
   final double rating;
+  final double mrp;
   final String unit;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -42,8 +44,10 @@ class ProductModel {
       stock: (stockValue as num).toInt(),
       imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       description: json['description'] as String? ?? '',
-      dashboardSection: json['dashboardSection'] as String? ?? 'daily_essentials',
+      dashboardSection:
+          json['dashboardSection'] as String? ?? 'daily_essentials',
       rating: (json['rating'] as num? ?? 0).toDouble(),
+      mrp: (json['mrp'] as num? ?? 0).toDouble(),
       unit: json['unit'] as String? ?? 'item',
     );
   }
@@ -60,6 +64,7 @@ class ProductModel {
     'description': description,
     'dashboardSection': dashboardSection,
     'rating': rating,
+    'mrp': mrp,
     'unit': unit,
   };
 }

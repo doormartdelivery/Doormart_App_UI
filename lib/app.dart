@@ -6,9 +6,11 @@ import 'core/routes.dart';
 import 'core/theme.dart';
 import 'notifications/firebase_messaging_service.dart';
 import 'notifications/notification_payload.dart';
+import 'core/role_access.dart';
 import 'providers/app_state.dart';
 import 'features/delivery/providers/delivery_provider.dart';
 import 'features/delivery/screens/delivery_home_screen.dart';
+import 'views/user/user_home_screen.dart';
 import 'views/user/splash_screen.dart';
 
 class DoormartDeliveryApp extends StatefulWidget {
@@ -40,12 +42,17 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
   }
 
   Future<void> _handleNotificationTap(NotificationPayload payload) async {
-    if (DoormartDeliveryApp.navigatorKey.currentState == null) {
+    final navigator = DoormartDeliveryApp.navigatorKey.currentState;
+    if (navigator == null) {
       _pendingNotification = payload;
       return;
     }
-    DoormartDeliveryApp.navigatorKey.currentState!.pushNamedAndRemoveUntil(
-      DeliveryHomeScreen.routeName,
+
+    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    navigator.pushNamedAndRemoveUntil(
+      targetRoute == DeliveryHomeScreen.routeName
+          ? DeliveryHomeScreen.routeName
+          : UserHomeScreen.routeName,
       (route) => route.isFirst,
     );
   }
@@ -54,8 +61,14 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     final payload = _pendingNotification;
     if (payload == null) return;
     _pendingNotification = null;
-    DoormartDeliveryApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-      DeliveryHomeScreen.routeName,
+    final navigator = DoormartDeliveryApp.navigatorKey.currentState;
+    if (navigator == null) return;
+
+    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    navigator.pushNamedAndRemoveUntil(
+      targetRoute == DeliveryHomeScreen.routeName
+          ? DeliveryHomeScreen.routeName
+          : UserHomeScreen.routeName,
       (route) => route.isFirst,
     );
   }

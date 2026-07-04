@@ -326,6 +326,17 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final currentToken = await _messagingService.getToken();
+    if (token != null && currentToken != null && currentToken.isNotEmpty) {
+      try {
+        await _messagingService.removeToken(
+          token: currentToken,
+          authToken: token!,
+        );
+      } catch (e) {
+        debugPrint('FCM token removal skipped during logout: $e');
+      }
+    }
     token = null;
     user = null;
     orders = [];

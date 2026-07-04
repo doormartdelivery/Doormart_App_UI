@@ -66,6 +66,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -104,6 +105,9 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 10)),
                 const SliverToBoxAdapter(child: _ProductRail()),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                const SliverToBoxAdapter(child: _SummerSipSection()),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
                 const SliverToBoxAdapter(child: SizedBox(height: 22)),
                 const SliverToBoxAdapter(
                   child: _SectionTitle(
@@ -124,6 +128,8 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     selectedCategory: _selectedCategory,
                   ),
                 ),
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                const SliverToBoxAdapter(child: _GroceryComboSection()),
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
                 const SliverToBoxAdapter(
                   child: _SectionTitle('Popular Products'),
@@ -147,6 +153,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
                 const SliverToBoxAdapter(child: WalkingMascotWidget()),
                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                SliverToBoxAdapter(child: SizedBox(height: 96 + bottomInset)),
               ],
             ),
           ),
@@ -1520,11 +1527,23 @@ class _HomeFeedCard extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              'Rs ${product.price.toStringAsFixed(2)}',
+                              '₹ ${product.price.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w900,
                                 color: _kTextDark,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '₹ ${_mrpValue(product).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _kTextMid,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: _kTextMid,
+                                decorationThickness: 1.5,
                               ),
                             ),
                           ],
@@ -1534,7 +1553,7 @@ class _HomeFeedCard extends StatelessWidget {
                           height: 38,
                           decoration: BoxDecoration(
                             color: _kGreen,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(999),
                             boxShadow: [
                               BoxShadow(
                                 color: _kGreen.withValues(alpha: 0.35),
@@ -1920,7 +1939,7 @@ class _PopularStyleProductCard extends StatelessWidget {
               ),
             ),
             Expanded(
-              flex: 45,
+              flex: 55,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 child: Column(
@@ -1958,11 +1977,23 @@ class _PopularStyleProductCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          'Rs ${product.price.toStringAsFixed(0)}',
+                          '₹ ${product.price.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w900,
                             color: _kTextDark,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '₹ ${_mrpValue(product).toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _kTextMid,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: _kTextMid,
+                            decorationThickness: 1.6,
                           ),
                         ),
                         const Spacer(),
@@ -1977,7 +2008,7 @@ class _PopularStyleProductCard extends StatelessWidget {
                       ],
                     ),
                     Container(
-                      height: 36,
+                      height: 38,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: _kGreen,
@@ -2026,6 +2057,12 @@ String _unitLabel(String value) {
   if (unit.isEmpty) return '1 item';
   if (RegExp(r'^\d').hasMatch(unit)) return unit;
   return '1 $unit';
+}
+
+double _mrpValue(ProductModel product) {
+  final mrp = product.mrp;
+  if (mrp > 0) return mrp;
+  return product.price * 1.12;
 }
 
 class _TopOffersFeed extends StatelessWidget {
@@ -2086,6 +2123,738 @@ class _TopOffersFeed extends StatelessWidget {
       },
     );
   }
+}
+
+class _SummerSipSection extends StatelessWidget {
+  const _SummerSipSection();
+
+  static const _tiles = [
+    _SipTile(
+      'Fresh\nGrocery Deals',
+      '₹66',
+      '🛒',
+      Color(0xFFFF6B2C),
+      '',
+      'assets/images/banners/grocery_bag.png',
+    ),
+    _SipTile(
+      'Milk &\nDairy',
+      '₹19',
+      '🥛',
+      Color(0xFFFF8A3D),
+      'LOW\nPRICE',
+      'assets/images/categories/dairy.png',
+    ),
+    _SipTile(
+      'Fresh\nVegetables',
+      '₹29',
+      '🥬',
+      Color(0xFFFF7A1A),
+      'HIGH\nOFF',
+      'assets/images/categories/vegetables.png',
+    ),
+    _SipTile(
+      'Fruits\nBundle',
+      '₹19',
+      '🍎',
+      Color(0xFFFF9A3D),
+      '',
+      'assets/images/categories/fruits.png',
+    ),
+    _SipTile(
+      'Staples\nEssentials',
+      '₹19',
+      '🛍️',
+      Color(0xFFFFB14A),
+      '',
+      'assets/images/categories/staples.png',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF7A1A), Color(0xFFFF8C42), Color(0xFFFFA85C)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF7A1A).withValues(alpha: 0.30),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: -18,
+              right: 90,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -10,
+              left: -10,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.04),
+                ),
+              ),
+            ),
+            const Positioned(
+              top: 6,
+              right: 12,
+              child: _GroceriesIllustration(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Door Mart',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFFFF0D5),
+                                letterSpacing: 1.5,
+                                height: 1.0,
+                              ),
+                            ),
+                            RichText(
+                              text: const TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Hot',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' ',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFFF0D5),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: 'Deals',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 100),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _TileGrid(tiles: _tiles),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GroceryComboSection extends StatelessWidget {
+  const _GroceryComboSection();
+
+  static const _tiles = [
+    _SipTile(
+      'Value\nBundle',
+      '₹49',
+      '🧺',
+      Color(0xFFFF8C42),
+      'SAVE\nMORE',
+      'assets/images/categories/staples.png',
+    ),
+    _SipTile(
+      'Daily\nMilk Pack',
+      '₹22',
+      '🥛',
+      Color(0xFFFF7A1A),
+      '',
+      'assets/images/categories/dairy.png',
+    ),
+    _SipTile(
+      'Fresh\nFarm Picks',
+      '₹35',
+      '🥕',
+      Color(0xFFFFA24A),
+      'NEW',
+      'assets/images/categories/vegetables.png',
+    ),
+    _SipTile(
+      'Fruit\nCombo',
+      '₹27',
+      '🍇',
+      Color(0xFFFF6B2C),
+      '',
+      'assets/images/categories/fruits.png',
+    ),
+    _SipTile(
+      'Kitchen\nBasics',
+      '₹19',
+      '🛍️',
+      Color(0xFFFFB14A),
+      '',
+      'assets/images/banners/grocery_bag.png',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFF26522), Color(0xFFFF8A3D), Color(0xFFFFB14A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF26522).withValues(alpha: 0.26),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: -16,
+              right: 94,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -12,
+              left: -8,
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+            const Positioned(
+              top: 8,
+              right: 12,
+              child: _GroceriesIllustration(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'GROCERY',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFFFF4E3),
+                                letterSpacing: 1.5,
+                                height: 1.0,
+                              ),
+                            ),
+                            RichText(
+                              text: const TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Best',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' ',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFFFF4E3),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: 'Buys',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 100),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _TileGrid(tiles: _tiles),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TileGrid extends StatelessWidget {
+  const _TileGrid({required this.tiles});
+  final List<_SipTile> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 5, child: _BigTile(tile: tiles[0])),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 9,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _SmallTile(tile: tiles[1])),
+                  const SizedBox(width: 6),
+                  Expanded(child: _SmallTile(tile: tiles[2])),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(child: _SmallTile(tile: tiles[3])),
+                  const SizedBox(width: 6),
+                  Expanded(child: _SmallTile(tile: tiles[4])),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BigTile extends StatelessWidget {
+  const _BigTile({required this.tile});
+  final _SipTile tile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 148,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        gradient: LinearGradient(
+          colors: [tile.color, tile.color.withValues(alpha: 0.70)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: tile.color.withValues(alpha: 0.40),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.80,
+              child: _TileBackgroundImage(path: tile.backgroundImage),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.70),
+                    Colors.black.withValues(alpha: 0.70),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -6,
+            right: -6,
+            child: Text(tile.emoji, style: const TextStyle(fontSize: 44)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tile.label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.25,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '₹89',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withValues(alpha: 0.60),
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.white60,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE135),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    tile.price,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallTile extends StatelessWidget {
+  const _SmallTile({required this.tile});
+  final _SipTile tile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 68,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [tile.color, tile.color.withValues(alpha: 0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: tile.color.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.70,
+              child: _TileBackgroundImage(path: tile.backgroundImage),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.80),
+                    Colors.black.withValues(alpha: 0.04),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (tile.badge.isNotEmpty)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  tile.badge,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF3B2DA8),
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tile.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                    Text(tile.emoji, style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFE135),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    tile.price,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroceriesIllustration extends StatelessWidget {
+  const _GroceriesIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 88,
+      height: 70,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            bottom: 2,
+            child: Container(
+              width: 54,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.shopping_bag_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 8,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.85),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.local_grocery_store_rounded,
+                size: 10,
+                color: Color(0xFFF26522),
+              ),
+            ),
+          ),
+          Positioned(top: 8, left: 10, child: _Bubble(size: 8, opacity: 0.60)),
+          Positioned(top: 18, left: 20, child: _Bubble(size: 5, opacity: 0.40)),
+          Positioned(top: 4, right: 6, child: _Bubble(size: 6, opacity: 0.50)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.size, required this.opacity});
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: opacity),
+      ),
+    );
+  }
+}
+
+class _TileBackgroundImage extends StatelessWidget {
+  const _TileBackgroundImage({required this.path});
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(path);
+    if (normalized.startsWith('assets/')) {
+      return Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    if (normalized.startsWith('http')) {
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+class _SipTile {
+  const _SipTile(
+    this.label,
+    this.price,
+    this.emoji,
+    this.color,
+    this.badge,
+    this.backgroundImage,
+  );
+  final String label;
+  final String price;
+  final String emoji;
+  final Color color;
+  final String badge;
+  final String backgroundImage;
 }
 
 class _PopularProductsGrid extends StatelessWidget {

@@ -45,6 +45,16 @@ class NotificationService {
     final androidImplementation = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await androidImplementation?.requestNotificationsPermission();
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'delivery_orders',
+        channelName,
+        description: channelDescription,
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(soundName),
+      ),
+    );
     await androidImplementation?.deleteNotificationChannel(
       channelId: 'delivery_orders_v4',
     );

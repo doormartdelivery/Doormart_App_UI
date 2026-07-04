@@ -53,6 +53,7 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final editing = widget.address != null;
     return Scaffold(
       backgroundColor: _bg,
@@ -104,7 +105,7 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
                 child: Form(
                   key: _formKey,
                   child: Container(

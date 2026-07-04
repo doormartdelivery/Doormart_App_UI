@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../providers/app_state.dart';
+import '../../../models/user_model.dart';
 import '../providers/delivery_provider.dart';
 import 'active_order_screen.dart';
 import 'delivery_history_screen.dart';
@@ -35,21 +35,23 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<DeliveryProvider>();
-      final appState = context.read<AppState>();
       await provider.bootstrap();
-      if (appState.token != null && appState.user != null) {
+      if (provider.deliveryPerson == null &&
+          provider.authToken != null &&
+          provider.authUser != null) {
         provider.hydrateFromSession(
-          token: appState.token!,
-          user: appState.user!,
+          token: provider.authToken!,
+          user: UserModel.fromJson(provider.authUser!),
         );
-        await provider.syncOnlineState();
       }
+      await provider.syncOnlineState();
       await provider.loadDashboard();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
     final canSeeRequests = person?.active ?? false;
@@ -146,12 +148,12 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
 
       // ── Body ──────────────────────────────────────────────────────────
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 100 + bottomInset),
         children: [
           // ── Profile card ─────────────────────────────────────────────
           _ProfileCard(
             name: person?.name ?? 'Delivery Partner',
-            deliveryId: person?.id ?? '—',
+            deliveryId: _shortId(person?.id),
             imageUrl: person?.avatarUrl ?? '',
             online: provider.online,
             onToggle: (v) {
@@ -437,11 +439,11 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'ID: #$deliveryId',
-            style: const TextStyle(
-              fontSize: 13,
-              color: _kTextMid,
-              fontWeight: FontWeight.w500,
+          'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
+          style: const TextStyle(
+            fontSize: 13,
+            color: _kTextMid,
+            fontWeight: FontWeight.w500,
             ),
           ),
 
@@ -498,6 +500,14 @@ class _ProfileCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _shortId(String? id) {
+  final value = (id ?? '').trim();
+  if (value.isEmpty) return '—';
+  final cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (cleaned.length <= 8) return cleaned.toUpperCase();
+  return cleaned.substring(0, 8).toUpperCase();
 }
 
 class _AvatarFallback extends StatelessWidget {
@@ -787,6 +797,15 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: _kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _text(widget.order.customerPhone, fallback: '—'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _kTextMid,
                       ),
                     ),
                     Text(
@@ -1442,57 +1461,64 @@ class _BottomNav extends StatelessWidget {
       (Icons.person_rounded, 'Profile'),
     ];
 
-    return Container(
-      height: 76,
-      decoration: BoxDecoration(
-        color: _kCard,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: items.asMap().entries.map((e) {
-          final i = e.key;
-          final item = e.value;
-          final selected = i == index;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onTap(i),
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: selected ? _kOrange : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      item.$1,
-                      size: 22,
-                      color: selected ? Colors.white : _kTextMid,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.$2,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: selected ? _kOrange : _kTextMid,
-                    ),
-                  ),
-                ],
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Container(
+          height: 76,
+          decoration: BoxDecoration(
+            color: _kCard,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
               ),
-            ),
-          );
-        }).toList(),
+            ],
+          ),
+          child: Row(
+            children: items.asMap().entries.map((e) {
+              final i = e.key;
+              final item = e.value;
+              final selected = i == index;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onTap(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: selected ? _kOrange : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          item.$1,
+                          size: 22,
+                          color: selected ? Colors.white : _kTextMid,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.$2,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? _kOrange : _kTextMid,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

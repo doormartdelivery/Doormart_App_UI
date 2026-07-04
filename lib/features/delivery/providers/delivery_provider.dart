@@ -71,8 +71,38 @@ class DeliveryProvider extends ChangeNotifier {
       active: true,
       completedOrders: 0,
       todayEarnings: 0,
-      avatarUrl: user.avatarUrl,
+      avatarUrl: user.avatarUrl.isNotEmpty ? user.avatarUrl : null,
     );
+  }
+
+  String? _resolveAvatarUrl({
+    Map<String, dynamic>? user,
+    Map<String, dynamic>? delivery,
+  }) {
+    final avatar = (delivery?['avatarUrl'] as String?)?.trim();
+    if (avatar != null && avatar.isNotEmpty) return avatar;
+    final userAvatar = (user?['avatarUrl'] as String?)?.trim();
+    if (userAvatar != null && userAvatar.isNotEmpty) return userAvatar;
+    final savedAvatar = authUser?['avatarUrl']?.toString().trim();
+    if (savedAvatar != null && savedAvatar.isNotEmpty) return savedAvatar;
+    return deliveryPerson?.avatarUrl?.trim().isNotEmpty == true
+        ? deliveryPerson!.avatarUrl
+        : null;
+  }
+
+  String _resolveDisplayName({
+    Map<String, dynamic>? user,
+    Map<String, dynamic>? delivery,
+  }) {
+    final deliveryName = (delivery?['name'] as String?)?.trim();
+    if (deliveryName != null && deliveryName.isNotEmpty) return deliveryName;
+    final userName = (user?['name'] as String?)?.trim();
+    if (userName != null && userName.isNotEmpty) return userName;
+    final savedName = (authUser?['name']?.toString().trim() ?? '');
+    if (savedName.isNotEmpty) return savedName;
+    return deliveryPerson?.name.isNotEmpty == true
+        ? deliveryPerson!.name
+        : 'Delivery Person';
   }
 
   Future<bool> login({
@@ -98,7 +128,7 @@ class DeliveryProvider extends ChangeNotifier {
     }
     deliveryPerson = DeliveryPersonModel(
       id: user['_id'] as String? ?? user['id'] as String? ?? '',
-      name: user['name'] as String? ?? 'Delivery Person',
+      name: _resolveDisplayName(user: user, delivery: delivery),
       phone: user['phone'] as String? ?? '',
       vehicleNumber:
           delivery?['vehicleNumber'] as String? ??
@@ -109,6 +139,7 @@ class DeliveryProvider extends ChangeNotifier {
       active: true,
       completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
       todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
+      avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_deliveryTokenKey, authToken ?? '');
@@ -196,8 +227,7 @@ class DeliveryProvider extends ChangeNotifier {
           user['id'] as String? ??
           deliveryPerson?.id ??
           '',
-      name:
-          user['name'] as String? ?? deliveryPerson?.name ?? 'Delivery Person',
+      name: _resolveDisplayName(user: user, delivery: delivery),
       phone: user['phone'] as String? ?? deliveryPerson?.phone ?? '',
       vehicleNumber:
           delivery?['vehicleNumber'] as String? ??
@@ -209,7 +239,7 @@ class DeliveryProvider extends ChangeNotifier {
       active: deliveryPerson?.active ?? true,
       completedOrders: deliveryPerson?.completedOrders ?? 0,
       todayEarnings: deliveryPerson?.todayEarnings ?? 0,
-      avatarUrl: deliveryPerson?.avatarUrl,
+      avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
     );
     notifyListeners();
   }
@@ -422,6 +452,17 @@ class DeliveryProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await goOffline();
+    final currentToken = await _messagingService.getToken();
+    if (authToken != null && currentToken != null && currentToken.isNotEmpty) {
+      try {
+        await _messagingService.removeToken(
+          token: currentToken,
+          authToken: authToken!,
+        );
+      } catch (e) {
+        debugPrint('Delivery FCM token removal skipped during logout: $e');
+      }
+    }
     deliveryPerson = null;
     activeOrder = null;
     history.clear();

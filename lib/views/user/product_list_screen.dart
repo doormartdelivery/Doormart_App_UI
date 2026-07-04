@@ -52,6 +52,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -121,7 +122,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 120 + bottomInset),
                     sliver: SliverList.separated(
                       itemCount: products.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 18),

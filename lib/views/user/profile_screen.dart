@@ -28,6 +28,7 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final state = context.watch<AppState>();
 
     return Scaffold(
@@ -38,7 +39,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + bottomInset),
           children: [
             // ── Hero header ─────────────────────────────────────────────
             _HeroCard(state: state),
@@ -113,23 +114,6 @@ class ProfileScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 20),
-
-            // ── Logout / Login ───────────────────────────────────────────
-            if (state.signedIn)
-              _LogoutButton(
-                onTap: () async {
-                  HapticFeedback.mediumImpact();
-                  await context.read<AppState>().logout();
-                  if (!context.mounted) return;
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    LoginScreen.routeName,
-                    (_) => false,
-                  );
-                },
-              ),
-
-            const SizedBox(height: 12),
 
             // ── App version footer ───────────────────────────────────────
             const _Footer(),
@@ -305,6 +289,57 @@ class _HeroCard extends StatelessWidget {
                         filled: false,
                         onTap: signedIn
                             ? () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.logout_rounded,
+                                      color: _kOrange,
+                                      size: 40,
+                                    ),
+                                    title: const Text(
+                                      'Logout',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        color: _kTextDark,
+                                      ),
+                                    ),
+                                    content: const Text(
+                                      'Are you sure you want to logout?',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: _kTextMid),
+                                    ),
+                                    actionsAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: _kOrange,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Logout'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true || !context.mounted) {
+                                  return;
+                                }
                                 await context.read<AppState>().logout();
                                 if (!context.mounted) return;
                                 Navigator.pushNamedAndRemoveUntil(

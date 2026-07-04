@@ -57,6 +57,7 @@ class _AddressScreenState extends State<AddressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: _bg,
       bottomNavigationBar: const SizedBox(height: kBottomNavigationBarHeight),
@@ -133,7 +134,7 @@ class _AddressScreenState extends State<AddressScreen> {
             const SizedBox(height: 8),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomInset),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                   decoration: BoxDecoration(

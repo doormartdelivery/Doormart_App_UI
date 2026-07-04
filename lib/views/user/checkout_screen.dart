@@ -199,6 +199,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             final gstAmount = (summary?['gstAmount'] as num?)?.toDouble() ?? state.gstAmount;
                             final total = (summary?['total'] as num?)?.toDouble() ?? state.total;
                             return _SummaryCard(
+                              items: state.cart,
                               subtotal: subtotal,
                               deliveryFee: deliveryFee,
                               gstAmount: gstAmount,
@@ -432,6 +433,7 @@ class _AddressCard extends StatelessWidget {
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
+    required this.items,
     required this.subtotal,
     required this.deliveryFee,
     required this.gstAmount,
@@ -439,6 +441,7 @@ class _SummaryCard extends StatelessWidget {
     this.loading = false,
   });
 
+  final List<CartLine> items;
   final double subtotal;
   final double deliveryFee;
   final double gstAmount;
@@ -461,11 +464,62 @@ class _SummaryCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (loading) ...[
             const LinearProgressIndicator(minHeight: 2),
             const SizedBox(height: 14),
           ],
+          const Text(
+            'Items in your cart',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: _kTextDark,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const Text(
+              'No items in cart',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF666666),
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else
+            ...items.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        line.product.name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _kTextDark,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Qty x${line.quantity}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kOrange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
           _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
           _SummaryRow(label: 'Delivery fee', value: deliveryFee),

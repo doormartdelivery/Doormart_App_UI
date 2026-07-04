@@ -77,6 +77,17 @@ class FirebaseMessagingService {
 
   Future<String?> getToken() => FirebaseMessaging.instance.getToken();
 
+  Future<void> removeToken({
+    required String token,
+    required String authToken,
+  }) {
+    return apiService.post(
+      '/notifications/remove-token',
+      token: authToken,
+      body: {'fcmToken': token},
+    );
+  }
+
   Future<void> saveToken({
     required String token,
     required String authToken,

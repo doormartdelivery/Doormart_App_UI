@@ -157,6 +157,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final state = context.watch<AppState>();
     final tickets = state.supportTickets;
     final orders = state.orders;
@@ -174,7 +175,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + bottomInset),
           children: [
             _TopBar(onBack: () => Navigator.maybePop(context)),
             const SizedBox(height: 16),

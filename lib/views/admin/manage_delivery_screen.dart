@@ -220,10 +220,13 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               color: Colors.white, fontWeight: FontWeight.w800),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.scaling,
     );
   }
 
   Widget _buildBody() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final partners = _filtered;
     final total = _allPartners.length;
     final online =
@@ -232,7 +235,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
         _allPartners.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Offline').length;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 100 + bottomInset),
       children: [
         // ── Header ──────────────────────────────────────────────────────
         _Header(

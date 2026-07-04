@@ -95,7 +95,11 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
                 showToast(context, 'Type something to search');
               }
             },
-            icon: const Icon(Icons.tune_rounded, color: Color(0xFF14532D)),
+            icon: const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFF14532D),
+              size: 18,
+            ),
           ),
         ],
       ),

@@ -224,8 +224,14 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen>
       final appState = context.read<AppState>();
       final authUser = provider.authUser;
       if (authUser != null && provider.authToken != null) {
+        final deliveryPerson = provider.deliveryPerson;
+        final mergedUser = Map<String, dynamic>.from(authUser);
+        if ((mergedUser['avatarUrl']?.toString().trim() ?? '').isEmpty &&
+            (deliveryPerson?.avatarUrl?.trim() ?? '').isNotEmpty) {
+          mergedUser['avatarUrl'] = deliveryPerson!.avatarUrl;
+        }
         appState.token = provider.authToken;
-        appState.user = UserModel.fromJson(authUser);
+        appState.user = UserModel.fromJson(mergedUser);
         await appState.refreshProfile();
         await SessionService().saveSession(
           token: provider.authToken!,

@@ -52,6 +52,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAF4),
       body: GradientBackground(
@@ -172,6 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   );
                 },
               ),
+              SliverToBoxAdapter(child: SizedBox(height: bottomInset)),
             ],
           ),
         ),
@@ -240,7 +242,7 @@ class _SearchHeader extends StatelessWidget {
           VoiceSearchWidget(
             controller: controller,
             autofocus: true,
-            hintText: 'Search groceries in English or Tamil',
+            hintText: 'Search groceries in English',
             onSearchChanged: onChanged,
             onSubmitted: onSubmitted,
           ),
@@ -340,47 +342,47 @@ class _ProductFeedCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Stack(
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(22),
-            ),
-            child: SizedBox(
-              width: 120,
-              height: 158,
-              child: _ImageThumb(imageUrl: product.imageUrl),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1A1A),
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.category,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(22),
+                ),
+                child: SizedBox(
+                  width: 120,
+                  height: 158,
+                  child: _ImageThumb(imageUrl: product.imageUrl),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 14, 44, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A1A),
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.category,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Text(
                         'Rs ${product.price.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -389,62 +391,68 @@ class _ProductFeedCard extends StatelessWidget {
                           color: Color(0xFF1A1A1A),
                         ),
                       ),
-                      const Spacer(),
-                      _BadgeButton(
-                        active: isFavorite,
-                        child: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          size: 16,
-                          color: isFavorite ? const Color(0xFFE8541A) : const Color(0xFFAAAAAA),
+                      const SizedBox(height: 10),
+                      Container(
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8541A),
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFE8541A,
+                              ).withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        onTap: onFavoriteToggle,
+                        child: SizedBox(
+                          width: 235,
+                          child: FilledButton.icon(
+                            onPressed: onAdd,
+                            icon: const Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              'Add to Cart',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 14),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8541A),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFE8541A).withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      width: 235,
-                      child: FilledButton.icon(
-                        onPressed: onAdd,
-                        icon: const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 16,
-                        ),
-                        label: const Text(
-                          'Add to Cart',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _BadgeButton(
+              active: isFavorite,
+              child: Icon(
+                isFavorite ? Icons.favorite : Icons.favorite_border,
+                size: 16,
+                color: isFavorite
+                    ? const Color(0xFFE8541A)
+                    : const Color(0xFFAAAAAA),
+              ),
+              onTap: onFavoriteToggle,
             ),
           ),
         ],
@@ -470,7 +478,10 @@ class _ImageThumb extends StatelessWidget {
     return const ColoredBox(
       color: Color(0xFFF1F5F9),
       child: Center(
-        child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF64748B)),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: Color(0xFF64748B),
+        ),
       ),
     );
   }
