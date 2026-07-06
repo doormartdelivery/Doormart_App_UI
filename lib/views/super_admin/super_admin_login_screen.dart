@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import '../user/forgot_password_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -127,19 +128,24 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                           const SizedBox(height: 28),
 
                           // ── Email ────────────────────────────────────
-                          _FieldLabel('Super admin email'),
+                          _FieldLabel('Super admin email or phone'),
                           const SizedBox(height: 8),
                           _Field(
                             controller: _emailCtrl,
-                            hint: 'superadmin@doormart.com',
+                            hint: 'superadmin@doormart.com or 9876543210',
                             icon: Icons.manage_accounts_rounded,
                             keyboardType: TextInputType.emailAddress,
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return 'Enter your email';
+                                return 'Enter your email or phone';
                               }
-                              if (!v.contains('@')) {
-                                return 'Enter a valid email';
+                              final value = v.trim();
+                              final isEmail = value.contains('@');
+                              final isPhone = RegExp(r'^\+?\d{7,15}$').hasMatch(
+                                value.replaceAll(RegExp(r'\s+'), ''),
+                              );
+                              if (!isEmail && !isPhone) {
+                                return 'Enter a valid email or phone number';
                               }
                               return null;
                             },
@@ -178,7 +184,11 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).pushNamed(
+                                  ForgotPasswordScreen.routeName,
+                                );
+                              },
                               style: TextButton.styleFrom(
                                 foregroundColor: _kOrange,
                                 padding: EdgeInsets.zero,

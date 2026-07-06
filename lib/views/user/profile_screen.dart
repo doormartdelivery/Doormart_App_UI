@@ -22,9 +22,26 @@ const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF667064);
 const _kBorder = Color(0xFFE3E8DF);
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
   static const routeName = '/profile';
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<AppState>();
+      if (state.signedIn) {
+        state.loadAddresses();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -498,7 +515,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: 'Saved',
-            value: '1+',
+            value: '${state.savedAddresses.length}',
             icon: Icons.location_on_rounded,
             color: _kGreen,
             bg: _kGreenLight,

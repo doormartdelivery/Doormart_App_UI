@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
+import 'forgot_password_screen.dart';
 import 'user_home_screen.dart';
 import 'signup_screen.dart';
 
@@ -233,6 +234,11 @@ class _LoginScreenState extends State<LoginScreen>
                         onLogin: _login,
                         onGuest: _continueAsGuest,
                         onGoRegister: () => _tabCtrl.animateTo(1),
+                        onGoForgotPassword: () {
+                          Navigator.of(context).pushNamed(
+                            ForgotPasswordScreen.routeName,
+                          );
+                        },
                         onResendOtp: () async {
                           setState(() {
                             _error = null;
@@ -479,6 +485,7 @@ class _LoginTab extends StatelessWidget {
     required this.onLogin,
     required this.onGuest,
     required this.onGoRegister,
+    required this.onGoForgotPassword,
     required this.onResendOtp,
   });
 
@@ -496,6 +503,7 @@ class _LoginTab extends StatelessWidget {
   final VoidCallback onLogin;
   final VoidCallback onGuest;
   final VoidCallback onGoRegister;
+  final VoidCallback onGoForgotPassword;
   final Future<void> Function() onResendOtp;
 
   @override
@@ -553,18 +561,35 @@ class _LoginTab extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            _FieldLabel('Email address'),
+            _FieldLabel(loginMode == _LoginMode.password
+                ? 'Email or phone number'
+                : 'Email address'),
             const SizedBox(height: 8),
             _Field(
               controller: emailCtrl,
-              hint: 'you@example.com',
+              hint: loginMode == _LoginMode.password
+                  ? 'you@example.com or 9876543210'
+                  : 'you@example.com',
               icon: Icons.email_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
-                  return 'Enter your email';
+                  return loginMode == _LoginMode.password
+                      ? 'Enter your email or phone'
+                      : 'Enter your email';
                 }
-                if (!v.contains('@')) return 'Enter a valid email';
+                final value = v.trim();
+                if (loginMode == _LoginMode.password) {
+                  final isEmail = value.contains('@');
+                  final isPhone = RegExp(r'^\+?\d{7,15}$').hasMatch(
+                    value.replaceAll(RegExp(r'\s+'), ''),
+                  );
+                  if (!isEmail && !isPhone) {
+                    return 'Enter a valid email or phone number';
+                  }
+                } else if (!value.contains('@')) {
+                  return 'Enter a valid email';
+                }
                 return null;
               },
             ),
@@ -582,6 +607,23 @@ class _LoginTab extends StatelessWidget {
                 suffix: _EyeToggle(obscure: obscurePass, onToggle: onTogglePass),
                 validator: (v) =>
                     (v == null || v.isEmpty) ? 'Enter your password' : null,
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onGoForgotPassword,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kOrange,
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
               ),
             ] else ...[
               _FieldLabel('OTP'),

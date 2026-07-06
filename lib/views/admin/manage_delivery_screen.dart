@@ -898,6 +898,7 @@ class _PartnerDialogState extends State<_PartnerDialog> {
       TextEditingController(text: widget.user?.email ?? '');
   late final TextEditingController _avatarCtrl =
       TextEditingController(text: widget.user?.avatarUrl ?? '');
+  late final TextEditingController _passwordCtrl = TextEditingController();
 
   Uint8List? _avatarBytes;
   bool _uploading = false;
@@ -913,6 +914,7 @@ class _PartnerDialogState extends State<_PartnerDialog> {
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _avatarCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
@@ -973,11 +975,16 @@ class _PartnerDialogState extends State<_PartnerDialog> {
       UserModel saved;
 
       if (!_isEdit) {
+        if (_passwordCtrl.text.trim().isEmpty) {
+          setState(() => _saveError = 'Password is required');
+          return;
+        }
         saved = await state.createAdminUser(
           name: _nameCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
           avatarUrl: _avatarCtrl.text.trim(),
+          password: _passwordCtrl.text.trim(),
           role: UserRoles.deliveryPerson,
         );
       } else {
@@ -987,6 +994,9 @@ class _PartnerDialogState extends State<_PartnerDialog> {
           phone: _phoneCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
           avatarUrl: _avatarCtrl.text.trim(),
+          password: _passwordCtrl.text.trim().isEmpty
+              ? null
+              : _passwordCtrl.text.trim(),
           role: UserRoles.deliveryPerson,
           status: widget.user!.status,
         );
@@ -1087,6 +1097,16 @@ class _PartnerDialogState extends State<_PartnerDialog> {
                 label: 'Email (optional)',
                 icon: Icons.email_rounded,
                 keyboardType: TextInputType.emailAddress,
+              ),
+
+              // ── Password ─────────────────────────────────────────────
+              _DialogField(
+                controller: _passwordCtrl,
+                label: _isEdit
+                    ? 'Password (leave blank to keep current)'
+                    : 'Password *',
+                icon: Icons.lock_rounded,
+                obscureText: true,
               ),
 
               // ── Save error ────────────────────────────────────────
@@ -1285,11 +1305,13 @@ class _DialogField extends StatelessWidget {
     required this.label,
     required this.icon,
     this.keyboardType,
+    this.obscureText = false,
   });
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final TextInputType? keyboardType;
+  final bool obscureText;
 
   @override
   Widget build(BuildContext context) {
@@ -1298,6 +1320,7 @@ class _DialogField extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        obscureText: obscureText,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, size: 20),

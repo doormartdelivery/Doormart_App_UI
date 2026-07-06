@@ -179,6 +179,25 @@ class AppState extends ChangeNotifier {
     }, silent: silent);
   }
 
+  Future<void> sendPasswordResetOtp({required String email}) async {
+    await apiService.post('/auth/forgot-password', body: {'email': email});
+  }
+
+  Future<void> resetPasswordWithOtp({
+    required String email,
+    required String otp,
+    required String password,
+  }) async {
+    await apiService.post(
+      '/auth/reset-password',
+      body: {
+        'email': email,
+        'otp': otp,
+        'password': password,
+      },
+    );
+  }
+
   Future<void> register({
     required String name,
     required String phone,
@@ -885,6 +904,7 @@ class AppState extends ChangeNotifier {
     String? phone,
     String? email,
     String? avatarUrl,
+    String? password,
     String? role,
     String? status,
   }) async {
@@ -897,6 +917,7 @@ class AppState extends ChangeNotifier {
       if (phone != null) 'phone': phone,
       if (email != null) 'email': email,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (password != null && password.isNotEmpty) 'password': password,
       if (role != null) 'role': role,
       if (status != null) 'status': status,
     };
@@ -911,6 +932,7 @@ class AppState extends ChangeNotifier {
     required String phone,
     String email = '',
     String avatarUrl = '',
+    String password = '',
     String role = UserRoles.deliveryPerson,
     String status = 'active',
   }) async {
@@ -927,6 +949,7 @@ class AppState extends ChangeNotifier {
                 'phone': phone,
                 'email': email,
                 'avatarUrl': avatarUrl,
+                if (password.isNotEmpty) 'password': password,
                 'role': role,
                 'status': status,
               },

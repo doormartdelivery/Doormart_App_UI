@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../views/user/address_screen.dart';
 import '../../views/user/cart_screen.dart';
 import '../../views/user/checkout_screen.dart';
+import '../../views/user/forgot_password_screen.dart';
 import '../../views/user/help_support_screen.dart';
 import '../../views/user/login_screen.dart';
 import '../../views/user/my_orders_screen.dart';
@@ -25,6 +26,7 @@ class CustomerRoutes {
     SplashScreen.routeName: (_) => const SplashScreen(),
     UserHomeScreen.routeName: (_) => const UserHomeScreen(),
     LoginScreen.routeName: (_) => const LoginScreen(),
+    ForgotPasswordScreen.routeName: (_) => const ForgotPasswordScreen(),
     SignupScreen.routeName: (_) => const SignupScreen(),
     SearchScreen.routeName: (_) => const SearchScreen(),
     ProductListScreen.routeName: (_) => const ProductListScreen(),

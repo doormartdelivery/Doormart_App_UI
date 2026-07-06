@@ -643,7 +643,7 @@ class _ProductFeedCard extends StatelessWidget {
                               ],
                             ),
                             child: SizedBox(
-                              width: 250, // Reduce width if needed
+                              width: 270, // Reduce width if needed
                               child: FilledButton.icon(
                                 onPressed: onAddToCart,
                                 icon: const Icon(

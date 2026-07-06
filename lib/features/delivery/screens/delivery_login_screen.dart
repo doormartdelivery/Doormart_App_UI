@@ -6,6 +6,7 @@ import '../../../../services/api_service.dart';
 import '../../../../models/user_model.dart';
 import '../../../../providers/app_state.dart';
 import '../../../../services/session_service.dart';
+import '../../../../views/user/forgot_password_screen.dart';
 import '../providers/delivery_provider.dart';
 import 'delivery_home_screen.dart';
 
@@ -130,7 +131,11 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen>
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.of(context).pushNamed(
+                                  ForgotPasswordScreen.routeName,
+                                );
+                              },
                               style: TextButton.styleFrom(
                                 foregroundColor: _kOrange,
                                 padding: EdgeInsets.zero,

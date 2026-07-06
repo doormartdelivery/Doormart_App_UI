@@ -586,6 +586,7 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalQty = state.cart.fold<int>(0, (s, l) => s + l.quantity);
+    final itemsTotal = state.subtotal;
 
     return Container(
       decoration: BoxDecoration(
@@ -634,6 +635,15 @@ class _BottomBar extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  Text(
+                    'Items Total : Rs ${itemsTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: _kTextMid,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   const Text(
                     'Total Amount :',
                     style: TextStyle(

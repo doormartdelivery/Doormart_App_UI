@@ -1472,9 +1472,8 @@ class _HomeFeedCard extends StatelessWidget {
                 Stack(
                   children: [
                     ClipRRect(
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(22),
-                      ),
+                      clipBehavior: Clip.antiAlias,
+                      borderRadius: BorderRadius.circular(22),
                       child: SizedBox(
                         width: 120,
                         height: 180,
@@ -1696,47 +1695,47 @@ class _HomeFeedImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
     debugPrint('Cloudinary Image URL (home feed): $normalized');
+    Widget child;
     if (normalized.startsWith('assets/')) {
-      return SizedBox.expand(
-        child: Image.asset(
-          normalized,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-        ),
+      child = Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
       );
-    }
-    if (normalized.startsWith('http')) {
-      return SizedBox.expand(
-        child: Image.network(
-          normalized,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('Image Load Error (home feed): $error');
-            return const Center(
-              child: Icon(
-                Icons.broken_image_outlined,
-                color: Color(0xFF64748B),
-              ),
-            );
-          },
-        ),
+    } else if (normalized.startsWith('http')) {
+      child = Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Image Load Error (home feed): $error');
+          return const Center(
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: Color(0xFF64748B),
+            ),
+          );
+        },
       );
-    }
-    return SizedBox.expand(
-      child: Image.asset(
+    } else {
+      child = Image.asset(
         imageUrl.toLowerCase().contains('banner')
             ? 'assets/images/banners/grocery_bag.png'
             : 'assets/images/products/tomato.png',
         fit: BoxFit.cover,
         gaplessPlayback: true,
-      ),
+      );
+    }
+    return ClipRRect(
+      clipBehavior: Clip.antiAlias,
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox.expand(child: child),
     );
   }
 }
@@ -2157,7 +2156,7 @@ class _SummerSipSection extends StatelessWidget {
       '₹19',
       '🥛',
       Color(0xFFFF8A3D),
-      'LOW\nPRICE',
+      '',
       'assets/images/categories/dairy.png',
     ),
     _SipTile(
@@ -2165,7 +2164,7 @@ class _SummerSipSection extends StatelessWidget {
       '₹29',
       '🥬',
       Color(0xFFFF7A1A),
-      'HIGH\nOFF',
+      '',
       'assets/images/categories/vegetables.png',
     ),
     _SipTile(
@@ -2335,7 +2334,7 @@ class _GroceryComboSection extends StatelessWidget {
     _SipTile(
       'Fresh\nFarm Picks',
       '₹35',
-      '🥕',
+      '',
       Color(0xFFFFA24A),
       'NEW',
       'assets/images/categories/vegetables.png',

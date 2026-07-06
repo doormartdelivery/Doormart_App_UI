@@ -499,10 +499,15 @@ class DeliveryProvider extends ChangeNotifier {
           deliveryPersonId: deliveryPerson!.id,
           token: authToken,
         );
-        final currentIds = pendingRequests.map((item) => item.id).toSet();
+        final availableIds = available.map((item) => item.id).toSet();
         var changed = false;
-        for (final order in available) {
-          if (!currentIds.contains(order.id)) {
+        pendingRequests.removeWhere((item) {
+          final shouldRemove = !availableIds.contains(item.id);
+          if (shouldRemove) changed = true;
+          return shouldRemove;
+        });
+        for (final order in available.reversed) {
+          if (pendingRequests.every((item) => item.id != order.id)) {
             pendingRequests.insert(0, order);
             changed = true;
           }

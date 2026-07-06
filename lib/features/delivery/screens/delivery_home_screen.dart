@@ -110,38 +110,6 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
                 ),
               ),
             ),
-          const SizedBox(width: 10),
-          // Notification bell
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _kBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: _kTextDark,
-                  size: 22,
-                ),
-              ),
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: _kOrange,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(width: 16),
         ],
       ),
