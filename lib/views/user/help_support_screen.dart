@@ -57,18 +57,18 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     }
   }
 
-  Future<void> _callSupport() => _launch(Uri.parse('tel:+919999999999'));
+  Future<void> _callSupport() => _launch(Uri.parse('tel:+918825965775'));
 
   Future<void> _whatsappSupport() => _launch(
     Uri.parse(
-      'https://wa.me/919999999999?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
+      'https://wa.me/918825965775?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
     ),
   );
 
   Future<void> _emailSupport() => _launch(
     Uri(
       scheme: 'mailto',
-      path: 'support@doormart.com',
+      path: 'doormartdelivery@gmail.com',
       queryParameters: {
         'subject': 'Doormart Support',
         'body': 'Hello Doormart support team,\n\nI need help with...',

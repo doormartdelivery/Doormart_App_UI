@@ -64,6 +64,18 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     super.dispose();
   }
 
+  Future<void> _toggleFavoriteGuarded(
+    AppState state,
+    BuildContext context,
+    ProductModel product,
+  ) async {
+    if (!state.signedIn) {
+      showToast(context, 'Please login first');
+      return;
+    }
+    await state.toggleFavorite(product);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -129,6 +141,12 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                       child: _EssentialsGrid(
                         sort: _sort,
                         selectedCategory: _selectedCategory,
+                        onFavoriteToggle: (product) =>
+                            _toggleFavoriteGuarded(
+                              context.read<AppState>(),
+                              context,
+                              product,
+                            ),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 18)),
@@ -150,6 +168,12 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                       child: _PopularProductsGrid(
                         sort: _popularSort,
                         selectedCategory: _popularSelectedCategory,
+                        onFavoriteToggle: (product) =>
+                            _toggleFavoriteGuarded(
+                              context.read<AppState>(),
+                              context,
+                              product,
+                            ),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 170)),
@@ -1348,7 +1372,13 @@ class _ProductRail extends StatelessWidget {
                 child: ProductCard(
                   product: products[i],
                   isFavorite: state.isFavorite(products[i]),
-                  onFavoriteToggle: () => state.toggleFavorite(products[i]),
+                  onFavoriteToggle: () {
+                    if (!state.signedIn) {
+                      showToast(ctx, 'Please login first');
+                      return;
+                    }
+                    state.toggleFavorite(products[i]);
+                  },
                   onTap: () => showProductBottomSheet(
                     ctx,
                     products[i],
@@ -1815,9 +1845,14 @@ enum _EssentialsSort {
 }
 
 class _EssentialsGrid extends StatelessWidget {
-  const _EssentialsGrid({required this.sort, required this.selectedCategory});
+  const _EssentialsGrid({
+    required this.sort,
+    required this.selectedCategory,
+    required this.onFavoriteToggle,
+  });
   final _EssentialsSort sort;
   final String selectedCategory;
+  final Future<void> Function(ProductModel product) onFavoriteToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -1864,7 +1899,7 @@ class _EssentialsGrid extends StatelessWidget {
             return _PopularStyleProductCard(
               product: product,
               isFavorite: state.isFavorite(product),
-              onFavoriteToggle: () => state.toggleFavorite(product),
+              onFavoriteToggle: () => onFavoriteToggle(product),
               onTap: () => showProductBottomSheet(
                 ctx,
                 product,
@@ -2106,7 +2141,13 @@ class _TopOffersFeed extends StatelessWidget {
             return _HomeFeedCard(
               product: product,
               isFavorite: state.isFavorite(product),
-              onFavoriteToggle: () => state.toggleFavorite(product),
+              onFavoriteToggle: () {
+                if (!state.signedIn) {
+                  showToast(ctx, 'Please login first');
+                  return;
+                }
+                state.toggleFavorite(product);
+              },
               onTap: () => showProductBottomSheet(
                 ctx,
                 product,
@@ -2875,9 +2916,11 @@ class _PopularProductsGrid extends StatelessWidget {
   const _PopularProductsGrid({
     required this.sort,
     required this.selectedCategory,
+    required this.onFavoriteToggle,
   });
   final _EssentialsSort sort;
   final String selectedCategory;
+  final Future<void> Function(ProductModel product) onFavoriteToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -2925,7 +2968,7 @@ class _PopularProductsGrid extends StatelessWidget {
             return _HomeFeedCard(
               product: product,
               isFavorite: state.isFavorite(product),
-              onFavoriteToggle: () => state.toggleFavorite(product),
+              onFavoriteToggle: () => onFavoriteToggle(product),
               onTap: () => showProductBottomSheet(
                 ctx,
                 product,
