@@ -278,24 +278,30 @@ class AppState extends ChangeNotifier {
   Future<void> _loadPostAuthData() async {
     final role = user?.role;
     if (role == UserRoles.user) {
-      await _safeCall(loadCart);
-      await _safeCall(loadAddresses);
-      await _safeCall(loadFavorites);
-      await _safeCall(loadOrders);
+      await Future.wait([
+        _safeCall(loadCart),
+        _safeCall(loadAddresses),
+        _safeCall(loadFavorites),
+        _safeCall(loadOrders),
+      ]);
       return;
     }
     if (role == UserRoles.deliveryPerson) {
       return;
     }
     if (role == UserRoles.admin || role == UserRoles.superAdmin) {
-      await _safeCall(loadOrders);
-      await _safeCall(loadFavorites);
+      await Future.wait([
+        _safeCall(loadOrders),
+        _safeCall(loadFavorites),
+      ]);
       return;
     }
-    await _safeCall(loadOrders);
-    await _safeCall(loadCart);
-    await _safeCall(loadAddresses);
-    await _safeCall(loadFavorites);
+    await Future.wait([
+      _safeCall(loadOrders),
+      _safeCall(loadCart),
+      _safeCall(loadAddresses),
+      _safeCall(loadFavorites),
+    ]);
   }
 
   Future<void> loadSupportTickets() async {
@@ -377,24 +383,70 @@ class AppState extends ChangeNotifier {
   bool isFavorite(ProductModel product) =>
       favorites.any((item) => item.id == product.id);
 
-  Future<void> toggleFavorite(ProductModel product) async {
-    if (token == null) throw StateError('Please login first');
-    if (isFavorite(product)) {
-      await removeFavorite(product.id);
+  void _setFavoriteState(ProductModel product, bool favorite) {
+    if (favorite) {
+      if (favorites.any((item) => item.id == product.id)) return;
+      favorites = [product, ...favorites];
       return;
     }
-    await apiService.post(
-      '/wishlist/add',
-      token: token,
-      body: {'productId': product.id},
-    );
-    await loadFavorites();
+    favorites = favorites.where((item) => item.id != product.id).toList();
+  }
+
+  List<CartLine> _cloneCart() =>
+      cart.map((line) => CartLine(product: line.product, quantity: line.quantity)).toList();
+
+  void _setCartQuantity(ProductModel product, int quantity) {
+    final index = cart.indexWhere((line) => line.product.id == product.id);
+    if (quantity <= 0) {
+      if (index != -1) cart.removeAt(index);
+      return;
+    }
+    if (index == -1) {
+      cart.add(CartLine(product: product, quantity: quantity));
+      return;
+    }
+    cart[index].quantity = quantity;
+  }
+
+  Future<void> toggleFavorite(ProductModel product) async {
+    if (token == null) throw StateError('Please login first');
+    final wasFavorite = isFavorite(product);
+    final snapshot = List<ProductModel>.from(favorites);
+    _setFavoriteState(product, !wasFavorite);
+    notifyListeners();
+    final sw = Stopwatch()..start();
+    try {
+      if (wasFavorite) {
+        await apiService.delete('/wishlist/remove/${product.id}', token: token);
+      } else {
+        await apiService.post(
+          '/wishlist/add',
+          token: token,
+          body: {'productId': product.id},
+        );
+      }
+      debugPrint('[perf][wishlist:${wasFavorite ? "remove" : "add"}][api] ${sw.elapsedMilliseconds}ms');
+    } catch (e) {
+      favorites = snapshot;
+      error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> removeFavorite(String productId) async {
     if (token == null) throw StateError('Please login first');
-    await apiService.delete('/wishlist/remove/$productId', token: token);
-    await loadFavorites();
+    final snapshot = List<ProductModel>.from(favorites);
+    favorites.removeWhere((item) => item.id == productId);
+    notifyListeners();
+    try {
+      await apiService.delete('/wishlist/remove/$productId', token: token);
+    } catch (e) {
+      favorites = snapshot;
+      error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   String get defaultDashboardRoute => RoleAccess.dashboardForRole(user?.role);
@@ -1343,13 +1395,33 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    await apiService.post(
-      '/cart/add',
-      token: token,
-      body: {'productId': product.id, 'quantity': quantity},
+    final snapshot = _cloneCart();
+    _setCartQuantity(
+      product,
+      (cart.firstWhere(
+                (line) => line.product.id == product.id,
+                orElse: () => CartLine(product: product, quantity: 0),
+              ).quantity) +
+          quantity,
     );
-    await loadCart();
-    return true;
+    notifyListeners();
+    final sw = Stopwatch()..start();
+    try {
+      await apiService.post(
+        '/cart/add',
+        token: token,
+        body: {'productId': product.id, 'quantity': quantity},
+      );
+      debugPrint('[perf][cart:add][api] ${sw.elapsedMilliseconds}ms');
+      return true;
+    } catch (e) {
+      cart
+        ..clear()
+        ..addAll(snapshot);
+      error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<bool> _syncDecrement(ProductModel product) async {
@@ -1362,16 +1434,40 @@ class AppState extends ChangeNotifier {
       (line) => line.product.id == product.id,
       orElse: () => CartLine(product: product, quantity: 0),
     );
+    final snapshot = _cloneCart();
+    final nextQuantity = current.quantity <= 1 ? 0 : current.quantity - 1;
+    _setCartQuantity(product, nextQuantity);
+    notifyListeners();
+    final sw = Stopwatch()..start();
     if (current.quantity <= 1) {
-      await apiService.delete('/cart/remove/${product.id}', token: token);
+      try {
+        await apiService.delete('/cart/remove/${product.id}', token: token);
+        debugPrint('[perf][cart:decrement][api] ${sw.elapsedMilliseconds}ms');
+      } catch (e) {
+        cart
+          ..clear()
+          ..addAll(snapshot);
+        error = e.toString();
+        notifyListeners();
+        rethrow;
+      }
     } else {
-      await apiService.put(
-        '/cart/update',
-        token: token,
-        body: {'productId': product.id, 'quantity': current.quantity - 1},
-      );
+      try {
+        await apiService.put(
+          '/cart/update',
+          token: token,
+          body: {'productId': product.id, 'quantity': nextQuantity},
+        );
+        debugPrint('[perf][cart:decrement][api] ${sw.elapsedMilliseconds}ms');
+      } catch (e) {
+        cart
+          ..clear()
+          ..addAll(snapshot);
+        error = e.toString();
+        notifyListeners();
+        rethrow;
+      }
     }
-    await loadCart();
     return true;
   }
 

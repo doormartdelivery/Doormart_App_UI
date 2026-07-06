@@ -27,6 +27,12 @@ const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF9E9E9E);
 const _kBorder = Color(0xFFE8E8E8);
 
+void _logNextFrame(String label, Stopwatch sw) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    debugPrint('[perf][$label][ui] ${sw.elapsedMilliseconds}ms');
+  });
+}
+
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
   static const routeName = '/';
@@ -1365,49 +1371,62 @@ class _ProductRail extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (ctx, i) => _AnimatedProductCard(
-              index: i,
-              child: SizedBox(
-                width: 168,
-                child: ProductCard(
-                  product: products[i],
-                  isFavorite: state.isFavorite(products[i]),
-                  onFavoriteToggle: () {
-                    if (!state.signedIn) {
-                      showToast(ctx, 'Please login first');
-                      return;
-                    }
-                    state.toggleFavorite(products[i]);
-                  },
-                  onTap: () => showProductBottomSheet(
-                    ctx,
-                    products[i],
-                    onAddToCart: (qty) async {
-                      final ok = await state.addToCart(
-                        products[i],
-                        quantity: qty,
-                      );
-                      if (!ctx.mounted) return;
-                      showToast(
+            itemBuilder: (ctx, i) => Selector<AppState, bool>(
+              selector: (_, appState) => appState.isFavorite(products[i]),
+              builder: (ctx, isFavorite, _) {
+                return _AnimatedProductCard(
+                  index: i,
+                  child: SizedBox(
+                    width: 168,
+                    child: ProductCard(
+                      product: products[i],
+                      isFavorite: isFavorite,
+                      onFavoriteToggle: () {
+                        final tapSw = Stopwatch()..start();
+                        if (!state.signedIn) {
+                          showToast(ctx, 'Please login first');
+                          _logNextFrame('favorite:home', tapSw);
+                          return;
+                        }
+                        state.toggleFavorite(products[i]).whenComplete(() {
+                          _logNextFrame('favorite:home', tapSw);
+                        });
+                      },
+                      onTap: () => showProductBottomSheet(
                         ctx,
-                        ok
-                            ? '${products[i].name} added to cart'
-                            : state.error ?? 'Please login first',
-                      );
-                    },
+                        products[i],
+                        onAddToCart: (qty) async {
+                          final tapSw = Stopwatch()..start();
+                          final ok = await state.addToCart(
+                            products[i],
+                            quantity: qty,
+                          );
+                          if (!ctx.mounted) return;
+                          showToast(
+                            ctx,
+                            ok
+                                ? '${products[i].name} added to cart'
+                                : state.error ?? 'Please login first',
+                          );
+                          _logNextFrame('cart:home', tapSw);
+                        },
+                      ),
+                      onAdd: () async {
+                        final tapSw = Stopwatch()..start();
+                        final ok = await state.addToCart(products[i]);
+                        if (!ctx.mounted) return;
+                        showToast(
+                          ctx,
+                          ok
+                              ? '${products[i].name} added to cart'
+                              : state.error ?? 'Please login first',
+                        );
+                        _logNextFrame('cart:home', tapSw);
+                      },
+                    ),
                   ),
-                  onAdd: () async {
-                    final ok = await state.addToCart(products[i]);
-                    if (!ctx.mounted) return;
-                    showToast(
-                      ctx,
-                      ok
-                          ? '${products[i].name} added to cart'
-                          : state.error ?? 'Please login first',
-                    );
-                  },
-                ),
-              ),
+                );
+              },
             ),
           ),
         );
@@ -1896,32 +1915,41 @@ class _EssentialsGrid extends StatelessWidget {
           ),
           itemBuilder: (ctx, i) {
             final product = products[i];
-            return _PopularStyleProductCard(
-              product: product,
-              isFavorite: state.isFavorite(product),
-              onFavoriteToggle: () => onFavoriteToggle(product),
-              onTap: () => showProductBottomSheet(
-                ctx,
-                product,
-                onAddToCart: (qty) async {
-                  final ok = await state.addToCart(product, quantity: qty);
-                  if (!ctx.mounted) return;
-                  showToast(
+            return Selector<AppState, bool>(
+              selector: (_, appState) => appState.isFavorite(product),
+              builder: (ctx, isFavorite, _) {
+                return _PopularStyleProductCard(
+                  product: product,
+                  isFavorite: isFavorite,
+                  onFavoriteToggle: () => onFavoriteToggle(product),
+                  onTap: () => showProductBottomSheet(
                     ctx,
-                    ok
-                        ? '${product.name} added to cart'
-                        : state.error ?? 'Please login first',
-                  );
-                },
-              ),
-              onAdd: () async {
-                final ok = await state.addToCart(product);
-                if (!ctx.mounted) return;
-                showToast(
-                  ctx,
-                  ok
-                      ? '${product.name} added to cart'
-                      : state.error ?? 'Please login first',
+                    product,
+                    onAddToCart: (qty) async {
+                      final tapSw = Stopwatch()..start();
+                      final ok = await state.addToCart(product, quantity: qty);
+                      if (!ctx.mounted) return;
+                      showToast(
+                        ctx,
+                        ok
+                            ? '${product.name} added to cart'
+                            : state.error ?? 'Please login first',
+                      );
+                      _logNextFrame('cart:popular', tapSw);
+                    },
+                  ),
+                  onAdd: () async {
+                    final tapSw = Stopwatch()..start();
+                    final ok = await state.addToCart(product);
+                    if (!ctx.mounted) return;
+                    showToast(
+                      ctx,
+                      ok
+                          ? '${product.name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
+                    _logNextFrame('cart:popular', tapSw);
+                  },
                 );
               },
             );

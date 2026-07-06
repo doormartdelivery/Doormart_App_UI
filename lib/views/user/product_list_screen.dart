@@ -128,37 +128,64 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 18),
                       itemBuilder: (context, index) {
                         final product = products[index];
-                        return _ProductFeedCard(
-                          product: product,
-                          isFavorite: state.isFavorite(product),
-                          onTap: () => showProductBottomSheet(
-                            context,
-                            product,
-                            onAddToCart: (quantity) async {
-                              final added = await state.addToCart(
-                                product,
-                                quantity: quantity,
-                              );
-                              if (!context.mounted) return;
-                              showToast(
+                        return Selector<AppState, bool>(
+                          selector: (_, appState) => appState.isFavorite(product),
+                          builder: (context, isFavorite, _) {
+                            return _ProductFeedCard(
+                              product: product,
+                              isFavorite: isFavorite,
+                              onTap: () => showProductBottomSheet(
                                 context,
-                                added
-                                    ? '${product.name} added to cart'
-                                    : state.error ?? 'Please login first',
-                              );
-                            },
-                          ),
-                          onFavoriteToggle: () async {
-                            await state.toggleFavorite(product);
-                          },
-                          onAddToCart: () async {
-                            final added = await state.addToCart(product);
-                            if (!context.mounted) return;
-                            showToast(
-                              context,
-                              added
-                                  ? '${product.name} added to cart'
-                                  : state.error ?? 'Please login first',
+                                product,
+                                onAddToCart: (quantity) async {
+                                  final added = await context
+                                      .read<AppState>()
+                                      .addToCart(
+                                        product,
+                                        quantity: quantity,
+                                      );
+                                  if (!context.mounted) return;
+                                  showToast(
+                                    context,
+                                    added
+                                        ? '${product.name} added to cart'
+                                        : context.read<AppState>().error ??
+                                            'Please login first',
+                                  );
+                                },
+                              ),
+                              onFavoriteToggle: () async {
+                                final tapSw = Stopwatch()..start();
+                                try {
+                                  await context
+                                      .read<AppState>()
+                                      .toggleFavorite(product);
+                                } catch (_) {}
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  debugPrint(
+                                    '[perf][favorite:product-list][ui] ${tapSw.elapsedMilliseconds}ms',
+                                  );
+                                });
+                              },
+                              onAddToCart: () async {
+                                final tapSw = Stopwatch()..start();
+                                final added = await context
+                                    .read<AppState>()
+                                    .addToCart(product);
+                                if (!context.mounted) return;
+                                showToast(
+                                  context,
+                                  added
+                                      ? '${product.name} added to cart'
+                                      : context.read<AppState>().error ??
+                                          'Please login first',
+                                );
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  debugPrint(
+                                    '[perf][cart:product-list][ui] ${tapSw.elapsedMilliseconds}ms',
+                                  );
+                                });
+                              },
                             );
                           },
                         );
