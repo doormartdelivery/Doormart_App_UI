@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../app.dart';
@@ -57,6 +58,7 @@ class AppState extends ChangeNotifier {
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
+  int _cartMutationToken = 0;
   int dashboardRefreshTick = 0;
   double deliveryChargeAmount = 35;
   double gstPercent = 0;
@@ -190,11 +192,7 @@ class AppState extends ChangeNotifier {
   }) async {
     await apiService.post(
       '/auth/reset-password',
-      body: {
-        'email': email,
-        'otp': otp,
-        'password': password,
-      },
+      body: {'email': email, 'otp': otp, 'password': password},
     );
   }
 
@@ -290,10 +288,7 @@ class AppState extends ChangeNotifier {
       return;
     }
     if (role == UserRoles.admin || role == UserRoles.superAdmin) {
-      await Future.wait([
-        _safeCall(loadOrders),
-        _safeCall(loadFavorites),
-      ]);
+      await Future.wait([_safeCall(loadOrders), _safeCall(loadFavorites)]);
       return;
     }
     await Future.wait([
@@ -392,8 +387,9 @@ class AppState extends ChangeNotifier {
     favorites = favorites.where((item) => item.id != product.id).toList();
   }
 
-  List<CartLine> _cloneCart() =>
-      cart.map((line) => CartLine(product: line.product, quantity: line.quantity)).toList();
+  List<CartLine> _cloneCart() => cart
+      .map((line) => CartLine(product: line.product, quantity: line.quantity))
+      .toList();
 
   void _setCartQuantity(ProductModel product, int quantity) {
     final index = cart.indexWhere((line) => line.product.id == product.id);
@@ -406,6 +402,32 @@ class AppState extends ChangeNotifier {
       return;
     }
     cart[index].quantity = quantity;
+  }
+
+  int _nextCartMutationToken() => ++_cartMutationToken;
+
+  void _restoreCartSnapshot(List<CartLine> snapshot) {
+    cart
+      ..clear()
+      ..addAll(snapshot);
+    notifyListeners();
+  }
+
+  Future<void> _syncCartMutation({
+    required int mutationToken,
+    required List<CartLine> snapshot,
+    required Future<void> Function() action,
+  }) async {
+    try {
+      await action();
+    } catch (e) {
+      if (mutationToken == _cartMutationToken) {
+        _restoreCartSnapshot(snapshot);
+        error = e.toString();
+      } else {
+        debugPrint('Cart sync failed after newer cart changes: $e');
+      }
+    }
   }
 
   Future<void> toggleFavorite(ProductModel product) async {
@@ -425,7 +447,9 @@ class AppState extends ChangeNotifier {
           body: {'productId': product.id},
         );
       }
-      debugPrint('[perf][wishlist:${wasFavorite ? "remove" : "add"}][api] ${sw.elapsedMilliseconds}ms');
+      debugPrint(
+        '[perf][wishlist:${wasFavorite ? "remove" : "add"}][api] ${sw.elapsedMilliseconds}ms',
+      );
     } catch (e) {
       favorites = snapshot;
       error = e.toString();
@@ -461,16 +485,29 @@ class AppState extends ChangeNotifier {
         if (category != null && category != 'All') 'category=$category',
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
+      final path = '/products${query.isEmpty ? '' : '?$query'}';
+      products = await _loadProductsWithRetry(path);
+    });
+  }
+
+  Future<List<ProductModel>> _loadProductsWithRetry(String path) async {
+    Future<List<ProductModel>> fetchOnce() async {
       final data =
-          await apiService
-                  .get('/products${query.isEmpty ? '' : '?$query'}')
-                  .timeout(const Duration(seconds: 8))
+          await apiService.get(path).timeout(const Duration(seconds: 8))
               as List<dynamic>;
-      products = data
+      return data
           .cast<Map<String, dynamic>>()
           .map(ProductModel.fromJson)
           .toList();
-    });
+    }
+
+    try {
+      return await fetchOnce();
+    } catch (firstError) {
+      debugPrint('Product load retry after error: $firstError');
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      return await fetchOnce();
+    }
   }
 
   Future<void> loadCategories() async {
@@ -732,15 +769,15 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> addToCart(ProductModel product, {int quantity = 1}) async {
-    return await _syncAddToCart(product, quantity: quantity);
+    return _syncAddToCart(product, quantity: quantity);
   }
 
   Future<bool> decrement(ProductModel product) async {
-    return await _syncDecrement(product);
+    return _syncDecrement(product);
   }
 
   Future<bool> clearCart() async {
-    return await _syncClearCart();
+    return _syncClearCart();
   }
 
   Future<OrderModel> checkout({
@@ -1396,32 +1433,33 @@ class AppState extends ChangeNotifier {
       return false;
     }
     final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
     _setCartQuantity(
       product,
-      (cart.firstWhere(
+      (cart
+              .firstWhere(
                 (line) => line.product.id == product.id,
                 orElse: () => CartLine(product: product, quantity: 0),
-              ).quantity) +
+              )
+              .quantity) +
           quantity,
     );
+    error = null;
     notifyListeners();
-    final sw = Stopwatch()..start();
-    try {
-      await apiService.post(
-        '/cart/add',
-        token: token,
-        body: {'productId': product.id, 'quantity': quantity},
-      );
-      debugPrint('[perf][cart:add][api] ${sw.elapsedMilliseconds}ms');
-      return true;
-    } catch (e) {
-      cart
-        ..clear()
-        ..addAll(snapshot);
-      error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
+    unawaited(
+      _syncCartMutation(
+        mutationToken: mutationToken,
+        snapshot: snapshot,
+        action: () async {
+          await apiService.post(
+            '/cart/add',
+            token: token,
+            body: {'productId': product.id, 'quantity': quantity},
+          );
+        },
+      ),
+    );
+    return true;
   }
 
   Future<bool> _syncDecrement(ProductModel product) async {
@@ -1435,39 +1473,28 @@ class AppState extends ChangeNotifier {
       orElse: () => CartLine(product: product, quantity: 0),
     );
     final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
     final nextQuantity = current.quantity <= 1 ? 0 : current.quantity - 1;
     _setCartQuantity(product, nextQuantity);
+    error = null;
     notifyListeners();
-    final sw = Stopwatch()..start();
-    if (current.quantity <= 1) {
-      try {
-        await apiService.delete('/cart/remove/${product.id}', token: token);
-        debugPrint('[perf][cart:decrement][api] ${sw.elapsedMilliseconds}ms');
-      } catch (e) {
-        cart
-          ..clear()
-          ..addAll(snapshot);
-        error = e.toString();
-        notifyListeners();
-        rethrow;
-      }
-    } else {
-      try {
-        await apiService.put(
-          '/cart/update',
-          token: token,
-          body: {'productId': product.id, 'quantity': nextQuantity},
-        );
-        debugPrint('[perf][cart:decrement][api] ${sw.elapsedMilliseconds}ms');
-      } catch (e) {
-        cart
-          ..clear()
-          ..addAll(snapshot);
-        error = e.toString();
-        notifyListeners();
-        rethrow;
-      }
-    }
+    unawaited(
+      _syncCartMutation(
+        mutationToken: mutationToken,
+        snapshot: snapshot,
+        action: () async {
+          if (current.quantity <= 1) {
+            await apiService.delete('/cart/remove/${product.id}', token: token);
+            return;
+          }
+          await apiService.put(
+            '/cart/update',
+            token: token,
+            body: {'productId': product.id, 'quantity': nextQuantity},
+          );
+        },
+      ),
+    );
     return true;
   }
 
@@ -1477,9 +1504,20 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    await apiService.delete('/cart/clear', token: token);
+    final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
     cart.clear();
+    error = null;
     notifyListeners();
+    unawaited(
+      _syncCartMutation(
+        mutationToken: mutationToken,
+        snapshot: snapshot,
+        action: () async {
+          await apiService.delete('/cart/clear', token: token);
+        },
+      ),
+    );
     return true;
   }
 }

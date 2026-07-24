@@ -37,10 +37,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final initialQuery = ModalRoute.of(context)?.settings.arguments as String?;
     if (initialQuery != null && initialQuery.trim().isNotEmpty) {
       _searchController.text = initialQuery.trim();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.read<AppState>().loadProducts(search: initialQuery.trim());
-      });
+      _query = initialQuery.trim();
     }
   }
 
@@ -66,16 +63,13 @@ class _SearchScreenState extends State<SearchScreen> {
                     controller: _searchController,
                     onChanged: (query) {
                       setState(() => _query = query.trim());
-                      context.read<AppState>().loadProducts(search: query);
                     },
                     onSubmitted: (query) {
                       setState(() => _query = query.trim());
-                      context.read<AppState>().loadProducts(search: query);
                     },
                     onClear: () {
                       _searchController.clear();
                       setState(() => _query = '');
-                      context.read<AppState>().loadProducts();
                     },
                     onBack: () => Navigator.pop(context),
                   ),
@@ -85,7 +79,8 @@ class _SearchScreenState extends State<SearchScreen> {
               SliverToBoxAdapter(
                 child: Consumer<AppState>(
                   builder: (context, state, _) {
-                    final count = state.products.length;
+                    final products = _filteredProducts(state.products);
+                    final count = products.length;
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
@@ -102,7 +97,8 @@ class _SearchScreenState extends State<SearchScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               Consumer<AppState>(
                 builder: (context, state, _) {
-                  if (state.loading && state.products.isEmpty) {
+                  final products = _filteredProducts(state.products);
+                  if (state.loading && products.isEmpty) {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.only(top: 40),
@@ -110,7 +106,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     );
                   }
-                  if (state.error != null && state.products.isEmpty) {
+                  if (state.error != null && products.isEmpty) {
                     return SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -118,8 +114,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                     );
                   }
-                  if (_searchController.text.trim().isNotEmpty &&
-                      state.products.isEmpty) {
+                  if (_query.isNotEmpty && products.isEmpty) {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(24),
@@ -130,12 +125,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                     sliver: SliverList.separated(
-                      itemCount: state.products.length,
+                      itemCount: products.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 18),
                       itemBuilder: (context, index) {
-                        final product = state.products[index];
+                        final product = products[index];
                         return Selector<AppState, bool>(
-                          selector: (_, appState) => appState.isFavorite(product),
+                          selector: (_, appState) =>
+                              appState.isFavorite(product),
                           builder: (context, isFavorite, _) {
                             return _ProductFeedCard(
                               product: product,
@@ -143,11 +139,13 @@ class _SearchScreenState extends State<SearchScreen> {
                               onFavoriteToggle: () async {
                                 final tapSw = Stopwatch()..start();
                                 try {
-                                  await context
-                                      .read<AppState>()
-                                      .toggleFavorite(product);
+                                  await context.read<AppState>().toggleFavorite(
+                                    product,
+                                  );
                                 } catch (_) {}
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   debugPrint(
                                     '[perf][favorite:search][ui] ${tapSw.elapsedMilliseconds}ms',
                                   );
@@ -160,19 +158,18 @@ class _SearchScreenState extends State<SearchScreen> {
                                   final tapSw = Stopwatch()..start();
                                   final added = await context
                                       .read<AppState>()
-                                      .addToCart(
-                                        product,
-                                        quantity: quantity,
-                                      );
+                                      .addToCart(product, quantity: quantity);
                                   if (!context.mounted) return;
                                   showToast(
                                     context,
                                     added
                                         ? '${product.name} added to cart'
                                         : context.read<AppState>().error ??
-                                            'Please login first',
+                                              'Please login first',
                                   );
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
                                     debugPrint(
                                       '[perf][cart:search][ui] ${tapSw.elapsedMilliseconds}ms',
                                     );
@@ -190,9 +187,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                   added
                                       ? '${product.name} added to cart'
                                       : context.read<AppState>().error ??
-                                          'Please login first',
+                                            'Please login first',
                                 );
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   debugPrint(
                                     '[perf][cart:search][ui] ${tapSw.elapsedMilliseconds}ms',
                                   );
@@ -216,6 +215,22 @@ class _SearchScreenState extends State<SearchScreen> {
         onTap: (index) => BottomNavBar.navigate(context, index),
       ),
     );
+  }
+
+  List<dynamic> _filteredProducts(List<dynamic> input) {
+    var items = List<dynamic>.from(input);
+    final q = _query.toLowerCase().trim();
+    if (q.isNotEmpty) {
+      items = items.where((item) {
+        final name = (item.name as String).toLowerCase();
+        final category = (item.category as String).toLowerCase();
+        final description = (item.description as String? ?? '').toLowerCase();
+        return name.contains(q) ||
+            category.contains(q) ||
+            description.contains(q);
+      }).toList();
+    }
+    return items;
   }
 }
 

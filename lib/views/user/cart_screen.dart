@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -49,27 +51,13 @@ class CartScreen extends StatelessWidget {
                       return _CartItemCard(
                         key: ValueKey(line.product.id),
                         line: line,
-                        onIncrement: () async {
+                        onIncrement: () {
                           HapticFeedback.lightImpact();
-                          final ok = await state.addToCart(line.product);
-                          if (!context.mounted) return;
-                          if (!ok) {
-                            showToast(
-                              context,
-                              state.error ?? 'Please login first',
-                            );
-                          }
+                          unawaited(state.addToCart(line.product));
                         },
-                        onDecrement: () async {
+                        onDecrement: () {
                           HapticFeedback.lightImpact();
-                          final ok = await state.decrement(line.product);
-                          if (!context.mounted) return;
-                          if (!ok) {
-                            showToast(
-                              context,
-                              state.error ?? 'Please login first',
-                            );
-                          }
+                          unawaited(state.decrement(line.product));
                         },
                       );
                     },
@@ -465,11 +453,11 @@ class _PillBtnState extends State<_PillBtn>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _c.forward(),
-      onTapUp: (_) {
-        _c.reverse();
+      onTapDown: (_) {
+        _c.forward();
         widget.onTap();
       },
+      onTapUp: (_) => _c.reverse(),
       onTapCancel: () => _c.reverse(),
       child: ScaleTransition(
         scale: _scale,
