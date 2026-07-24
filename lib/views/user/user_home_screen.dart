@@ -147,12 +147,11 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                       child: _EssentialsGrid(
                         sort: _sort,
                         selectedCategory: _selectedCategory,
-                        onFavoriteToggle: (product) =>
-                            _toggleFavoriteGuarded(
-                              context.read<AppState>(),
-                              context,
-                              product,
-                            ),
+                        onFavoriteToggle: (product) => _toggleFavoriteGuarded(
+                          context.read<AppState>(),
+                          context,
+                          product,
+                        ),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 18)),
@@ -174,12 +173,11 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                       child: _PopularProductsGrid(
                         sort: _popularSort,
                         selectedCategory: _popularSelectedCategory,
-                        onFavoriteToggle: (product) =>
-                            _toggleFavoriteGuarded(
-                              context.read<AppState>(),
-                              context,
-                              product,
-                            ),
+                        onFavoriteToggle: (product) => _toggleFavoriteGuarded(
+                          context.read<AppState>(),
+                          context,
+                          product,
+                        ),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 170)),
@@ -199,9 +197,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                   left: 0,
                   right: 0,
                   bottom: 25 + bottomInset,
-                  child: const IgnorePointer(
-                    child: WalkingMascotWidget(),
-                  ),
+                  child: const IgnorePointer(child: WalkingMascotWidget()),
                 ),
               ],
             ),
@@ -1361,9 +1357,7 @@ class _ProductRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = state.products
-            .where((p) => p.dashboardSection == 'fresh_picks')
-            .toList();
+        final products = _sectionProducts(state.products, 'fresh_picks');
         return SizedBox(
           height: 320,
           child: ListView.separated(
@@ -1746,11 +1740,7 @@ class _HomeFeedImage extends StatelessWidget {
     debugPrint('Cloudinary Image URL (home feed): $normalized');
     Widget child;
     if (normalized.startsWith('assets/')) {
-      child = Image.asset(
-        normalized,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
+      child = Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true);
     } else if (normalized.startsWith('http')) {
       child = Image.network(
         normalized,
@@ -1758,17 +1748,12 @@ class _HomeFeedImage extends StatelessWidget {
         gaplessPlayback: true,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         },
         errorBuilder: (context, error, stackTrace) {
           debugPrint('Image Load Error (home feed): $error');
           return const Center(
-            child: Icon(
-              Icons.broken_image_outlined,
-              color: Color(0xFF64748B),
-            ),
+            child: Icon(Icons.broken_image_outlined, color: Color(0xFF64748B)),
           );
         },
       );
@@ -1877,9 +1862,7 @@ class _EssentialsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        var products = state.products
-            .where((p) => p.dashboardSection == 'daily_essentials')
-            .toList();
+        var products = _sectionProducts(state.products, 'daily_essentials');
         if (selectedCategory != 'All') {
           products = products
               .where(
@@ -2142,6 +2125,16 @@ double _mrpValue(ProductModel product) {
   return product.price * 1.12;
 }
 
+List<ProductModel> _sectionProducts(
+  List<ProductModel> products,
+  String section,
+) {
+  final scoped = products
+      .where((product) => product.dashboardSection == section)
+      .toList();
+  return scoped.isNotEmpty ? scoped : List<ProductModel>.from(products);
+}
+
 class _TopOffersFeed extends StatelessWidget {
   const _TopOffersFeed();
 
@@ -2149,9 +2142,7 @@ class _TopOffersFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = state.products
-            .where((p) => p.dashboardSection == 'popular_products')
-            .toList();
+        final products = _sectionProducts(state.products, 'popular_products');
         if (products.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -2834,9 +2825,7 @@ class _GroceriesIllustration extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.22),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.30),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),
@@ -2954,9 +2943,7 @@ class _PopularProductsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        var products = state.products
-            .where((p) => p.dashboardSection == 'popular_products')
-            .toList();
+        var products = _sectionProducts(state.products, 'popular_products');
         if (selectedCategory != 'All') {
           products = products
               .where(
