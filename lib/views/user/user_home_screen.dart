@@ -611,10 +611,13 @@ class _HomeHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.bolt_rounded,
-                    color: Colors.white,
-                    size: 20,
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/doormartLogo.jpeg',
+                      width: 20,
+                      height: 20,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
