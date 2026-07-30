@@ -13,6 +13,7 @@ class ProductCard extends StatelessWidget {
     required this.onFavoriteToggle,
     required this.isFavorite,
     this.onTap,
+    this.imageFallbackBuilder,
   });
 
   final ProductModel product;
@@ -20,6 +21,8 @@ class ProductCard extends StatelessWidget {
   final VoidCallback onFavoriteToggle;
   final bool isFavorite;
   final VoidCallback? onTap;
+  final Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +49,10 @@ class ProductCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _ProductImage(product: product),
+                    _ProductImage(
+                      product: product,
+                      imageFallbackBuilder: imageFallbackBuilder,
+                    ),
                     Positioned(
                       top: 10,
                       right: 10,
@@ -60,7 +66,9 @@ class ProductCard extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFE8541A).withValues(alpha: 0.18),
+                                color: const Color(
+                                  0xFFE8541A,
+                                ).withValues(alpha: 0.18),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -69,7 +77,9 @@ class ProductCard extends StatelessWidget {
                           child: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
                             size: 18,
-                            color: isFavorite ? const Color(0xFFE8541A) : const Color(0xFFAAAAAA),
+                            color: isFavorite
+                                ? const Color(0xFFE8541A)
+                                : const Color(0xFFAAAAAA),
                           ),
                         ),
                       ),
@@ -89,7 +99,8 @@ class ProductCard extends StatelessWidget {
                         product.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: const Color(0xFF142019),
                               fontSize: 17,
@@ -99,8 +110,8 @@ class ProductCard extends StatelessWidget {
                         product.unit.trim().isEmpty
                             ? '1 item'
                             : (RegExp(r'^\d').hasMatch(product.unit.trim())
-                                ? product.unit.trim()
-                                : '1 ${product.unit.trim()}'),
+                                  ? product.unit.trim()
+                                  : '1 ${product.unit.trim()}'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -116,7 +127,8 @@ class ProductCard extends StatelessWidget {
                               'Rs ${product.price.toStringAsFixed(0)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: const Color(0xFF101010),
                                     fontSize: 15,
@@ -145,7 +157,9 @@ class ProductCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFE8541A).withValues(alpha: 0.35),
+                              color: const Color(
+                                0xFFE8541A,
+                              ).withValues(alpha: 0.35),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -191,9 +205,11 @@ class ProductCard extends StatelessWidget {
 }
 
 class _ProductImage extends StatelessWidget {
-  const _ProductImage({required this.product});
+  const _ProductImage({required this.product, this.imageFallbackBuilder});
 
   final ProductModel product;
+  final Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -206,8 +222,11 @@ class _ProductImage extends StatelessWidget {
         gaplessPlayback: true,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, _, _) =>
-            _fallbackProductImage(product),
+        errorBuilder: (context, _, _) => _fallbackProductImage(
+          context,
+          product,
+          imageFallbackBuilder: imageFallbackBuilder,
+        ),
       );
     }
     if (path.startsWith('http')) {
@@ -221,19 +240,30 @@ class _ProductImage extends StatelessWidget {
           if (progress == null) return child;
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         },
-        errorBuilder: (_, _, _) =>
-            _fallbackProductImage(product),
+        errorBuilder: (context, _, _) => _fallbackProductImage(
+          context,
+          product,
+          imageFallbackBuilder: imageFallbackBuilder,
+        ),
       );
     }
     if (path.isNotEmpty) {
-      return _fallbackProductImage(product);
+      return _fallbackProductImage(
+        context,
+        product,
+        imageFallbackBuilder: imageFallbackBuilder,
+      );
     }
-    return _fallbackProductImage(product);
+    return _fallbackProductImage(
+      context,
+      product,
+      imageFallbackBuilder: imageFallbackBuilder,
+    );
   }
 }
 
 Widget _fallbackIcon(String category) {
-    return Container(
+  return Container(
     color: _categoryColor(category),
     alignment: Alignment.center,
     child: Icon(
@@ -244,7 +274,16 @@ Widget _fallbackIcon(String category) {
   );
 }
 
-Widget _fallbackProductImage(ProductModel product) {
+Widget _fallbackProductImage(
+  BuildContext context,
+  ProductModel product, {
+  Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder,
+}) {
+  if (imageFallbackBuilder != null) {
+    return imageFallbackBuilder(context, product);
+  }
+
   final asset = _bestImageAsset(product);
 
   return Image.asset(
@@ -332,9 +371,7 @@ class _ImageBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.40),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
       ),
       child: child,
     );

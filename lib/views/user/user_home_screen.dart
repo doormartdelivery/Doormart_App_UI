@@ -1378,6 +1378,7 @@ class _ProductRail extends StatelessWidget {
                     child: ProductCard(
                       product: products[i],
                       isFavorite: isFavorite,
+                      imageFallbackBuilder: _funnyMissingImageFallback,
                       onFavoriteToggle: () {
                         final tapSw = Stopwatch()..start();
                         if (!state.signedIn) {
@@ -1430,6 +1431,116 @@ class _ProductRail extends StatelessWidget {
       },
     );
   }
+}
+
+Widget _funnyMissingImageFallback(BuildContext context, ProductModel product) {
+  final accent = _categoryAccent(product.category);
+
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.16),
+          const Color(0xFFFFF7ED),
+          Colors.white,
+        ],
+      ),
+    ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: const Text(
+                'oops',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF7C2D12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.hide_image_outlined, size: 42, color: accent),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Image took a tea break',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF7C2D12).withValues(alpha: 0.92),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Still tasty, just camera shy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 14,
+          bottom: 14,
+          child: Icon(
+            Icons.sentiment_satisfied_rounded,
+            size: 18,
+            color: accent.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Color _categoryAccent(String category) {
+  return switch (category.toLowerCase()) {
+    'vegetables' => const Color(0xFF16A34A),
+    'fruits' => const Color(0xFFEA580C),
+    'dairy' => const Color(0xFF2563EB),
+    'staples' => const Color(0xFFB45309),
+    'snacks' => const Color(0xFFDB2777),
+    'beverages' => const Color(0xFF0891B2),
+    _ => _kGreen,
+  };
 }
 
 /// Staggered fade+slide for list items
@@ -1487,6 +1598,7 @@ class _HomeFeedCard extends StatelessWidget {
     required this.onFavoriteToggle,
     required this.onAdd,
     required this.onTap,
+    this.imageFallbackBuilder,
   });
 
   final dynamic product;
@@ -1494,6 +1606,8 @@ class _HomeFeedCard extends StatelessWidget {
   final VoidCallback onFavoriteToggle;
   final VoidCallback onAdd;
   final VoidCallback? onTap;
+  final Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -1523,7 +1637,11 @@ class _HomeFeedCard extends StatelessWidget {
                       child: SizedBox(
                         width: 120,
                         height: 180,
-                        child: _HomeFeedImage(imageUrl: product.imageUrl),
+                        child: _HomeFeedImage(
+                          imageUrl: product.imageUrl,
+                          imageFallbackBuilder: imageFallbackBuilder,
+                          product: product,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -1735,15 +1853,37 @@ class _HomeRatingChip extends StatelessWidget {
 }
 
 class _HomeFeedImage extends StatelessWidget {
-  const _HomeFeedImage({required this.imageUrl});
+  const _HomeFeedImage({
+    required this.imageUrl,
+    required this.product,
+    this.imageFallbackBuilder,
+  });
   final String imageUrl;
+  final ProductModel product;
+  final Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder;
+
   @override
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(imageUrl);
+    final fallbackBuilder = imageFallbackBuilder;
     debugPrint('Cloudinary Image URL (home feed): $normalized');
     Widget child;
     if (normalized.startsWith('assets/')) {
-      child = Image.asset(normalized, fit: BoxFit.cover, gaplessPlayback: true);
+      child = Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          debugPrint('Image Load Error (home feed asset): $error');
+          if (fallbackBuilder != null) {
+            return fallbackBuilder(context, product);
+          }
+          return const Center(
+            child: Icon(Icons.broken_image_outlined, color: Color(0xFF64748B)),
+          );
+        },
+      );
     } else if (normalized.startsWith('http')) {
       child = Image.network(
         normalized,
@@ -1755,19 +1895,26 @@ class _HomeFeedImage extends StatelessWidget {
         },
         errorBuilder: (context, error, stackTrace) {
           debugPrint('Image Load Error (home feed): $error');
+          if (fallbackBuilder != null) {
+            return fallbackBuilder(context, product);
+          }
           return const Center(
             child: Icon(Icons.broken_image_outlined, color: Color(0xFF64748B)),
           );
         },
       );
     } else {
-      child = Image.asset(
-        imageUrl.toLowerCase().contains('banner')
-            ? 'assets/images/banners/grocery_bag.png'
-            : 'assets/images/products/tomato.png',
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      );
+      if (fallbackBuilder != null) {
+        child = fallbackBuilder(context, product);
+      } else {
+        child = Image.asset(
+          imageUrl.toLowerCase().contains('banner')
+              ? 'assets/images/banners/grocery_bag.png'
+              : 'assets/images/products/tomato.png',
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+        );
+      }
     }
     return ClipRRect(
       clipBehavior: Clip.antiAlias,
@@ -1907,6 +2054,7 @@ class _EssentialsGrid extends StatelessWidget {
                 return _PopularStyleProductCard(
                   product: product,
                   isFavorite: isFavorite,
+                  imageFallbackBuilder: _funnyMissingImageFallback,
                   onFavoriteToggle: () => onFavoriteToggle(product),
                   onTap: () => showProductBottomSheet(
                     ctx,
@@ -1953,6 +2101,7 @@ class _PopularStyleProductCard extends StatelessWidget {
     required this.onFavoriteToggle,
     required this.onAdd,
     required this.onTap,
+    this.imageFallbackBuilder,
   });
 
   final ProductModel product;
@@ -1960,6 +2109,8 @@ class _PopularStyleProductCard extends StatelessWidget {
   final VoidCallback onFavoriteToggle;
   final VoidCallback onAdd;
   final VoidCallback? onTap;
+  final Widget Function(BuildContext context, ProductModel product)?
+  imageFallbackBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -1988,7 +2139,11 @@ class _PopularStyleProductCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(22),
                     ),
-                    child: _HomeFeedImage(imageUrl: product.imageUrl),
+                    child: _HomeFeedImage(
+                      imageUrl: product.imageUrl,
+                      product: product,
+                      imageFallbackBuilder: imageFallbackBuilder,
+                    ),
                   ),
                   Positioned(
                     top: 10,
@@ -2163,6 +2318,7 @@ class _TopOffersFeed extends StatelessWidget {
             return _HomeFeedCard(
               product: product,
               isFavorite: state.isFavorite(product),
+              imageFallbackBuilder: _funnyMissingImageFallback,
               onFavoriteToggle: () {
                 if (!state.signedIn) {
                   showToast(ctx, 'Please login first');
@@ -2986,6 +3142,7 @@ class _PopularProductsGrid extends StatelessWidget {
             return _HomeFeedCard(
               product: product,
               isFavorite: state.isFavorite(product),
+              imageFallbackBuilder: _funnyMissingImageFallback,
               onFavoriteToggle: () => onFavoriteToggle(product),
               onTap: () => showProductBottomSheet(
                 ctx,
