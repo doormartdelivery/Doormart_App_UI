@@ -1,6 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfupi.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfupipayment.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfsession/cfsession.dart';
+import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
+import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
 import 'package:provider/provider.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../features/customer/services/payment_service.dart';
 import '../../providers/app_state.dart';
@@ -15,24 +23,55 @@ class PaymentScreen extends StatefulWidget {
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends State<PaymentScreen>
+    with WidgetsBindingObserver {
   final PaymentService _paymentService = PaymentService();
+  final CFPaymentGatewayService _gatewayService = CFPaymentGatewayService();
+
   bool _loading = true;
+  bool _processingPayment = false;
+  bool _verifyingPayment = false;
   String? _error;
   String? _orderId;
   String? _paymentSessionId;
-  String _cashfreeMode = 'sandbox';
-  WebViewController? _webViewController;
+  CFEnvironment _environment = CFEnvironment.SANDBOX;
+
+  bool get _canStartPayment =>
+      !_loading && !_processingPayment && !_verifyingPayment && !_hasFatalError;
+
+  bool get _hasFatalError =>
+      (_orderId == null || _orderId!.isEmpty) ||
+      (_paymentSessionId == null || _paymentSessionId!.isEmpty);
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startCheckout());
+    WidgetsBinding.instance.addObserver(this);
+    _gatewayService.setCallback(_onPaymentVerified, _onPaymentError);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareCheckout());
   }
 
-  Future<void> _startCheckout() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _processingPayment &&
+        !_verifyingPayment &&
+        _orderId != null &&
+        _orderId!.isNotEmpty) {
+      unawaited(_verifyCashfreeOrder(_orderId!));
+    }
+  }
+
+  Future<void> _prepareCheckout() async {
     final state = context.read<AppState>();
     final address = state.selectedAddress?.fullAddress ?? '';
+
     if (state.token == null) {
       if (mounted) showToast(context, 'Please login first');
       if (mounted) Navigator.pop(context);
@@ -44,7 +83,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final data = await _paymentService.createCashfreeOrder(
         amountInPaise: (state.total * 100).round(),
@@ -55,83 +98,154 @@ class _PaymentScreenState extends State<PaymentScreen> {
         address: address,
       );
 
-      _orderId = data['orderId'] as String? ?? data['order_id'] as String?;
-      _paymentSessionId = data['paymentSessionId'] as String? ??
-          data['payment_session_id'] as String? ??
-          '';
-      _cashfreeMode = (data['environment'] as String? ?? 'sandbox').toLowerCase();
-      final paymentUrl =
-          data['paymentUrl'] as String? ??
-          data['payment_link'] as String? ??
-          data['paymentLink'] as String? ??
-          data['url'] as String? ??
-          '';
+      _orderId = _readString(data, const ['orderId', 'order_id']);
+      _paymentSessionId = _readString(data, const [
+        'paymentSessionId',
+        'payment_session_id',
+      ]);
+      _environment = _parseEnvironment(
+        _readString(data, const ['environment']),
+      );
+
       final raw = data['raw'];
-      final rawPaymentSessionId = raw is Map<String, dynamic>
-          ? (raw['payment_session_id'] as String? ??
-              raw['paymentSessionId'] as String? ??
-              '')
-          : '';
-      if (_paymentSessionId == null || _paymentSessionId!.isEmpty) {
-        _paymentSessionId = rawPaymentSessionId;
+      if ((_paymentSessionId == null || _paymentSessionId!.isEmpty) &&
+          raw is Map<String, dynamic>) {
+        _paymentSessionId = _readString(raw, const [
+          'payment_session_id',
+          'paymentSessionId',
+        ]);
+      }
+
+      if (_orderId == null || _orderId!.isEmpty) {
+        throw StateError('Cashfree order id was not created');
       }
       if (_paymentSessionId == null || _paymentSessionId!.isEmpty) {
         throw StateError('Cashfree payment session was not created');
       }
-      final html = _cashfreeCheckoutHtml(
-        paymentSessionId: _paymentSessionId!,
-        mode: _cashfreeMode,
-      );
-      final controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(const Color(0xFFF6F6F6))
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageStarted: (url) async {
-              if (url.contains('/api/payments/cashfree/success')) {
-                if (!mounted) return;
-                Navigator.of(context).pop();
-                await _checkPaymentStatus();
-              }
-            },
-            onNavigationRequest: (request) {
-              if (request.url.contains('/api/payments/cashfree/success')) {
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  _checkPaymentStatus();
-                }
-                return NavigationDecision.prevent;
-              }
-              return NavigationDecision.navigate;
-            },
-          ),
-        )
-        ..loadHtmlString(html);
 
-      setState(() {
-        _webViewController = controller;
-        _loading = false;
-      });
-    } catch (error) {
       if (mounted) {
         setState(() {
-          _error = error.toString();
           _loading = false;
+          _error = null;
         });
       }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
     }
   }
 
-  Future<void> _checkPaymentStatus() async {
-    final state = context.read<AppState>();
-    final orderId = _orderId;
-    if (state.token == null || orderId == null) return;
+  Future<void> _startPayment() async {
+    if (!_canStartPayment) return;
+
     try {
-      final data = await _paymentService.cashfreeOrderStatus(
-        token: state.token!,
+      setState(() {
+        _processingPayment = true;
+        _error = null;
+      });
+
+      final session = _createSession();
+      if (session == null) {
+        if (mounted) {
+          setState(() => _processingPayment = false);
+          showToast(context, 'Unable to create Cashfree session');
+        }
+        return;
+      }
+
+      final upi = CFUPIBuilder()
+          .setChannel(CFUPIChannel.INTENT_WITH_UI)
+          .build();
+      final payment = CFUPIPaymentBuilder()
+          .setSession(session)
+          .setUPI(upi)
+          .build();
+      _gatewayService.doPayment(payment);
+    } on CFException catch (error) {
+      if (!mounted) return;
+      setState(() => _processingPayment = false);
+      showToast(context, error.message);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _processingPayment = false);
+      showToast(context, error.toString());
+    }
+  }
+
+  CFSession? _createSession() {
+    final orderId = _orderId;
+    final paymentSessionId = _paymentSessionId;
+    if (orderId == null ||
+        orderId.isEmpty ||
+        paymentSessionId == null ||
+        paymentSessionId.isEmpty) {
+      return null;
+    }
+
+    try {
+      return CFSessionBuilder()
+          .setEnvironment(_environment)
+          .setOrderId(orderId)
+          .setPaymentSessionId(paymentSessionId)
+          .build();
+    } on CFException catch (error) {
+      if (mounted) {
+        setState(() => _error = error.message);
+      }
+      return null;
+    }
+  }
+
+  void _onPaymentVerified(String orderId) {
+    unawaited(_verifyCashfreeOrder(orderId));
+  }
+
+  void _onPaymentError(CFErrorResponse errorResponse, String orderId) {
+    if (!mounted) return;
+    setState(() {
+      _processingPayment = false;
+      _verifyingPayment = false;
+    });
+    final message = (errorResponse.getMessage() ?? '').trim();
+    showToast(
+      context,
+      message.isEmpty
+          ? 'Payment failed for order ${orderId.isEmpty ? 'unknown' : orderId}'
+          : message,
+    );
+  }
+
+  Future<void> _verifyCashfreeOrder(String orderId) async {
+    if (_verifyingPayment) return;
+
+    final state = context.read<AppState>();
+    final token = state.token;
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        setState(() => _processingPayment = false);
+        showToast(context, 'Please login again to verify payment');
+      }
+      return;
+    }
+
+    setState(() {
+      _verifyingPayment = true;
+    });
+
+    try {
+      final data = await _paymentService.verifyCashfreeOrder(
+        token: token,
         orderId: orderId,
       );
-      final status = (data['order_status'] ?? data['status'] ?? '').toString().toUpperCase();
+      final status = _readString(data, const [
+        'orderStatus',
+        'order_status',
+        'status',
+      ]).toUpperCase();
+
       if (status == 'PAID') {
         await state.checkout(
           address: state.selectedAddress?.fullAddress ?? '',
@@ -140,71 +254,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
         );
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, OrderSuccessScreen.routeName);
-      } else if (mounted) {
-        showToast(context, 'Payment status: $status');
+        return;
       }
+
+      if (!mounted) return;
+      setState(() => _processingPayment = false);
+      showToast(context, 'Payment is not complete yet. Status: $status');
     } catch (error) {
-      if (mounted) showToast(context, error.toString());
+      if (!mounted) return;
+      setState(() => _processingPayment = false);
+      showToast(context, error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _verifyingPayment = false);
+      }
     }
   }
 
-  String _cashfreeCheckoutHtml({
-    required String paymentSessionId,
-    required String mode,
-  }) {
-    return '''
-<!doctype html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        background: #f6f6f6;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  CFEnvironment _parseEnvironment(String? value) {
+    final normalized = (value ?? '').trim().toLowerCase();
+    if (normalized == 'production' || normalized == 'prod') {
+      return CFEnvironment.PRODUCTION;
+    }
+    return CFEnvironment.SANDBOX;
+  }
+
+  String _readString(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value != null) {
+        final text = value.toString().trim();
+        if (text.isNotEmpty) return text;
       }
-      .center {
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        color: #1a1a1a;
-        gap: 12px;
-      }
-      .spinner {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        border: 4px solid #f0d6c8;
-        border-top-color: #e8541a;
-        animation: spin 0.9s linear infinite;
-      }
-      @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
-  </head>
-  <body>
-    <div class="center">
-      <div class="spinner"></div>
-      <div>Opening Cashfree checkout...</div>
-    </div>
-    <script>
-      (function () {
-        try {
-          const cashfree = Cashfree({ mode: '$mode' });
-          cashfree.checkout({ paymentSessionId: '$paymentSessionId' });
-        } catch (err) {
-          document.body.innerHTML = '<pre style="white-space: pre-wrap; padding: 16px;">' + err + '</pre>';
-        }
-      })();
-    </script>
-  </body>
-</html>
-''';
+    }
+    return '';
   }
 
   @override
@@ -212,67 +295,222 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
-        title: const Text('Cashfree Payment'),
+        title: const Text('Cashfree UPI Payment'),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
       ),
-      body: _webViewController == null
-          ? Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Pay securely with Cashfree',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'We will open the official Cashfree checkout inside the app.',
-                    style: TextStyle(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Consumer<AppState>(
-                    builder: (context, state, _) => _SummaryCard(
-                      subtotal: state.subtotal,
-                      deliveryFee: state.deliveryFee,
-                      gstAmount: state.gstAmount,
-                      total: state.total,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_loading)
-                    const LinearProgressIndicator(color: Color(0xFFE8541A)),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Text(_error!, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8541A),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: _loading ? null : _checkPaymentStatus,
-                      child: const Text(
-                        'Check Payment Status',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Pay using UPI intent',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
               ),
-            )
-          : WebViewWidget(controller: _webViewController!),
+              const SizedBox(height: 8),
+              Text(
+                'The official Cashfree SDK will open a UPI app and we will still verify the payment on the backend before confirming the order.',
+                style: TextStyle(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Consumer<AppState>(
+                builder: (context, state, _) => _SummaryCard(
+                  subtotal: state.subtotal,
+                  deliveryFee: state.deliveryFee,
+                  gstAmount: state.gstAmount,
+                  total: state.total,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _StatusCard(
+                loading: _loading,
+                processingPayment: _processingPayment,
+                verifyingPayment: _verifyingPayment,
+                error: _error,
+                orderId: _orderId,
+                paymentSessionId: _paymentSessionId,
+                environment: _environment,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8541A),
+                    disabledBackgroundColor: const Color(0xFFFFC8B2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _canStartPayment ? _startPayment : null,
+                  child: _processingPayment || _verifyingPayment
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Pay with UPI App',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE8541A)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _loading || _verifyingPayment
+                      ? null
+                      : _prepareCheckout,
+                  child: const Text(
+                    'Refresh payment session',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'If the payment app returns before this screen updates, we re-check the order status on the server first.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Colors.black.withValues(alpha: 0.5),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({
+    required this.loading,
+    required this.processingPayment,
+    required this.verifyingPayment,
+    required this.error,
+    required this.orderId,
+    required this.paymentSessionId,
+    required this.environment,
+  });
+
+  final bool loading;
+  final bool processingPayment;
+  final bool verifyingPayment;
+  final String? error;
+  final String? orderId;
+  final String? paymentSessionId;
+  final CFEnvironment environment;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = loading
+        ? 'Preparing Cashfree session...'
+        : processingPayment
+        ? 'Opening UPI app...'
+        : verifyingPayment
+        ? 'Verifying payment on the server...'
+        : 'Ready to pay';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEDEDED)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.verified_user_outlined,
+                color: Color(0xFFE8541A),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  statusText,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (error != null && error!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              error!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _metaRow(
+            'Environment',
+            environment == CFEnvironment.PRODUCTION ? 'Production' : 'Sandbox',
+          ),
+          _metaRow('Order ID', orderId ?? 'Not generated'),
+          _metaRow('Session ID', paymentSessionId ?? 'Not generated'),
+        ],
+      ),
+    );
+  }
+
+  Widget _metaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.black.withValues(alpha: 0.55),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -13,17 +13,19 @@ class PaymentService {
     String? contact,
     String? address,
   }) async {
+    final body = <String, dynamic>{
+      'amount': amountInPaise,
+      'currency': currency,
+    };
+    if (receipt != null) body['receipt'] = receipt;
+    if (email != null) body['email'] = email;
+    if (contact != null) body['contact'] = contact;
+    if (address != null) body['address'] = address;
+
     return await api.post(
           '/payments/cashfree/create-order',
           token: token,
-          body: {
-            'amount': amountInPaise,
-            'currency': currency,
-            if (receipt != null) 'receipt': receipt,
-            if (email != null) 'email': email,
-            if (contact != null) 'contact': contact,
-            if (address != null) 'address': address,
-          },
+          body: body,
         )
         as Map<String, dynamic>;
   }
@@ -33,6 +35,17 @@ class PaymentService {
     required String orderId,
   }) async {
     return await api.get('/payments/cashfree/status/$orderId', token: token)
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> verifyCashfreeOrder({
+    required String token,
+    required String orderId,
+  }) async {
+    return await api.get(
+          '/payments/cashfree/verify-order/$orderId',
+          token: token,
+        )
         as Map<String, dynamic>;
   }
 

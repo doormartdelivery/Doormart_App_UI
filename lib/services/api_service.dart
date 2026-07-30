@@ -148,7 +148,41 @@ class ApiService {
   };
 
   dynamic _decode(http.Response response) {
-    final body = response.body.isEmpty ? null : jsonDecode(response.body);
+    final rawBody = response.body;
+    if (rawBody.isEmpty) {
+      if (response.statusCode >= 400) {
+        throw ApiException('Request failed', response.statusCode);
+      }
+      return null;
+    }
+
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    final trimmedBody = rawBody.trimLeft();
+    final looksJson = contentType.contains('application/json') ||
+        trimmedBody.startsWith('{') ||
+        trimmedBody.startsWith('[');
+
+    if (!looksJson) {
+      final preview = _bodyPreview(rawBody);
+      throw ApiException(
+        response.statusCode >= 400
+            ? 'Server returned non-JSON response (${response.statusCode}). $preview'
+            : 'Server returned an unexpected response. $preview',
+        response.statusCode,
+      );
+    }
+
+    dynamic body;
+    try {
+      body = jsonDecode(rawBody);
+    } on FormatException {
+      final preview = _bodyPreview(rawBody);
+      throw ApiException(
+        'Unable to parse server response as JSON. $preview',
+        response.statusCode,
+      );
+    }
+
     if (response.statusCode >= 400) {
       final message = body is Map<String, dynamic>
           ? body['message'] as String? ?? 'Request failed'
@@ -156,6 +190,14 @@ class ApiService {
       throw ApiException(message, response.statusCode);
     }
     return body;
+  }
+
+  String _bodyPreview(String body) {
+    final sanitized = body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (sanitized.isEmpty) return 'Empty response body.';
+    return sanitized.length > 180
+        ? '${sanitized.substring(0, 180)}...'
+        : sanitized;
   }
 }
 
