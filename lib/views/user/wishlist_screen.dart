@@ -81,7 +81,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
                   child: favorites.isEmpty
                       ? const _EmptyFavoritesCard()
                       : ListView.separated(
-                          padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + bottomInset),
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            4,
+                            16,
+                            24 + bottomInset,
+                          ),
                           itemCount: favorites.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 16),
@@ -211,9 +216,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                   ChoiceChip(
                     label: const Text('Ratings 4.0+'),
                     selected: _ratingOnly,
-                    onSelected: (_) => setModalState(
-                      () => _ratingOnly = !_ratingOnly,
-                    ),
+                    onSelected: (_) =>
+                        setModalState(() => _ratingOnly = !_ratingOnly),
                     selectedColor: const Color(0xFFFFF0EB),
                     backgroundColor: Colors.white,
                     labelStyle: TextStyle(
@@ -505,7 +509,7 @@ class _FavoriteCard extends StatelessWidget {
                     topLeft: Radius.circular(20),
                     bottomLeft: Radius.circular(20),
                   ),
-                  child: _Thumb(imageUrl: product.imageUrl),
+                  child: _Thumb(product: product),
                 ),
                 // Right content
                 Expanded(
@@ -648,15 +652,15 @@ class _FavoriteCard extends StatelessWidget {
 // ─── Thumb ───────────────────────────────────────────────────────────────────
 
 class _Thumb extends StatelessWidget {
-  const _Thumb({required this.imageUrl});
+  const _Thumb({required this.product});
 
-  final String imageUrl;
+  final dynamic product;
 
   @override
   Widget build(BuildContext context) {
     const width = 130.0;
     const height = 176.0;
-    final normalized = NetworkImageUrl.normalize(imageUrl);
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
 
     if (normalized.startsWith('assets/')) {
       return Image.asset(
@@ -664,6 +668,11 @@ class _Thumb extends StatelessWidget {
         width: width,
         height: height,
         fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => SizedBox(
+          width: width,
+          height: height,
+          child: _funnyMissingImageFallback(context, product),
+        ),
       );
     }
     if (normalized.startsWith('http')) {
@@ -672,19 +681,119 @@ class _Thumb extends StatelessWidget {
         width: width,
         height: height,
         fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => SizedBox(
+          width: width,
+          height: height,
+          child: _funnyMissingImageFallback(context, product),
+        ),
       );
     }
-    return Container(
+    return SizedBox(
       width: width,
       height: height,
-      color: const Color(0xFFF1F1F1),
-      child: const Icon(
-        Icons.image_outlined,
-        color: Color(0xFFCCCCCC),
-        size: 32,
-      ),
+      child: _funnyMissingImageFallback(context, product),
     );
   }
+}
+
+Widget _funnyMissingImageFallback(BuildContext context, dynamic product) {
+  final accent = _categoryAccent((product.category as String?) ?? '');
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.16),
+          const Color(0xFFFFF7ED),
+          Colors.white,
+        ],
+      ),
+    ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: const Text(
+                'oops',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF7C2D12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.hide_image_outlined, size: 36, color: accent),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Image took a tea break',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF7C2D12).withValues(alpha: 0.92),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Still tasty, just camera shy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Color _categoryAccent(String category) {
+  return switch (category.toLowerCase()) {
+    'vegetables' => const Color(0xFF16A34A),
+    'fruits' => const Color(0xFFEA580C),
+    'dairy' => const Color(0xFF2563EB),
+    'staples' => const Color(0xFFB45309),
+    'snacks' => const Color(0xFFDB2777),
+    'beverages' => const Color(0xFF0891B2),
+    _ => const Color(0xFFE8541A),
+  };
 }
 
 // ─── Filter Pill ─────────────────────────────────────────────────────────────

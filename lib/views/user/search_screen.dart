@@ -401,7 +401,7 @@ class _ProductFeedCard extends StatelessWidget {
                 child: SizedBox(
                   width: 120,
                   height: 158,
-                  child: _ImageThumb(imageUrl: product.imageUrl),
+                  child: _ImageThumb(product: product),
                 ),
               ),
               const SizedBox(width: 14),
@@ -510,29 +510,153 @@ class _ProductFeedCard extends StatelessWidget {
 }
 
 class _ImageThumb extends StatelessWidget {
-  const _ImageThumb({required this.imageUrl});
+  const _ImageThumb({required this.product});
 
-  final String imageUrl;
+  final dynamic product;
 
   @override
   Widget build(BuildContext context) {
-    final normalized = NetworkImageUrl.normalize(imageUrl);
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
     if (normalized.startsWith('assets/')) {
-      return Image.asset(normalized, fit: BoxFit.cover);
+      return Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => SizedBox(
+          width: 120,
+          height: 158,
+          child: _funnyMissingImageFallback(context, product, compact: true),
+        ),
+      );
     }
     if (normalized.startsWith('http')) {
-      return Image.network(normalized, fit: BoxFit.cover);
-    }
-    return const ColoredBox(
-      color: Color(0xFFF1F5F9),
-      child: Center(
-        child: Icon(
-          Icons.image_not_supported_outlined,
-          color: Color(0xFF64748B),
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => SizedBox(
+          width: 120,
+          height: 158,
+          child: _funnyMissingImageFallback(context, product, compact: true),
         ),
-      ),
+      );
+    }
+    return SizedBox(
+      width: 120,
+      height: 158,
+      child: _funnyMissingImageFallback(context, product, compact: true),
     );
   }
+}
+
+Widget _funnyMissingImageFallback(
+  BuildContext context,
+  dynamic product, {
+  bool compact = false,
+}) {
+  final accent = _categoryAccent((product.category as String?) ?? '');
+  final bubbleSize = compact ? 64.0 : 84.0;
+  final iconSize = compact ? 32.0 : 42.0;
+  final titleSize = compact ? 11.0 : 12.0;
+  final subtitleSize = compact ? 9.0 : 10.0;
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.16),
+          const Color(0xFFFFF7ED),
+          Colors.white,
+        ],
+      ),
+    ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: const Text(
+                'oops',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF7C2D12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: bubbleSize,
+                height: bubbleSize,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.hide_image_outlined,
+                  size: iconSize,
+                  color: accent,
+                ),
+              ),
+              SizedBox(height: compact ? 6 : 10),
+              Text(
+                'Image took a tea break',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: titleSize,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF7C2D12).withValues(alpha: 0.92),
+                ),
+              ),
+              SizedBox(height: compact ? 2 : 4),
+              Text(
+                'Still tasty, just camera shy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: subtitleSize,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Color _categoryAccent(String category) {
+  return switch (category.toLowerCase()) {
+    'vegetables' => const Color(0xFF16A34A),
+    'fruits' => const Color(0xFFEA580C),
+    'dairy' => const Color(0xFF2563EB),
+    'staples' => const Color(0xFFB45309),
+    'snacks' => const Color(0xFFDB2777),
+    'beverages' => const Color(0xFF0891B2),
+    _ => const Color(0xFFE8541A),
+  };
 }
 
 class _BadgeButton extends StatelessWidget {

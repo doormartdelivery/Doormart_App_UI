@@ -64,8 +64,10 @@ class _ProductSheetState extends State<_ProductSheet>
     end: Offset.zero,
   ).animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
 
-  late final Animation<double> _fadeAnim =
-      CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+  late final Animation<double> _fadeAnim = CurvedAnimation(
+    parent: _entryCtrl,
+    curve: Curves.easeOut,
+  );
 
   @override
   void dispose() {
@@ -156,8 +158,11 @@ class _ProductSheetState extends State<_ProductSheet>
                     // Unit
                     Row(
                       children: [
-                        const Icon(Icons.straighten_rounded,
-                            size: 14, color: Color(0xFF888888)),
+                        const Icon(
+                          Icons.straighten_rounded,
+                          size: 14,
+                          color: Color(0xFF888888),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _unitLabel(product.unit),
@@ -168,8 +173,11 @@ class _ProductSheetState extends State<_ProductSheet>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.inventory_2_rounded,
-                            size: 14, color: Color(0xFF888888)),
+                        const Icon(
+                          Icons.inventory_2_rounded,
+                          size: 14,
+                          color: Color(0xFF888888),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${product.stock} in stock',
@@ -215,7 +223,9 @@ class _ProductSheetState extends State<_ProductSheet>
                         // Discount badge
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: _kGreenLight,
                             borderRadius: BorderRadius.circular(8),
@@ -292,10 +302,7 @@ class _ImageHero extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  catColor,
-                  catColor.withValues(alpha: 0.60),
-                ],
+                colors: [catColor, catColor.withValues(alpha: 0.60)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -352,26 +359,17 @@ class _ImageHero extends StatelessWidget {
           ),
 
           // Close button
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _CloseButton(),
-          ),
+          Positioned(top: 12, right: 12, child: _CloseButton()),
 
           // Wishlist button
-          Positioned(
-            top: 12,
-            left: 12,
-            child: _WishlistButton(),
-          ),
+          Positioned(top: 12, left: 12, child: _WishlistButton()),
 
           // Fresh badge
           Positioned(
             bottom: 12,
             left: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(999),
@@ -379,8 +377,7 @@ class _ImageHero extends StatelessWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.bolt_rounded,
-                      size: 13, color: _kOrange),
+                  Icon(Icons.bolt_rounded, size: 13, color: _kOrange),
                   SizedBox(width: 3),
                   Text(
                     'Delivered in 10 mins',
@@ -413,10 +410,10 @@ class _CloseButtonState extends State<_CloseButton>
     vsync: this,
     duration: const Duration(milliseconds: 100),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.88).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.88,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -449,8 +446,11 @@ class _CloseButtonState extends State<_CloseButton>
               ),
             ],
           ),
-          child: const Icon(Icons.close_rounded,
-              size: 18, color: Color(0xFF1A1A1A)),
+          child: const Icon(
+            Icons.close_rounded,
+            size: 18,
+            color: Color(0xFF1A1A1A),
+          ),
         ),
       ),
     );
@@ -471,8 +471,7 @@ class _WishlistButtonState extends State<_WishlistButton>
     vsync: this,
     duration: const Duration(milliseconds: 300),
   );
-  late final Animation<double> _scale =
-      TweenSequence<double>([
+  late final Animation<double> _scale = TweenSequence<double>([
     TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.4), weight: 50),
     TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 50),
   ]).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
@@ -571,8 +570,7 @@ class _RatingPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded,
-              size: 13, color: Color(0xFFF59E0B)),
+          const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
           const SizedBox(width: 3),
           Text(
             rating > 0 ? rating.toStringAsFixed(1) : '4.5',
@@ -602,8 +600,7 @@ class _DeliveryStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.local_shipping_rounded,
-              size: 16, color: _kGreen),
+          const Icon(Icons.local_shipping_rounded, size: 16, color: _kGreen),
           const SizedBox(width: 8),
           const Text(
             'Free delivery • Arrives in ',
@@ -685,10 +682,8 @@ class _QuantityCartBar extends StatelessWidget {
               ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                transitionBuilder: (child, anim) => ScaleTransition(
-                  scale: anim,
-                  child: child,
-                ),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
                 child: SizedBox(
                   width: 36,
                   child: Text(
@@ -741,16 +736,15 @@ class _QtyBtn extends StatefulWidget {
   State<_QtyBtn> createState() => _QtyBtnState();
 }
 
-class _QtyBtnState extends State<_QtyBtn>
-    with SingleTickerProviderStateMixin {
+class _QtyBtnState extends State<_QtyBtn> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 100),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.80).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.80,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -784,12 +778,11 @@ class _QtyBtnState extends State<_QtyBtn>
                       color: _kOrange.withValues(alpha: 0.30),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
-                    )
+                    ),
                   ]
                 : [],
           ),
-          child: Icon(widget.icon,
-              color: Colors.white, size: 18),
+          child: Icon(widget.icon, color: Colors.white, size: 18),
         ),
       ),
     );
@@ -816,10 +809,10 @@ class _AddToCartButtonState extends State<_AddToCartButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -869,8 +862,7 @@ class _AddToCartButtonState extends State<_AddToCartButton>
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      valueColor:
-                          AlwaysStoppedAnimation(Colors.white),
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
                     ),
                   )
                 : Column(
@@ -879,8 +871,11 @@ class _AddToCartButtonState extends State<_AddToCartButton>
                       const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shopping_bag_rounded,
-                              color: Colors.white, size: 17),
+                          Icon(
+                            Icons.shopping_bag_rounded,
+                            color: Colors.white,
+                            size: 17,
+                          ),
                           SizedBox(width: 6),
                           Text(
                             'Add to Cart',
@@ -926,7 +921,8 @@ class _ProductBackground extends StatelessWidget {
         imageUrl,
         fit: BoxFit.contain,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => _fallbackBackground(product),
+        errorBuilder: (_, __, ___) =>
+            _funnyMissingImageFallback(context, product),
       );
     }
     if (imageUrl.startsWith('http')) {
@@ -943,25 +939,107 @@ class _ProductBackground extends StatelessWidget {
             ),
           );
         },
-        errorBuilder: (_, __, ___) => _fallbackBackground(product),
+        errorBuilder: (_, __, ___) =>
+            _funnyMissingImageFallback(context, product),
       );
     }
-    return _fallbackBackground(product);
+    return _funnyMissingImageFallback(context, product);
   }
 }
 
-Widget _fallbackBackground(ProductModel product) {
-  final asset = _bestImageAsset(product);
-  return Image.asset(
-    asset,
-    fit: BoxFit.contain,
-    gaplessPlayback: true,
-    errorBuilder: (_, __, ___) => Center(
-      child: Icon(
-        _categoryIcon(product.category),
-        size: 88,
-        color: _categoryAccent(product.category),
+Widget _funnyMissingImageFallback(BuildContext context, ProductModel product) {
+  final accent = _categoryAccent(product.category);
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.16),
+          const Color(0xFFFFF7ED),
+          Colors.white,
+        ],
       ),
+    ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 18,
+          right: 18,
+          child: Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: const Text(
+                'oops',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF7C2D12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.hide_image_outlined, size: 46, color: accent),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Image took a tea break',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF7C2D12).withValues(alpha: 0.92),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Still tasty, just camera shy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 16,
+          bottom: 16,
+          child: Icon(
+            Icons.sentiment_satisfied_rounded,
+            size: 18,
+            color: accent.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
     ),
   );
 }

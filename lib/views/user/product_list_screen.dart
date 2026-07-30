@@ -129,7 +129,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       itemBuilder: (context, index) {
                         final product = products[index];
                         return Selector<AppState, bool>(
-                          selector: (_, appState) => appState.isFavorite(product),
+                          selector: (_, appState) =>
+                              appState.isFavorite(product),
                           builder: (context, isFavorite, _) {
                             return _ProductFeedCard(
                               product: product,
@@ -140,28 +141,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 onAddToCart: (quantity) async {
                                   final added = await context
                                       .read<AppState>()
-                                      .addToCart(
-                                        product,
-                                        quantity: quantity,
-                                      );
+                                      .addToCart(product, quantity: quantity);
                                   if (!context.mounted) return;
                                   showToast(
                                     context,
                                     added
                                         ? '${product.name} added to cart'
                                         : context.read<AppState>().error ??
-                                            'Please login first',
+                                              'Please login first',
                                   );
                                 },
                               ),
                               onFavoriteToggle: () async {
                                 final tapSw = Stopwatch()..start();
                                 try {
-                                  await context
-                                      .read<AppState>()
-                                      .toggleFavorite(product);
+                                  await context.read<AppState>().toggleFavorite(
+                                    product,
+                                  );
                                 } catch (_) {}
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   debugPrint(
                                     '[perf][favorite:product-list][ui] ${tapSw.elapsedMilliseconds}ms',
                                   );
@@ -178,9 +178,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   added
                                       ? '${product.name} added to cart'
                                       : context.read<AppState>().error ??
-                                          'Please login first',
+                                            'Please login first',
                                 );
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   debugPrint(
                                     '[perf][cart:product-list][ui] ${tapSw.elapsedMilliseconds}ms',
                                   );
@@ -585,7 +587,7 @@ class _ProductFeedCard extends StatelessWidget {
                       child: SizedBox(
                         width: 120,
                         height: 180,
-                        child: _ImageThumb(imageUrl: product.imageUrl),
+                        child: _ImageThumb(product: product),
                       ),
                     ),
                     Positioned(
@@ -793,28 +795,131 @@ class _RatingChip extends StatelessWidget {
 }
 
 class _ImageThumb extends StatelessWidget {
-  const _ImageThumb({required this.imageUrl});
+  const _ImageThumb({required this.product});
 
-  final String imageUrl;
+  final dynamic product;
 
   @override
   Widget build(BuildContext context) {
-    final normalized = NetworkImageUrl.normalize(imageUrl);
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
     if (normalized.startsWith('assets/')) {
-      return Image.asset(normalized, fit: BoxFit.cover);
+      return Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            _funnyMissingImageFallback(context, product),
+      );
     }
     if (normalized.startsWith('http')) {
-      return Image.network(normalized, fit: BoxFit.cover);
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            _funnyMissingImageFallback(context, product),
+      );
     }
-    return Container(
-      color: const Color(0xFFF1F1F1),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.image_not_supported_outlined,
-        color: Color(0xFF999999),
-      ),
-    );
+    return _funnyMissingImageFallback(context, product);
   }
+}
+
+Widget _funnyMissingImageFallback(BuildContext context, dynamic product) {
+  final accent = _categoryAccent((product.category as String?) ?? '');
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withValues(alpha: 0.16),
+          const Color(0xFFFFF7ED),
+          Colors.white,
+        ],
+      ),
+    ),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Transform.rotate(
+            angle: 0.12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: accent.withValues(alpha: 0.28)),
+              ),
+              child: const Text(
+                'oops',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF7C2D12),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.hide_image_outlined, size: 42, color: accent),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Image took a tea break',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF7C2D12).withValues(alpha: 0.92),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Still tasty, just camera shy.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Color _categoryAccent(String category) {
+  return switch (category.toLowerCase()) {
+    'vegetables' => const Color(0xFF16A34A),
+    'fruits' => const Color(0xFFEA580C),
+    'dairy' => const Color(0xFF2563EB),
+    'staples' => const Color(0xFFB45309),
+    'snacks' => const Color(0xFFDB2777),
+    'beverages' => const Color(0xFF0891B2),
+    _ => const Color(0xFFE8541A),
+  };
 }
 
 class _FilterPill extends StatelessWidget {
