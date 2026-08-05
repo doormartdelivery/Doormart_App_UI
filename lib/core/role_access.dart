@@ -13,6 +13,7 @@ class RoleAccess {
     '/my-orders',
     '/order-details',
     '/scheduled-orders',
+    '/wishlist',
     '/notifications',
     '/profile',
     '/profile/edit',
@@ -21,7 +22,6 @@ class RoleAccess {
 
   static bool canAccessRoute(String? role, String routeName) {
     if (routeName == '/login' ||
-        routeName == '/select-role' ||
         routeName == '/signup' ||
         routeName == '/splash') {
       return true;
@@ -30,6 +30,9 @@ class RoleAccess {
       return role == UserRoles.superAdmin || routeName == '/super-admin/login';
     }
     if (routeName.startsWith('/admin')) {
+      if (routeName == '/admin/users') {
+        return role == UserRoles.superAdmin || routeName == '/admin/login';
+      }
       return role == UserRoles.admin ||
           role == UserRoles.superAdmin ||
           routeName == '/admin/login';

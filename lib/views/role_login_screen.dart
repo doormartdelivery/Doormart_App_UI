@@ -37,7 +37,13 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
   bool _loading = false;
   bool _otpSent = false;
 
-  bool get _useEmail => widget.allowEmailPassword && !widget.allowPhonePassword;
+  bool get _useEmailOnly =>
+      widget.allowEmailPassword && !widget.allowPhonePassword;
+  bool get _usePhoneOrEmail =>
+      widget.allowEmailPassword && widget.allowPhonePassword;
+  String get _passwordIdentifier =>
+      (_useEmailOnly ? _emailController : _phoneController).text.trim();
+  bool get _passwordIdentifierIsEmail => _passwordIdentifier.contains('@');
   String get _otpTarget => _emailController.text.trim();
 
   @override
@@ -53,9 +59,11 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
+      final useEmail =
+          _useEmailOnly || (_usePhoneOrEmail && _passwordIdentifierIsEmail);
       await context.read<AppState>().loginWithPassword(
-        phone: _useEmail ? null : _phoneController.text.trim(),
-        email: _useEmail ? _emailController.text.trim() : null,
+        phone: useEmail ? null : _passwordIdentifier,
+        email: useEmail ? _passwordIdentifier : null,
         password: _passwordController.text,
       );
       await _handlePostLogin();
@@ -126,6 +134,8 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       body: SafeArea(
         child: Container(
@@ -137,7 +147,7 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
             ),
           ),
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
             children: [
               const SizedBox(height: 20),
               _HeroCard(title: widget.title, subtitle: widget.subtitle),
@@ -154,7 +164,7 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_useEmail)
+                        if (_useEmailOnly)
                           CustomTextField(
                             controller: _emailController,
                             label: 'Email',
@@ -168,12 +178,20 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                         else
                           CustomTextField(
                             controller: _phoneController,
-                            label: 'Phone number',
-                            icon: Icons.phone_iphone_rounded,
-                            keyboardType: TextInputType.phone,
+                            label: _usePhoneOrEmail
+                                ? 'Phone or email'
+                                : 'Phone number',
+                            icon: _usePhoneOrEmail
+                                ? Icons.account_circle_rounded
+                                : Icons.phone_iphone_rounded,
+                            keyboardType: _usePhoneOrEmail
+                                ? TextInputType.emailAddress
+                                : TextInputType.phone,
                             validator: (value) =>
                                 (value == null || value.trim().isEmpty)
-                                ? 'Enter phone number'
+                                ? (_usePhoneOrEmail
+                                      ? 'Enter phone or email'
+                                      : 'Enter phone number')
                                 : null,
                           ),
                         const SizedBox(height: 12),

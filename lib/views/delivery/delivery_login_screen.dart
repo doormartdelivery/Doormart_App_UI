@@ -8,8 +8,9 @@ class DeliveryLoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const RoleLoginScreen(
     title: 'Delivery Login',
-    subtitle: 'Delivery partners sign in with mobile number and password.',
+    subtitle: 'Delivery partners sign in with phone or email and password.',
     role: UserRoles.deliveryPerson,
     allowPhonePassword: true,
+    allowEmailPassword: true,
   );
 }

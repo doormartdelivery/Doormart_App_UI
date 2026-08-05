@@ -45,15 +45,15 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _loading = true);
     try {
       await context.read<AppState>().register(
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            addressLabel: _addressLabelController.text.trim(),
-            addressLine1: _addressLine1Controller.text.trim(),
-            city: _cityController.text.trim(),
-            pincode: _pincodeController.text.trim(),
-          );
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        addressLabel: _addressLabelController.text.trim(),
+        addressLine1: _addressLine1Controller.text.trim(),
+        city: _cityController.text.trim(),
+        pincode: _pincodeController.text.trim(),
+      );
       if (!mounted) return;
       showToast(context, 'Account created successfully');
       Navigator.pushReplacementNamed(context, ProfileScreen.routeName);
@@ -67,6 +67,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       body: SafeArea(
         child: Container(
@@ -78,12 +80,13 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           ),
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
             children: [
               const SizedBox(height: 20),
               _HeroCard(
                 title: 'Create your Doormart account',
-                subtitle: 'Save addresses, track deliveries, and reorder faster.',
+                subtitle:
+                    'Save addresses, track deliveries, and reorder faster.',
                 icon: Icons.person_add_alt_1_rounded,
               ),
               const SizedBox(height: 20),
@@ -102,9 +105,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       children: [
                         Text(
                           'Profile details',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 16),
                         CustomTextField(
@@ -113,8 +115,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           icon: Icons.person_rounded,
                           validator: (value) =>
                               (value == null || value.trim().isEmpty)
-                                  ? 'Enter your name'
-                                  : null,
+                              ? 'Enter your name'
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
@@ -124,8 +126,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           keyboardType: TextInputType.phone,
                           validator: (value) =>
                               (value == null || value.trim().isEmpty)
-                                  ? 'Enter your phone number'
-                                  : null,
+                              ? 'Enter your phone number'
+                              : null,
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
@@ -136,7 +138,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           validator: (value) {
                             final text = value?.trim() ?? '';
                             if (text.isEmpty) return 'Enter your email';
-                            if (!text.contains('@')) return 'Enter a valid email';
+                            if (!text.contains('@'))
+                              return 'Enter a valid email';
                             return null;
                           },
                         ),
@@ -148,15 +151,14 @@ class _SignupScreenState extends State<SignupScreen> {
                           obscureText: true,
                           validator: (value) =>
                               (value == null || value.length < 6)
-                                  ? 'Use at least 6 characters'
-                                  : null,
+                              ? 'Use at least 6 characters'
+                              : null,
                         ),
                         const SizedBox(height: 18),
                         Text(
                           'Delivery address',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 10),
                         CustomTextField(
@@ -203,7 +205,11 @@ class _SignupScreenState extends State<SignupScreen> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: Text(_loading ? 'Creating account...' : 'Create account'),
+                            child: Text(
+                              _loading
+                                  ? 'Creating account...'
+                                  : 'Create account',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -279,10 +285,7 @@ class _HeroCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    height: 1.35,
-                  ),
+                  style: const TextStyle(color: Colors.white70, height: 1.35),
                 ),
               ],
             ),

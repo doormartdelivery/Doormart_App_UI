@@ -26,7 +26,7 @@ class SuperAdminOrdersScreen extends StatelessWidget {
               children: orders
                   .map(
                     (order) =>
-                        OrderCard(orderId: order.id, status: order.status.name),
+                        OrderCard(orderId: order.displayOrderId, status: order.status.name),
                   )
                   .toList(),
             );

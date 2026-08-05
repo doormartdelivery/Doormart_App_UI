@@ -1,29 +1,95 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import 'core/routes.dart';
 import 'core/theme.dart';
+import 'notifications/firebase_messaging_service.dart';
+import 'notifications/notification_payload.dart';
+import 'core/role_access.dart';
 import 'providers/app_state.dart';
+import 'features/delivery/providers/delivery_provider.dart';
+import 'features/delivery/screens/delivery_home_screen.dart';
+import 'views/user/user_home_screen.dart';
 import 'views/user/splash_screen.dart';
 
-class DoormartDeliveryApp extends StatelessWidget {
+class DoormartDeliveryApp extends StatefulWidget {
   const DoormartDeliveryApp({super.key});
 
+  @override
+  State<DoormartDeliveryApp> createState() => _DoormartDeliveryAppState();
+
   static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final navigatorKey = GlobalKey<NavigatorState>();
+}
+
+class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
+  final FirebaseMessagingService _messagingService = FirebaseMessagingService();
+  bool _notificationReady = false;
+  NotificationPayload? _pendingNotification;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _notificationReady) return;
+      await _messagingService.initialize(
+        onTap: _handleNotificationTap,
+      );
+      _notificationReady = true;
+      _flushPendingNotification();
+    });
+  }
+
+  Future<void> _handleNotificationTap(NotificationPayload payload) async {
+    final navigator = DoormartDeliveryApp.navigatorKey.currentState;
+    if (navigator == null) {
+      _pendingNotification = payload;
+      return;
+    }
+
+    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    navigator.pushNamedAndRemoveUntil(
+      targetRoute == DeliveryHomeScreen.routeName
+          ? DeliveryHomeScreen.routeName
+          : UserHomeScreen.routeName,
+      (route) => route.isFirst,
+    );
+  }
+
+  void _flushPendingNotification() {
+    final payload = _pendingNotification;
+    if (payload == null) return;
+    _pendingNotification = null;
+    final navigator = DoormartDeliveryApp.navigatorKey.currentState;
+    if (navigator == null) return;
+
+    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    navigator.pushNamedAndRemoveUntil(
+      targetRoute == DeliveryHomeScreen.routeName
+          ? DeliveryHomeScreen.routeName
+          : UserHomeScreen.routeName,
+      (route) => route.isFirst,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AppState()..bootstrap(),
-      child: Consumer<AppState>(
-        builder: (context, state, child) => MaterialApp(
-          title: 'Doormart Delivery',
-          debugShowCheckedModeBanner: false,
-          scaffoldMessengerKey: scaffoldMessengerKey,
-          theme: AppTheme.lightTheme,
-          initialRoute: SplashScreen.routeName,
-          onGenerateRoute: (settings) =>
-              AppRoutes.onGenerateRoute(context, settings),
+      child: ChangeNotifierProvider(
+        create: (_) => DeliveryProvider(),
+        child: Consumer<AppState>(
+          builder: (context, state, child) => MaterialApp(
+            title: 'Doormart Delivery',
+            debugShowCheckedModeBanner: false,
+            scaffoldMessengerKey: DoormartDeliveryApp.scaffoldMessengerKey,
+            navigatorKey: DoormartDeliveryApp.navigatorKey,
+            theme: AppTheme.lightTheme,
+            initialRoute: SplashScreen.routeName,
+            onGenerateRoute: (settings) =>
+                AppRoutes.onGenerateRoute(context, settings),
+          ),
         ),
       ),
     );

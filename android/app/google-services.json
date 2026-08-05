@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "39851747839",
+    "project_id": "doormart-delivery",
+    "storage_bucket": "doormart-delivery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39851747839:android:cf99fbab5eb66001dadfca",
+        "android_client_info": {
+          "package_name": "com.example.doormartdelivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZ6FRHADJ8E07oKURJnl2Yy7rVeckKa0g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
