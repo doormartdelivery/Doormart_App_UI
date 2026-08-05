@@ -1,4 +1,4 @@
-package com.example.doormartdelivery
+package com.leastaction.doormartdelivery
 
 import io.flutter.embedding.android.FlutterActivity
 
