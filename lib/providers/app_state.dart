@@ -288,7 +288,11 @@ class AppState extends ChangeNotifier {
       return;
     }
     if (role == UserRoles.admin || role == UserRoles.superAdmin) {
-      await Future.wait([_safeCall(loadOrders), _safeCall(loadFavorites)]);
+      await Future.wait([
+        _safeCall(loadOrders),
+        _safeCall(loadFavorites),
+        _safeCall(loadProducts),
+      ]);
       return;
     }
     await Future.wait([
@@ -486,14 +490,19 @@ class AppState extends ChangeNotifier {
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
       final path = '/products${query.isEmpty ? '' : '?$query'}';
-      products = await _loadProductsWithRetry(path);
+      products = await _loadProductsWithRetry(path, token: token);
     });
   }
 
-  Future<List<ProductModel>> _loadProductsWithRetry(String path) async {
+  Future<List<ProductModel>> _loadProductsWithRetry(
+    String path, {
+    String? token,
+  }) async {
     Future<List<ProductModel>> fetchOnce() async {
       final data =
-          await apiService.get(path).timeout(const Duration(seconds: 8))
+          await apiService
+                  .get(path, token: token)
+                  .timeout(const Duration(seconds: 8))
               as List<dynamic>;
       return data
           .cast<Map<String, dynamic>>()
@@ -996,6 +1005,7 @@ class AppState extends ChangeNotifier {
     String? password,
     String? role,
     String? status,
+    String? vendorId,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1009,6 +1019,7 @@ class AppState extends ChangeNotifier {
       if (password != null && password.isNotEmpty) 'password': password,
       if (role != null) 'role': role,
       if (status != null) 'status': status,
+      if (vendorId != null && vendorId.isNotEmpty) 'vendorId': vendorId,
     };
     final data =
         await apiService.put('/admin/users/$userId', token: token, body: body)
@@ -1024,6 +1035,7 @@ class AppState extends ChangeNotifier {
     String password = '',
     String role = UserRoles.deliveryPerson,
     String status = 'active',
+    String? vendorId,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1041,6 +1053,8 @@ class AppState extends ChangeNotifier {
                 if (password.isNotEmpty) 'password': password,
                 'role': role,
                 'status': status,
+                if (vendorId != null && vendorId.isNotEmpty)
+                  'vendorId': vendorId,
               },
             )
             as Map<String, dynamic>;
@@ -1313,6 +1327,7 @@ class AppState extends ChangeNotifier {
         _connectSocket();
         if (user?.role == UserRoles.admin ||
             user?.role == UserRoles.superAdmin) {
+          await loadProducts();
           await loadAdminOrders();
         }
       }

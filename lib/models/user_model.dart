@@ -6,6 +6,7 @@ class UserModel {
     required this.name,
     required this.phone,
     required this.role,
+    this.vendorId = 'main',
     this.email,
     this.avatarUrl = '',
     this.status = 'active',
@@ -17,6 +18,7 @@ class UserModel {
   final String name;
   final String phone;
   final String role;
+  final String vendorId;
   final String? email;
   final String avatarUrl;
   final String status;
@@ -29,6 +31,7 @@ class UserModel {
       name: json['name'] as String? ?? 'User',
       phone: json['phone'] as String? ?? '',
       role: _normalizeRole(json['role'] as String?),
+      vendorId: json['vendorId'] as String? ?? 'main',
       email: json['email'] as String?,
       avatarUrl: json['avatarUrl'] as String? ?? '',
       status: json['status'] as String? ?? 'active',
@@ -42,6 +45,7 @@ class UserModel {
     'name': name,
     'phone': phone,
     'role': role,
+    'vendorId': vendorId,
     'email': email,
     'avatarUrl': avatarUrl,
     'status': status,

@@ -9,6 +9,7 @@ class DeliveryPersonModel {
     required this.active,
     required this.completedOrders,
     required this.todayEarnings,
+    this.vendorId = 'main',
     this.avatarUrl,
   });
 
@@ -21,6 +22,7 @@ class DeliveryPersonModel {
   final bool active;
   final int completedOrders;
   final double todayEarnings;
+  final String vendorId;
   final String? avatarUrl;
 
   factory DeliveryPersonModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class DeliveryPersonModel {
                   0)
               .toInt(),
       todayEarnings: (json['todayEarnings'] as num? ?? 0).toDouble(),
+      vendorId: json['vendorId'] as String? ?? 'main',
       avatarUrl: json['avatarUrl'] as String? ?? json['avatar'] as String?,
     );
   }

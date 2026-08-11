@@ -5,6 +5,7 @@ class DeliveryPersonModel {
     required this.phone,
     required this.active,
     required this.completedOrders,
+    this.vendorId = 'main',
   });
 
   final String id;
@@ -12,4 +13,5 @@ class DeliveryPersonModel {
   final String phone;
   final bool active;
   final int completedOrders;
+  final String vendorId;
 }

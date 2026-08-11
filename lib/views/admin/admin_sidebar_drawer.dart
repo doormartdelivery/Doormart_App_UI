@@ -38,13 +38,13 @@ class AdminSidebarDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName, const Color(0xFF0F766E)),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName, const Color(0xFF0F766E)),
-      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName, const Color(0xFFB45309)),
-      ('Ticket Management', Icons.support_agent, HelpSupportManagementScreen.routeName, const Color(0xFFE8541A)),
+      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName, const Color(0xFFB45309)),
+      if (isSuperAdmin) ('Ticket Management', Icons.support_agent, HelpSupportManagementScreen.routeName, const Color(0xFFE8541A)),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName, const Color(0xFF2563EB)),
-      ('Categories', Icons.category, ManageCategoriesScreen.routeName, const Color(0xFF059669)),
-      ('Banners', Icons.slideshow, ManageBannersScreen.routeName, const Color(0xFFEA580C)),
+      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName, const Color(0xFF059669)),
+      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName, const Color(0xFFEA580C)),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName, const Color(0xFF7C3AED)),
-      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName, const Color(0xFFDB2777)),
+      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName, const Color(0xFFDB2777)),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName, const Color(0xFFDC2626)),
     ];
 

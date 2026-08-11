@@ -82,9 +82,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       //   ],
       // ),
       body: Container(
-        decoration: const BoxDecoration(
-          color: _kBg,
-        ),
+        decoration: const BoxDecoration(color: _kBg),
         child: SafeArea(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -99,7 +97,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return KeyedSubtree(
       key: ValueKey(section.title),
       child: section.title == 'Overview'
-          ? _AdminOverviewPanel(onOpenMenu: () => _scaffoldKey.currentState?.openDrawer())
+          ? _AdminOverviewPanel(
+              onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+            )
           : section.builder(context),
     );
   }
@@ -123,20 +123,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         accent: const Color(0xFF0F766E),
         builder: (_) => const AdminOrdersScreen(),
       ),
-      _AdminSection(
-        title: 'Notifications',
-        subtitle: 'Stock and delay alerts',
-        icon: Icons.notifications_active,
-        accent: const Color(0xFFB45309),
-        builder: (_) => const AdminNotificationsScreen(),
-      ),
-      _AdminSection(
-        title: 'Ticket Management',
-        subtitle: 'Help and support tickets',
-        icon: Icons.support_agent,
-        accent: const Color(0xFFE8541A),
-        builder: (_) => const HelpSupportManagementScreen(),
-      ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Notifications',
+          subtitle: 'Stock and delay alerts',
+          icon: Icons.notifications_active,
+          accent: const Color(0xFFB45309),
+          builder: (_) => const AdminNotificationsScreen(),
+        ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Ticket Management',
+          subtitle: 'Help and support tickets',
+          icon: Icons.support_agent,
+          accent: const Color(0xFFE8541A),
+          builder: (_) => const HelpSupportManagementScreen(),
+        ),
       _AdminSection(
         title: 'Products',
         subtitle: 'Add, edit, delete',
@@ -144,20 +146,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         accent: const Color(0xFF2563EB),
         builder: (_) => const ManageProductsScreen(),
       ),
-      _AdminSection(
-        title: 'Categories',
-        subtitle: 'Add images and details',
-        icon: Icons.category,
-        accent: const Color(0xFF059669),
-        builder: (_) => const ManageCategoriesScreen(),
-      ),
-      _AdminSection(
-        title: 'Banners',
-        subtitle: 'Manage home sliders',
-        icon: Icons.slideshow,
-        accent: const Color(0xFFEA580C),
-        builder: (_) => const ManageBannersScreen(),
-      ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Categories',
+          subtitle: 'Add images and details',
+          icon: Icons.category,
+          accent: const Color(0xFF059669),
+          builder: (_) => const ManageCategoriesScreen(),
+        ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Banners',
+          subtitle: 'Manage home sliders',
+          icon: Icons.slideshow,
+          accent: const Color(0xFFEA580C),
+          builder: (_) => const ManageBannersScreen(),
+        ),
       if (isSuperAdmin)
         _AdminSection(
           title: 'Users',
@@ -166,13 +170,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           accent: const Color(0xFF7C3AED),
           builder: (_) => const ManageUsersScreen(),
         ),
-      _AdminSection(
-        title: 'Delivery partners',
-        subtitle: 'Assignments and status',
-        icon: Icons.delivery_dining,
-        accent: const Color(0xFFDB2777),
-        builder: (_) => const ManageDeliveryScreen(),
-      ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Delivery partners',
+          subtitle: 'Assignments and status',
+          icon: Icons.delivery_dining,
+          accent: const Color(0xFFDB2777),
+          builder: (_) => const ManageDeliveryScreen(),
+        ),
       _AdminSection(
         title: 'Stock alerts',
         subtitle: 'Low inventory',
@@ -201,9 +206,7 @@ class _AdminDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       child: Container(
-        decoration: const BoxDecoration(
-          color: _kBg,
-        ),
+        decoration: const BoxDecoration(color: _kBg),
         child: SafeArea(
           child: Column(
             children: [
@@ -223,7 +226,8 @@ class _AdminDrawer extends StatelessWidget {
                         children: [
                           Text(
                             'Admin menu',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w900,
                                   color: _kTextDark,
                                 ),
@@ -266,7 +270,10 @@ class _AdminDrawer extends StatelessWidget {
                                   color: section.accent.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
-                                child: Icon(section.icon, color: section.accent),
+                                child: Icon(
+                                  section.icon,
+                                  color: section.accent,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -283,14 +290,15 @@ class _AdminDrawer extends StatelessWidget {
                                     const SizedBox(height: 2),
                                     Text(
                                       section.subtitle,
-                                      style: TextStyle(
-                                        color: _kTextMid,
-                                      ),
+                                      style: TextStyle(color: _kTextMid),
                                     ),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.chevron_right, color: selected ? _kOrange : _kTextMid),
+                              Icon(
+                                Icons.chevron_right,
+                                color: selected ? _kOrange : _kTextMid,
+                              ),
                             ],
                           ),
                         ),
@@ -343,17 +351,21 @@ class _AdminOverviewPanel extends StatelessWidget {
         _HeroCard(onOpenMenu: onOpenMenu),
         const SizedBox(height: 16),
         FutureBuilder<void>(
-          future: Future.microtask(() => context.read<AppState>().loadAdminOrders()),
+          future: Future.microtask(
+            () => context.read<AppState>().loadAdminOrders(),
+          ),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return _StatusCard(message: snapshot.error.toString());
             }
             if (snapshot.connectionState == ConnectionState.waiting &&
                 context.read<AppState>().adminOrders.isEmpty) {
-              return const Center(child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
-              ));
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              );
             }
             final orders = context.watch<AppState>().adminOrders;
             return _StatsGrid(orders: orders);
@@ -373,6 +385,7 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vendorId = context.watch<AppState>().user?.vendorId ?? 'main';
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: Container(
@@ -406,33 +419,61 @@ class _HeroCard extends StatelessWidget {
             Positioned(
               top: 14,
               left: 68,
-              child: _RefreshButton(onRefresh: () async {
-                final state = context.read<AppState>();
-                await state.loadAdminOrders();
-                await state.loadProducts();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Dashboard refreshed')),
-                  );
-                }
-              }),
+              child: _RefreshButton(
+                onRefresh: () async {
+                  final state = context.read<AppState>();
+                  await state.loadAdminOrders();
+                  await state.loadProducts();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Dashboard refreshed')),
+                    );
+                  }
+                },
+              ),
             ),
             Positioned(
               right: 16,
               top: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _kOrangeLight,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Overview',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: _kOrange,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _kOrangeLight,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Overview',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: _kOrange,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A2E),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Vendor $vendorId',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Positioned(
@@ -445,9 +486,9 @@ class _HeroCard extends StatelessWidget {
                   Text(
                     'Admin dashboard',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: _kTextDark,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -516,17 +557,29 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderPlaced = orders.where((order) => order.status == OrderStatus.placed).length;
-    final accepted = orders.where((order) => order.status == OrderStatus.accepted).length;
-    final pickup = orders
-        .where((order) => order.status == OrderStatus.assigned || order.status == OrderStatus.pickedUp)
+    final orderPlaced = orders
+        .where((order) => order.status == OrderStatus.placed)
         .length;
-    final delivered = orders.where((order) => order.status == OrderStatus.delivered).length;
+    final accepted = orders
+        .where((order) => order.status == OrderStatus.accepted)
+        .length;
+    final pickup = orders
+        .where(
+          (order) =>
+              order.status == OrderStatus.assigned ||
+              order.status == OrderStatus.pickedUp,
+        )
+        .length;
+    final delivered = orders
+        .where((order) => order.status == OrderStatus.delivered)
+        .length;
     final revenue = orders
         .where((order) => order.status == OrderStatus.delivered)
         .fold<double>(0, (sum, order) => sum + order.total);
     final lowStock = context.select<AppState, int>(
-      (state) => state.products.where((product) => product.stock <= 15 && product.stock >= 0).length,
+      (state) => state.products
+          .where((product) => product.stock <= 15 && product.stock >= 0)
+          .length,
     );
 
     final metrics = [
@@ -570,10 +623,7 @@ class _StatsGrid extends StatelessWidget {
             children: [
               Text(
                 metric.label,
-                style: TextStyle(
-                  color: _kTextMid,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w700),
               ),
               const Spacer(),
               Text(

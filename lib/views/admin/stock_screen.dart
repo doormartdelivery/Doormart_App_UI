@@ -1031,12 +1031,12 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
 

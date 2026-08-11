@@ -20,6 +20,7 @@ class OrderModel {
     required this.total,
     required this.status,
     required this.createdAt,
+    this.vendorId = 'main',
     this.scheduledFor,
     this.address = '',
     this.customerName = '',
@@ -40,6 +41,7 @@ class OrderModel {
   final double total;
   final OrderStatus status;
   final DateTime createdAt;
+  final String vendorId;
   final DateTime? scheduledFor;
   final String address;
   final String customerName;
@@ -68,11 +70,14 @@ class OrderModel {
 
   String get deliveryOtpDisplay {
     if ((deliveryOtp ?? '').isNotEmpty) return deliveryOtp!;
-    return id.replaceAll(RegExp(r'[^0-9]'), '').substring(
-      id.replaceAll(RegExp(r'[^0-9]'), '').length >= 6
-          ? id.replaceAll(RegExp(r'[^0-9]'), '').length - 6
-          : 0,
-    ).padLeft(6, '0');
+    return id
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .substring(
+          id.replaceAll(RegExp(r'[^0-9]'), '').length >= 6
+              ? id.replaceAll(RegExp(r'[^0-9]'), '').length - 6
+              : 0,
+        )
+        .padLeft(6, '0');
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -87,19 +92,21 @@ class OrderModel {
     final addressText = rawAddress is String
         ? rawAddress
         : rawAddress is Map<String, dynamic>
-            ? [
-                rawAddress['line1'],
-                rawAddress['city'],
-                rawAddress['pincode'],
-              ].whereType<String>().where((value) => value.trim().isNotEmpty).join(', ')
-            : '';
+        ? [rawAddress['line1'], rawAddress['city'], rawAddress['pincode']]
+              .whereType<String>()
+              .where((value) => value.trim().isNotEmpty)
+              .join(', ')
+        : '';
 
     return OrderModel(
       id: rawId?.toString() ?? '',
       products: productsJson
           .map(
             (item) => ProductModel(
-              id: item['productId']?.toString() ?? item['product']?.toString() ?? '',
+              id:
+                  item['productId']?.toString() ??
+                  item['product']?.toString() ??
+                  '',
               name: item['name']?.toString() ?? 'Product',
               category: item['category']?.toString() ?? 'Grocery',
               price: (item['price'] as num? ?? 0).toDouble(),
@@ -113,12 +120,17 @@ class OrderModel {
       quantities: productsJson
           .map((item) => (item['quantity'] as num? ?? 1).toInt())
           .toList(),
-      paymentMethod: (json['paymentMethod'] ?? json['paymentType'] ?? json['paymentMode'] ?? 'cod')
-          .toString()
-          .toLowerCase(),
+      paymentMethod:
+          (json['paymentMethod'] ??
+                  json['paymentType'] ??
+                  json['paymentMode'] ??
+                  'cod')
+              .toString()
+              .toLowerCase(),
       total: (json['total'] as num? ?? 0).toDouble(),
       status: _statusFromJson(json['status']?.toString()),
       createdAt: _parseDateTime(json['createdAt']) ?? DateTime.now(),
+      vendorId: json['vendorId']?.toString() ?? 'main',
       scheduledFor: _parseDateTime(json['scheduledFor']),
       address: addressText,
       customerName: json['customerName']?.toString() ?? '',
@@ -126,7 +138,8 @@ class OrderModel {
       customerPhone: json['customerPhone']?.toString() ?? '',
       deliveryPersonId: deliveryPersonMap == null
           ? deliveryPerson?.toString()
-          : deliveryPersonMap['_id']?.toString() ?? deliveryPersonMap['id']?.toString(),
+          : deliveryPersonMap['_id']?.toString() ??
+                deliveryPersonMap['id']?.toString(),
       deliveryPersonName: deliveryPersonMap?['name']?.toString(),
       deliveryAcceptedAt: _parseDateTime(json['deliveryAcceptedAt']),
       acceptedAt: _parseDateTime(json['acceptedAt']),

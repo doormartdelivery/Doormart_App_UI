@@ -37,6 +37,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   int _sortColumnIndex = 6;
   bool _sortAscending = false;
   String _query = '';
+  String? _vendorFilter;
 
   @override
   void initState() {
@@ -159,7 +160,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
         child: Consumer<AppState>(
           builder: (context, state, _) {
             final allOrders = _sortedOrders(state.adminOrders);
-            final orders = _filteredOrders(allOrders);
+            final isSuperAdmin =
+                state.user?.role == UserRoles.superAdmin;
+            final vendors = <String>[
+              ...allOrders.map((order) => order.vendorId).toSet(),
+            ];
+            final vendorOrders = _vendorFilter == null
+                ? allOrders
+                : allOrders
+                    .where((order) => order.vendorId == _vendorFilter)
+                    .toList();
+            final orders = _filteredOrders(vendorOrders);
 
             return ListView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -174,7 +185,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                   animation: _animationController,
                   index: 0,
                   child: _OrdersHero(
-                    orders: allOrders,
+                    orders: vendorOrders,
                     onRefresh: _refreshOrders,
                   ),
                 ),
@@ -193,6 +204,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                           },
                   ),
                 ),
+                if (isSuperAdmin && vendors.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _AnimatedIn(
+                    animation: _animationController,
+                    index: 2,
+                    child: _VendorFilterBar(
+                      vendors: vendors,
+                      selected: _vendorFilter,
+                      onSelected: (value) =>
+                          setState(() => _vendorFilter = value),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _AnimatedIn(
                   animation: _animationController,
@@ -201,6 +225,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                       ? const _OrdersEmptyState()
                       : _OrdersTable(
                           orders: orders,
+                          showVendor: isSuperAdmin,
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _sortAscending,
                           onSort: _sortBy,
@@ -226,12 +251,12 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
     return Drawer(
@@ -395,6 +420,115 @@ class _OrderSearchField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: _kOrange, width: 1.4),
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorFilterBar extends StatelessWidget {
+  const _VendorFilterBar({
+    required this.vendors,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> vendors;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0EB),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.storefront_outlined,
+                    color: _kOrange,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Filter orders by vendor',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: _kTextDark,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('All vendors'),
+                  selected: selected == null,
+                  onSelected: (_) => onSelected(null),
+                  showCheckmark: false,
+                  selectedColor: _kOrange,
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  labelStyle: TextStyle(
+                    color: selected == null ? Colors.white : _kTextDark,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                  side: BorderSide(
+                    color: selected == null
+                        ? _kOrange
+                        : const Color(0xFFE8E8E8),
+                  ),
+                ),
+                ...vendors.map((vendor) {
+                  final isSelected = selected == vendor;
+                  return ChoiceChip(
+                    label: Text(_vendorLabel(vendor)),
+                    selected: isSelected,
+                    onSelected: (_) => onSelected(isSelected ? null : vendor),
+                    showCheckmark: false,
+                    selectedColor: _kOrange,
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : _kTextDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(
+                      color: isSelected
+                          ? _kOrange
+                          : const Color(0xFFE8E8E8),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -690,6 +824,7 @@ class _RefreshButtonState extends State<_RefreshButton> {
 class _OrdersTable extends StatelessWidget {
   const _OrdersTable({
     required this.orders,
+    required this.showVendor,
     required this.sortColumnIndex,
     required this.sortAscending,
     required this.onSort,
@@ -697,6 +832,7 @@ class _OrdersTable extends StatelessWidget {
   });
 
   final List<OrderModel> orders;
+  final bool showVendor;
   final int sortColumnIndex;
   final bool sortAscending;
   final ValueChanged<int> onSort;
@@ -771,6 +907,7 @@ class _OrdersTable extends StatelessWidget {
                           label: const Text('Order ID'),
                           onSort: (_, __) => onSort(0),
                         ),
+                        if (showVendor) const DataColumn(label: Text('Vendor')),
                         const DataColumn(label: Text('Customer')),
                         const DataColumn(label: Text('Phone')),
                         const DataColumn(label: Text('Address')),
@@ -847,6 +984,16 @@ class _OrdersTable extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (showVendor)
+                              DataCell(
+                                _TableCellIn(
+                                  animationKey: '${order.id}-vendor',
+                                  index: index,
+                                  child: _VendorBadge(
+                                    vendorId: order.vendorId,
+                                  ),
+                                ),
+                              ),
                             DataCell(
                               _TableCellIn(
                                 animationKey: '${order.id}-customer',
@@ -1292,6 +1439,47 @@ class _InvoiceTotalBox extends StatelessWidget {
   }
 }
 
+class _VendorBadge extends StatelessWidget {
+  const _VendorBadge({required this.vendorId});
+
+  final String vendorId;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMain = vendorId.isEmpty || vendorId == 'main';
+    final color = isMain
+        ? const Color(0xFF0F766E)
+        : const Color(0xFF7C3AED);
+    final background = isMain
+        ? const Color(0xFFCCFBF1)
+        : const Color(0xFFEDE9FE);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.storefront, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            _vendorLabel(vendorId),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PaymentBadge extends StatelessWidget {
   const _PaymentBadge({required this.method});
 
@@ -1670,6 +1858,20 @@ String _statusLabel(OrderStatus status) {
 String _shortId(String id) {
   if (id.length <= 8) return id;
   return id.substring(id.length - 8).toUpperCase();
+}
+
+String _vendorLabel(String vendorId) {
+  final raw = vendorId.trim();
+  if (raw.isEmpty || raw == 'main') return 'Main';
+  final readable = raw.replaceFirst(RegExp(r'^vendor[-_]', caseSensitive: false), '');
+  return _titleCase(readable);
+}
+
+String _titleCase(String value) {
+  if (value.isEmpty) return value;
+  return value.split(RegExp(r'[-_\s]')).where((part) => part.isNotEmpty).map((part) {
+    return part[0].toUpperCase() + part.substring(1);
+  }).join(' ');
 }
 
 String _formatDateTime(DateTime date) {

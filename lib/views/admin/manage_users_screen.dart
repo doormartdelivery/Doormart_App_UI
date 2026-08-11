@@ -87,6 +87,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
         return user.name.toLowerCase().contains(query) ||
             user.phone.toLowerCase().contains(query) ||
             (user.email ?? '').toLowerCase().contains(query) ||
+            user.vendorId.toLowerCase().contains(query) ||
             user.id.toLowerCase().contains(query) ||
             _roleLabel(user.role).toLowerCase().contains(query) ||
             user.status.toLowerCase().contains(query);
@@ -133,6 +134,20 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     if (!mounted || updated == null) return;
     _showSnackBar(
       '${updated.name} updated successfully',
+      Icons.check_circle,
+      const Color(0xFF0F3D31),
+    );
+    setState(() => _usersFuture = _loadUsers());
+  }
+
+  Future<void> _createUser() async {
+    final created = await showDialog<UserModel?>(
+      context: context,
+      builder: (context) => const _CreateUserDialog(),
+    );
+    if (!mounted || created == null) return;
+    _showSnackBar(
+      '${created.name} created successfully',
       Icons.check_circle,
       const Color(0xFF0F3D31),
     );
@@ -255,6 +270,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
           children: [
             _UsersHero(
               onRefresh: _refreshUsers,
+              onAdd: _createUser,
             ),
             const SizedBox(height: 16),
             FutureBuilder<List<UserModel>>(
@@ -320,9 +336,11 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 class _UsersHero extends StatelessWidget {
   const _UsersHero({
     required this.onRefresh,
+    required this.onAdd,
   });
 
   final Future<void> Function() onRefresh;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -361,13 +379,29 @@ class _UsersHero extends StatelessWidget {
             Positioned(
               top: 14,
               right: 14,
-              child: IconButton.filledTonal(
-                onPressed: onRefresh,
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFF0EB),
-                  foregroundColor: const Color(0xFFE8541A),
-                ),
-                icon: const Icon(Icons.refresh),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton.filledTonal(
+                    onPressed: onAdd,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F3D31),
+                      foregroundColor: Colors.white,
+                    ),
+                    tooltip: 'Add user',
+                    icon: const Icon(Icons.person_add_alt_1),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: onRefresh,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFF0EB),
+                      foregroundColor: const Color(0xFFE8541A),
+                    ),
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
               ),
             ),
             const Positioned(
@@ -420,12 +454,12 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
 
@@ -1119,6 +1153,7 @@ class _UsersTable extends StatelessWidget {
                 columns: const [
                   DataColumn(label: Text('USER')),
                   DataColumn(label: Text('CONTACT')),
+                  DataColumn(label: Text('VENDOR')),
                   DataColumn(label: Text('ACCESS ROLE')),
                   DataColumn(label: Text('STATUS')),
                   DataColumn(label: Text('JOINED')),
@@ -1133,6 +1168,7 @@ class _UsersTable extends StatelessWidget {
                     cells: [
                       DataCell(_UserIdentity(user: user)),
                       DataCell(_ContactDetails(user: user)),
+                      DataCell(_VendorBadge(vendorId: user.vendorId)),
                       DataCell(_RoleBadge(role: user.role)),
                       DataCell(_StatusBadge(status: user.status)),
                       DataCell(Text(_formatDate(user.createdAt))),
@@ -1379,6 +1415,51 @@ class _ContactDetails extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _VendorBadge extends StatelessWidget {
+  const _VendorBadge({required this.vendorId});
+
+  final String vendorId;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMain = vendorId.toLowerCase() == 'main';
+    final color = isMain
+        ? const Color(0xFF0F766E)
+        : const Color(0xFF7C3AED);
+    final bgColor = isMain
+        ? const Color(0xFFCCFBF1)
+        : const Color(0xFFEDE9FE);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.storefront_outlined, size: 15, color: color),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: Text(
+              vendorId,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                letterSpacing: 0.2,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1661,6 +1742,348 @@ class _DeleteConfirmationDialog extends StatelessWidget {
   }
 }
 
+class _CreateUserDialog extends StatefulWidget {
+  const _CreateUserDialog();
+
+  @override
+  State<_CreateUserDialog> createState() => _CreateUserDialogState();
+}
+
+class _CreateUserDialogState extends State<_CreateUserDialog>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _vendorIdController = TextEditingController();
+  late String _role;
+  late String _status;
+  bool _saving = false;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+
+  static const _createRoles = [
+    UserRoles.user,
+    UserRoles.deliveryPerson,
+    UserRoles.admin,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _role = UserRoles.admin;
+    _status = 'active';
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutBack,
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _vendorIdController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    if (name.isEmpty || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Name and phone number are required'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final vendorId = _vendorIdController.text.trim();
+      final created = await context.read<AppState>().createAdminUser(
+            name: name,
+            phone: phone,
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+            role: _role,
+            status: _status,
+            vendorId: vendorId.isEmpty ? null : vendorId,
+          );
+      if (!mounted) return;
+      Navigator.pop(context, created);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(error.message)),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFBE123C),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.person_add_alt_1, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            const Text(
+              'Add User',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTextField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  icon: Icons.person_outline,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _phoneController,
+                  label: 'Phone Number',
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _emailController,
+                  label: 'Email Address',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                _buildDropdown(
+                  label: 'Access Role',
+                  icon: Icons.assignment_ind_outlined,
+                  value: _role,
+                  items: _createRoles,
+                  itemLabel: _roleLabel,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _role = value);
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildDropdown(
+                  label: 'Status',
+                  icon: Icons.verified_user_outlined,
+                  value: _status,
+                  items: const ['active', 'blocked'],
+                  itemLabel: _titleCase,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _status = value);
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  icon: Icons.lock_outline,
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _vendorIdController,
+                  label: 'Vendor ID',
+                  icon: Icons.storefront_outlined,
+                ),
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Leave empty to auto-generate a new vendor. Each admin manages only products, orders and stock under its own vendor.',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            ),
+          ),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF0F3D31),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_add_alt_1, size: 20),
+                      SizedBox(width: 10),
+                      Text(
+                        'Create User',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required IconData icon,
+    required String value,
+    required List<String> items,
+    required String Function(String) itemLabel,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: items.contains(value) ? value : items.first,
+        items: items.map((item) {
+          return DropdownMenuItem(
+            value: item,
+            child: Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 18, color: _roleColor(item)),
+                const SizedBox(width: 10),
+                Text(itemLabel(item)),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+}
+
 class _EditUserDialog extends StatefulWidget {
   const _EditUserDialog({required this.user});
 
@@ -1675,6 +2098,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
+  late final TextEditingController _vendorIdController;
   late String _role;
   bool _saving = false;
   late AnimationController _animationController;
@@ -1686,6 +2110,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
     _nameController = TextEditingController(text: widget.user.name);
     _phoneController = TextEditingController(text: widget.user.phone);
     _emailController = TextEditingController(text: widget.user.email ?? '');
+    _vendorIdController = TextEditingController(text: widget.user.vendorId);
     _role = widget.user.role;
 
     _animationController = AnimationController(
@@ -1704,6 +2129,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _vendorIdController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -1711,12 +2137,14 @@ class _EditUserDialogState extends State<_EditUserDialog>
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      final vendorId = _vendorIdController.text.trim();
       final updated = await context.read<AppState>().updateAdminUser(
             userId: widget.user.id,
             name: _nameController.text.trim(),
             phone: _phoneController.text.trim(),
             email: _emailController.text.trim(),
             role: _role,
+            vendorId: vendorId.isEmpty ? null : vendorId,
           );
       if (!mounted) return;
       Navigator.pop(context, updated);
@@ -1844,6 +2272,27 @@ class _EditUserDialogState extends State<_EditUserDialog>
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _vendorIdController,
+                  label: 'Vendor ID',
+                  icon: Icons.storefront_outlined,
+                ),
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Each admin manages only products, orders and stock under this vendor.',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
