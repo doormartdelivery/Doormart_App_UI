@@ -7,8 +7,10 @@ plugins {
 }
 
 android {
+
     namespace = "com.example.doormartdelivery"
     compileSdk = 36
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.doormartdelivery"
+
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
