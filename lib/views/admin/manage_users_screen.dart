@@ -42,9 +42,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     'All',
     'Active',
     'Blocked',
-    'Admin',
+    'Vendor',
     'Delivery',
-    'Customer'
+    'Customer',
   ];
 
   @override
@@ -116,7 +116,11 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
       );
     } on ApiException catch (error) {
       if (!mounted) return;
-      _showSnackBar(error.message, Icons.error_outline, const Color(0xFFBE123C));
+      _showSnackBar(
+        error.message,
+        Icons.error_outline,
+        const Color(0xFFBE123C),
+      );
     } finally {
       if (!mounted) return;
       setState(() {
@@ -155,23 +159,32 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
   }
 
   Future<void> _toggleBlock(UserModel user) async {
-    final nextStatus =
-        user.status.toLowerCase() == 'active' ? 'blocked' : 'active';
+    final nextStatus = user.status.toLowerCase() == 'active'
+        ? 'blocked'
+        : 'active';
     setState(() => _updatingUsers.add(user.id));
     try {
       await context.read<AppState>().updateAdminUser(
-            userId: user.id,
-            status: nextStatus,
-          );
+        userId: user.id,
+        status: nextStatus,
+      );
       if (!mounted) return;
       _showSnackBar(
-        nextStatus == 'blocked' ? '${user.name} blocked' : '${user.name} unblocked',
+        nextStatus == 'blocked'
+            ? '${user.name} blocked'
+            : '${user.name} unblocked',
         nextStatus == 'blocked' ? Icons.block : Icons.verified_user,
-        nextStatus == 'blocked' ? const Color(0xFFB45309) : const Color(0xFF0F3D31),
+        nextStatus == 'blocked'
+            ? const Color(0xFFB45309)
+            : const Color(0xFF0F3D31),
       );
     } on ApiException catch (error) {
       if (!mounted) return;
-      _showSnackBar(error.message, Icons.error_outline, const Color(0xFFBE123C));
+      _showSnackBar(
+        error.message,
+        Icons.error_outline,
+        const Color(0xFFBE123C),
+      );
     } finally {
       if (!mounted) return;
       setState(() {
@@ -199,7 +212,11 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
       );
     } on ApiException catch (error) {
       if (!mounted) return;
-      _showSnackBar(error.message, Icons.error_outline, const Color(0xFFBE123C));
+      _showSnackBar(
+        error.message,
+        Icons.error_outline,
+        const Color(0xFFBE123C),
+      );
     } finally {
       if (!mounted) return;
       setState(() {
@@ -261,83 +278,81 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
           Navigator.pop(context);
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false,
+          );
         },
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           children: [
-            _UsersHero(
-              onRefresh: _refreshUsers,
-              onAdd: _createUser,
-            ),
+            _UsersHero(onRefresh: _refreshUsers, onAdd: _createUser),
             const SizedBox(height: 16),
             FutureBuilder<List<UserModel>>(
-          future: _usersFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return _UsersError(message: snapshot.error.toString());
-            }
-            if (!snapshot.hasData) {
-              return const _LoadingSkeleton();
-            }
+              future: _usersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return _UsersError(message: snapshot.error.toString());
+                }
+                if (!snapshot.hasData) {
+                  return const _LoadingSkeleton();
+                }
 
-            final users = snapshot.data!;
-            final filteredUsers = _filteredUsers(users);
-            final currentRole = context.read<AppState>().user?.role;
-            final canAssignSuperAdmin = currentRole == UserRoles.superAdmin;
+                final users = snapshot.data!;
+                final filteredUsers = _filteredUsers(users);
+                final currentRole = context.read<AppState>().user?.role;
+                final canAssignSuperAdmin = currentRole == UserRoles.superAdmin;
 
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _UsersSummary(users: users),
-                  const SizedBox(height: 20),
-                  _SearchAndFilterBar(
-                    controller: _searchController,
-                    onSearchChanged: (value) => setState(() => _query = value),
-                    onClear: _query.isEmpty
-                        ? null
-                        : () {
-                            _searchController.clear();
-                            setState(() => _query = '');
-                          },
-                    selectedFilter: _selectedFilter,
-                    filterOptions: _filterOptions,
-                    onFilterChanged: (filter) =>
-                        setState(() => _selectedFilter = filter),
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _UsersSummary(users: users),
+                      const SizedBox(height: 20),
+                      _SearchAndFilterBar(
+                        controller: _searchController,
+                        onSearchChanged: (value) =>
+                            setState(() => _query = value),
+                        onClear: _query.isEmpty
+                            ? null
+                            : () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                              },
+                        selectedFilter: _selectedFilter,
+                        filterOptions: _filterOptions,
+                        onFilterChanged: (filter) =>
+                            setState(() => _selectedFilter = filter),
+                      ),
+                      const SizedBox(height: 16),
+                      _UsersTable(
+                        users: filteredUsers,
+                        totalUsers: users.length,
+                        updatingUserIds: _updatingUsers,
+                        canAssignSuperAdmin: canAssignSuperAdmin,
+                        onRoleChanged: _assignRole,
+                        onEdit: _editUser,
+                        onToggleBlock: _toggleBlock,
+                        onDelete: _deleteUser,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _UsersTable(
-                    users: filteredUsers,
-                    totalUsers: users.length,
-                    updatingUserIds: _updatingUsers,
-                    canAssignSuperAdmin: canAssignSuperAdmin,
-                    onRoleChanged: _assignRole,
-                    onEdit: _editUser,
-                    onToggleBlock: _toggleBlock,
-                    onDelete: _deleteUser,
-                  ),
-                ],
-              ),
-            );
-          },
+                );
+              },
             ),
           ],
         ),
       ),
     );
   }
-
 }
 
 class _UsersHero extends StatelessWidget {
-  const _UsersHero({
-    required this.onRefresh,
-    required this.onAdd,
-  });
+  const _UsersHero({required this.onRefresh, required this.onAdd});
 
   final Future<void> Function() onRefresh;
   final VoidCallback onAdd;
@@ -439,10 +454,7 @@ class _UsersHero extends StatelessWidget {
 }
 
 class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer({
-    required this.onNavigate,
-    required this.onLogout,
-  });
+  const _AdminDrawer({required this.onNavigate, required this.onLogout});
 
   final void Function(String route) onNavigate;
   final Future<void> Function() onLogout;
@@ -454,12 +466,24 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Notifications',
+          Icons.notifications_active,
+          AdminNotificationsScreen.routeName,
+        ),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin)
+        ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin)
+        ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Delivery partners',
+          Icons.delivery_dining,
+          ManageDeliveryScreen.routeName,
+        ),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
 
@@ -474,16 +498,28 @@ class _AdminDrawer extends StatelessWidget {
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: Color(0xFFFFF0EB),
-                    child: Icon(Icons.admin_panel_settings, color: Color(0xFFE8541A)),
+                    child: Icon(
+                      Icons.admin_panel_settings,
+                      color: Color(0xFFE8541A),
+                    ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                        Text(
+                          'Vendor menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
                         SizedBox(height: 4),
-                        Text('Navigate the control center', style: TextStyle(color: Color(0xFF9E9E9E))),
+                        Text(
+                          'Navigate the control center',
+                          style: TextStyle(color: Color(0xFF9E9E9E)),
+                        ),
                       ],
                     ),
                   ),
@@ -498,17 +534,17 @@ class _AdminDrawer extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final item = items[index];
-      final accentColors = const [
-        Color(0xFF0F766E),
-        Color(0xFFB45309),
-        Color(0xFF2563EB),
-        Color(0xFF059669),
-        Color(0xFFEA580C),
-        Color(0xFF7C3AED),
-        Color(0xFFDB2777),
-        Color(0xFFDC2626),
-      ];
-      final accent = accentColors[index % accentColors.length];
+                  final accentColors = const [
+                    Color(0xFF0F766E),
+                    Color(0xFFB45309),
+                    Color(0xFF2563EB),
+                    Color(0xFF059669),
+                    Color(0xFFEA580C),
+                    Color(0xFF7C3AED),
+                    Color(0xFFDB2777),
+                    Color(0xFFDC2626),
+                  ];
+                  final accent = accentColors[index % accentColors.length];
                   return Material(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
@@ -523,10 +559,15 @@ class _AdminDrawer extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFFE8541A,
+                                ).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Icon(item.$2, color: const Color(0xFFE8541A)),
+                              child: Icon(
+                                item.$2,
+                                color: const Color(0xFFE8541A),
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -553,7 +594,10 @@ class _AdminDrawer extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Color(0xFF9E9E9E),
+                            ),
                           ],
                         ),
                       ),
@@ -577,7 +621,10 @@ class _AdminDrawer extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.logout),
-                  label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                  label: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -702,7 +749,7 @@ class _UsersSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final admins = users.where((user) => user.role == UserRoles.admin).length;
+    final vendors = users.where((user) => user.role == UserRoles.admin).length;
     final delivery = users
         .where((user) => user.role == UserRoles.deliveryPerson)
         .length;
@@ -723,10 +770,7 @@ class _UsersSummary extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.scale(
           scale: value,
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -774,19 +818,19 @@ class _UsersSummary extends StatelessWidget {
                       Text(
                         'User Directory',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 24,
-                              letterSpacing: -0.5,
-                            ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 24,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Manage access, account details and user status across your platform.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: 14,
-                            ),
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -817,8 +861,8 @@ class _UsersSummary extends StatelessWidget {
                   color: const Color(0xFFFFE0D4),
                 ),
                 _SummaryPill(
-                  label: 'Admins',
-                  value: admins,
+                  label: 'Vendors',
+                  value: vendors,
                   icon: Icons.admin_panel_settings_outlined,
                   color: const Color(0xFFFFE8DD),
                 ),
@@ -870,18 +914,13 @@ class _SummaryPill extends StatelessWidget {
         tween: Tween<double>(begin: 0, end: 1),
         duration: const Duration(milliseconds: 600),
         builder: (context, scale, child) {
-          return Transform.scale(
-            scale: scale,
-            child: child,
-          );
+          return Transform.scale(scale: scale, child: child);
         },
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.16),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.18),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -942,10 +981,7 @@ class _SearchAndFilterBar extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -953,9 +989,7 @@ class _SearchAndFilterBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFF1D4C8),
-          ),
+          border: Border.all(color: const Color(0xFFF1D4C8)),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFE8541A).withValues(alpha: 0.06),
@@ -981,20 +1015,21 @@ class _SearchAndFilterBar extends StatelessWidget {
                       ? null
                       : IconButton(
                           tooltip: 'Clear search',
-                          icon: const Icon(Icons.close, color: Color(0xFFE8541A)),
+                          icon: const Icon(
+                            Icons.close,
+                            color: Color(0xFFE8541A),
+                          ),
                           onPressed: onClear,
                         ),
                   border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
               ),
             ),
-            Container(
-              height: 40,
-              width: 1,
-              color: const Color(0xFFF1D4C8),
-            ),
+            Container(height: 40, width: 1, color: const Color(0xFFF1D4C8)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: DropdownButton<String>(
@@ -1012,10 +1047,7 @@ class _SearchAndFilterBar extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(12),
                 items: filterOptions.map((filter) {
-                  return DropdownMenuItem(
-                    value: filter,
-                    child: Text(filter),
-                  );
+                  return DropdownMenuItem(value: filter, child: Text(filter));
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) onFilterChanged(value);
@@ -1062,19 +1094,14 @@ class _UsersTable extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: const Color(0xFFF1D4C8),
-          ),
+          border: Border.all(color: const Color(0xFFF1D4C8)),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFE8541A).withValues(alpha: 0.05),
@@ -1093,16 +1120,18 @@ class _UsersTable extends StatelessWidget {
                   Text(
                     'All Users',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E293B),
-                          fontSize: 18,
-                          letterSpacing: -0.3,
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1E293B),
+                      fontSize: 18,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
@@ -1124,9 +1153,9 @@ class _UsersTable extends StatelessWidget {
                   Text(
                     '${users.length} users',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF94A3B8),
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: const Color(0xFF94A3B8),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -1135,15 +1164,14 @@ class _UsersTable extends StatelessWidget {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                headingRowColor:
-                    const WidgetStatePropertyAll(Color(0xFFFFF7F2)),
+                headingRowColor: const WidgetStatePropertyAll(
+                  Color(0xFFFFF7F2),
+                ),
                 dataRowMinHeight: 76,
                 dataRowMaxHeight: 88,
                 horizontalMargin: 24,
                 columnSpacing: 32,
-                headingTextStyle: Theme.of(context)
-                    .textTheme
-                    .labelLarge
+                headingTextStyle: Theme.of(context).textTheme.labelLarge
                     ?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFFE8541A),
@@ -1180,14 +1208,14 @@ class _UsersTable extends StatelessWidget {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF0F3D31)),
+                                    Color(0xFF0F3D31),
+                                  ),
                                 ),
                               )
                             : _RoleSelector(
                                 value: user.role,
                                 canAssignSuperAdmin: canAssignSuperAdmin,
-                                onChanged: (role) =>
-                                    onRoleChanged(user, role),
+                                onChanged: (role) => onRoleChanged(user, role),
                               ),
                       ),
                       DataCell(
@@ -1198,7 +1226,8 @@ class _UsersTable extends StatelessWidget {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF0F3D31)),
+                                    Color(0xFF0F3D31),
+                                  ),
                                 ),
                               )
                             : Row(
@@ -1211,8 +1240,8 @@ class _UsersTable extends StatelessWidget {
                                     onPressed: () => onEdit(user),
                                   ),
                                   _ActionButton(
-                                    tooltip: user.status.toLowerCase() ==
-                                            'active'
+                                    tooltip:
+                                        user.status.toLowerCase() == 'active'
                                         ? 'Block user'
                                         : 'Unblock user',
                                     icon: user.status.toLowerCase() == 'active'
@@ -1265,14 +1294,11 @@ class _ActionButton extends StatelessWidget {
         tween: Tween<double>(begin: 0.8, end: 1),
         duration: const Duration(milliseconds: 300),
         builder: (context, scale, child) {
-          return Transform.scale(
-            scale: scale,
-            child: child,
-          );
+          return Transform.scale(scale: scale, child: child);
         },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
+          decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
@@ -1363,10 +1389,10 @@ class _UserIdentity extends StatelessWidget {
                   Text(
                     'ID: ${user.id.substring(0, 8)}...',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF94A3B8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -1407,9 +1433,9 @@ class _ContactDetails extends StatelessWidget {
             Text(
               user.email?.isNotEmpty == true ? user.email! : '-',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
+                color: const Color(0xFF64748B),
+                fontSize: 12,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -1427,12 +1453,8 @@ class _VendorBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMain = vendorId.toLowerCase() == 'main';
-    final color = isMain
-        ? const Color(0xFF0F766E)
-        : const Color(0xFF7C3AED);
-    final bgColor = isMain
-        ? const Color(0xFFCCFBF1)
-        : const Color(0xFFEDE9FE);
+    final color = isMain ? const Color(0xFF0F766E) : const Color(0xFF7C3AED);
+    final bgColor = isMain ? const Color(0xFFCCFBF1) : const Color(0xFFEDE9FE);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1477,7 +1499,10 @@ class _RoleBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.06)],
+          colors: [
+            color.withValues(alpha: 0.12),
+            color.withValues(alpha: 0.06),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1513,7 +1538,9 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = status.toLowerCase() == 'active';
     final color = isActive ? const Color(0xFF15803D) : const Color(0xFFB45309);
-    final bgColor = isActive ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7);
+    final bgColor = isActive
+        ? const Color(0xFFD1FAE5)
+        : const Color(0xFFFEF3C7);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1615,43 +1642,34 @@ class _EmptyState extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.scale(
           scale: value,
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
-        child: Container(
-          padding: const EdgeInsets.all(48),
-          decoration: BoxDecoration(
-            color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.all(48),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-            color: const Color(0xFFF1D4C8),
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.search_off,
-                size: 72,
-              color: const Color(0xFFE8541A),
-              ),
+          border: Border.all(color: const Color(0xFFF1D4C8)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 72, color: const Color(0xFFE8541A)),
             const SizedBox(height: 16),
             Text(
               'No users found',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E293B),
-                  ),
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E293B),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Try adjusting your search or filter criteria',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF94A3B8),
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF94A3B8)),
             ),
           ],
         ),
@@ -1714,10 +1732,7 @@ class _DeleteConfirmationDialog extends StatelessWidget {
           ),
           child: Text(
             'Cancel',
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
           ),
         ),
         FilledButton(
@@ -1731,10 +1746,7 @@ class _DeleteConfirmationDialog extends StatelessWidget {
           ),
           child: const Text(
             'Delete',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
         ),
       ],
@@ -1811,14 +1823,14 @@ class _CreateUserDialogState extends State<_CreateUserDialog>
     try {
       final vendorId = _vendorIdController.text.trim();
       final created = await context.read<AppState>().createAdminUser(
-            name: name,
-            phone: phone,
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-            role: _role,
-            status: _status,
-            vendorId: vendorId.isEmpty ? null : vendorId,
-          );
+        name: name,
+        phone: phone,
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        role: _role,
+        status: _status,
+        vendorId: vendorId.isEmpty ? null : vendorId,
+      );
       if (!mounted) return;
       Navigator.pop(context, created);
     } on ApiException catch (error) {
@@ -1835,7 +1847,9 @@ class _CreateUserDialogState extends State<_CreateUserDialog>
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFFBE123C),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } finally {
@@ -1940,7 +1954,7 @@ class _CreateUserDialogState extends State<_CreateUserDialog>
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Leave empty to auto-generate a new vendor. Each admin manages only products, orders and stock under its own vendor.',
+                      'Leave empty to auto-generate a new vendor. Each vendor manages only products, orders and stock under its own vendor.',
                       style: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 12,
@@ -2031,8 +2045,10 @@ class _CreateUserDialogState extends State<_CreateUserDialog>
           ),
           prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -2076,8 +2092,10 @@ class _CreateUserDialogState extends State<_CreateUserDialog>
           ),
           prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -2139,13 +2157,13 @@ class _EditUserDialogState extends State<_EditUserDialog>
     try {
       final vendorId = _vendorIdController.text.trim();
       final updated = await context.read<AppState>().updateAdminUser(
-            userId: widget.user.id,
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            email: _emailController.text.trim(),
-            role: _role,
-            vendorId: vendorId.isEmpty ? null : vendorId,
-          );
+        userId: widget.user.id,
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
+        role: _role,
+        vendorId: vendorId.isEmpty ? null : vendorId,
+      );
       if (!mounted) return;
       Navigator.pop(context, updated);
     } on ApiException catch (error) {
@@ -2162,7 +2180,9 @@ class _EditUserDialogState extends State<_EditUserDialog>
           behavior: SnackBarBehavior.floating,
           backgroundColor: const Color(0xFFBE123C),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } finally {
@@ -2271,7 +2291,9 @@ class _EditUserDialogState extends State<_EditUserDialog>
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -2287,7 +2309,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Each admin manages only products, orders and stock under this vendor.',
+                      'Each vendor manages only products, orders and stock under this vendor.',
                       style: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 12,
@@ -2311,10 +2333,7 @@ class _EditUserDialogState extends State<_EditUserDialog>
             ),
             child: const Text(
               'Cancel',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ),
           FilledButton(
@@ -2379,8 +2398,10 @@ class _EditUserDialogState extends State<_EditUserDialog>
           ),
           prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -2400,10 +2421,7 @@ class _UsersError extends StatelessWidget {
       builder: (context, value, child) {
         return Transform.scale(
           scale: value,
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -2416,11 +2434,7 @@ class _UsersError extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 56,
-              color: Color(0xFFBE123C),
-            ),
+            const Icon(Icons.error_outline, size: 56, color: Color(0xFFBE123C)),
             const SizedBox(height: 16),
             Text(
               'Error Loading Users',
@@ -2458,7 +2472,7 @@ const _assignableRoles = [
 String _roleLabel(String role) {
   switch (role) {
     case UserRoles.admin:
-      return 'Admin';
+      return 'Vendor';
     case UserRoles.deliveryPerson:
       return 'Delivery';
     case UserRoles.superAdmin:

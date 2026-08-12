@@ -8,9 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_state.dart';
 import '../../models/order_model.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../user/my_orders_screen.dart';
-import '../admin/admin_login_screen.dart';
 import '../delivery/delivery_login_screen.dart';
+import '../vendor/vendor_login_screen.dart';
 import '../super_admin/super_admin_login_screen.dart';
 
 class HelpSupportScreen extends StatefulWidget {
@@ -273,13 +272,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   ),
                 ),
                 _TeamAccessTile(
-                  label: 'Admin',
-                  subtitle: 'Management login',
-                  icon: Icons.admin_panel_settings_rounded,
+                  label: 'Vendor Login',
+                  subtitle: 'Access vendor sign in',
+                  icon: Icons.storefront_rounded,
                   accent: const Color(0xFF2563EB),
                   background: const Color(0xFFF3F7FF),
                   onTap: () =>
-                      Navigator.pushNamed(context, AdminLoginScreen.routeName),
+                      Navigator.pushNamed(context, VendorLoginScreen.routeName),
                 ),
                 _TeamAccessTile(
                   label: 'Super Admin',

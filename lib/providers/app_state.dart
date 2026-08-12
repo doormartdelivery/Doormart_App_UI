@@ -11,6 +11,7 @@ import '../models/category_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/user_model.dart';
+import '../models/vendor_model.dart';
 import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
@@ -47,6 +48,7 @@ class AppState extends ChangeNotifier {
   String? error;
   String? token;
   UserModel? user;
+  VendorModel? vendor;
   List<ProductModel> products = [];
   List<CategoryModel> categoryCatalog = [];
   List<BannerModel> banners = [];
@@ -94,8 +96,11 @@ class AppState extends ChangeNotifier {
         if (user?.role == UserRoles.user) {
           await loadFavorites();
         }
-        if (user?.role == UserRoles.admin ||
-            user?.role == UserRoles.superAdmin) {
+        if ((user?.role == UserRoles.admin ||
+                user?.role == UserRoles.vendor ||
+                user?.role == UserRoles.superAdmin) &&
+            (user?.approvalStatus ?? 'approved') == 'approved' &&
+            (user?.isActive ?? true)) {
           await loadAdminOrders();
         }
       }
@@ -131,6 +136,7 @@ class AppState extends ChangeNotifier {
               as Map<String, dynamic>;
       token = data['token'] as String;
       user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      vendor = null;
       await _sessionService.saveSession(token: token!, user: user!);
       await _refreshCurrentProfileSafely();
       await _loadPostAuthData();
@@ -140,7 +146,11 @@ class AppState extends ChangeNotifier {
       } catch (e) {
         debugPrint('FCM token sync skipped after login: $e');
       }
-      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+      if ((user?.role == UserRoles.admin ||
+              user?.role == UserRoles.vendor ||
+              user?.role == UserRoles.superAdmin) &&
+          (user?.approvalStatus ?? 'approved') == 'approved' &&
+          (user?.isActive ?? true)) {
         await loadAdminOrders();
       }
       error = null;
@@ -149,6 +159,135 @@ class AppState extends ChangeNotifier {
       rethrow;
     } finally {
       if (!silent) loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> loginVendor({
+    String? email,
+    String? phone,
+    required String password,
+  }) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      final data =
+          await apiService.post(
+                '/auth/vendor/login',
+                body: {
+                  if (phone != null && phone.isNotEmpty) 'phone': phone,
+                  if (email != null && email.isNotEmpty) 'email': email,
+                  'password': password,
+                },
+              )
+              as Map<String, dynamic>;
+      token = data['token'] as String;
+      user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      final vendorJson = data['vendor'];
+      vendor = vendorJson is Map<String, dynamic>
+          ? VendorModel.fromJson(vendorJson)
+          : null;
+      await _sessionService.saveSession(token: token!, user: user!);
+      if (user?.approvalStatus == 'approved' && user?.isActive == true) {
+        await _refreshCurrentProfileSafely();
+        await _loadPostAuthData();
+        _connectSocket();
+        try {
+          await _syncDeliveryToken();
+        } catch (e) {
+          debugPrint('FCM token sync skipped after vendor login: $e');
+        }
+        if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.vendor ||
+            user?.role == UserRoles.superAdmin) {
+          await loadAdminOrders();
+        }
+      }
+      error = null;
+      return data;
+    } catch (e) {
+      error = e.toString();
+      rethrow;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<VendorModel> registerVendor({
+    required String ownerName,
+    required String storeBusinessName,
+    required String mobileNumber,
+    required String emailAddress,
+    required String password,
+    required String confirmPassword,
+    required String businessType,
+    required String gstNumber,
+    required String panNumber,
+    required String storeAddress,
+    required String pickupAddress,
+    required String city,
+    required String state,
+    required String pincode,
+    required String bankAccountHolderName,
+    required String bankAccountNumber,
+    required String ifscCode,
+    String storeLogo = '',
+    String gstCertificate = '',
+    String panCard = '',
+    String cancelledCheque = '',
+  }) async {
+    final data =
+        await apiService.post(
+              '/auth/vendor/register',
+              body: {
+                'ownerName': ownerName,
+                'storeBusinessName': storeBusinessName,
+                'mobileNumber': mobileNumber,
+                'emailAddress': emailAddress,
+                'password': password,
+                'confirmPassword': confirmPassword,
+                'businessType': businessType,
+                'gstNumber': gstNumber,
+                'panNumber': panNumber,
+                'storeAddress': storeAddress,
+                'pickupAddress': pickupAddress,
+                'city': city,
+                'state': state,
+                'pincode': pincode,
+                'bankAccountHolderName': bankAccountHolderName,
+                'bankAccountNumber': bankAccountNumber,
+                'ifscCode': ifscCode,
+                'storeLogo': storeLogo,
+                'gstCertificateUrl': gstCertificate,
+                'panCardUrl': panCard,
+                'cancelledChequeUrl': cancelledCheque,
+              },
+            )
+            as Map<String, dynamic>;
+    final vendorJson = data['vendor'] as Map<String, dynamic>;
+    vendor = VendorModel.fromJson(vendorJson);
+    return vendor!;
+  }
+
+  Future<void> refreshVendorStatus() async {
+    await refreshProfile();
+    final current = user;
+    if (current?.role == UserRoles.vendor) {
+      vendor = VendorModel(
+        id: current?.vendorId ?? 'main',
+        name: current?.name ?? 'Vendor',
+        vendorId: current?.vendorId ?? 'main',
+        ownerName: current?.name ?? 'Vendor',
+        phone: current?.phone ?? '',
+        email: current?.email,
+        approvalStatus: current?.approvalStatus ?? 'pending',
+        isActive: current?.isActive ?? true,
+        rejectionReason: current?.rejectionReason ?? '',
+        approvedBy: current?.approvedBy,
+        approvedAt: current?.approvedAt,
+      );
       notifyListeners();
     }
   }
@@ -175,7 +314,11 @@ class AppState extends ChangeNotifier {
       await _refreshCurrentProfileSafely();
       await _loadPostAuthData();
       _connectSocket();
-      if (user?.role == UserRoles.admin || user?.role == UserRoles.superAdmin) {
+      if ((user?.role == UserRoles.admin ||
+              user?.role == UserRoles.vendor ||
+              user?.role == UserRoles.superAdmin) &&
+          (user?.approvalStatus ?? 'approved') == 'approved' &&
+          (user?.isActive ?? true)) {
         await loadAdminOrders();
       }
     }, silent: silent);
@@ -259,6 +402,21 @@ class AppState extends ChangeNotifier {
     final currentUser = data['user'];
     if (currentUser is Map<String, dynamic>) {
       user = UserModel.fromJson(currentUser);
+      if (user?.role == UserRoles.vendor) {
+        vendor = VendorModel(
+          id: user?.vendorId ?? 'main',
+          name: user?.name ?? 'Vendor',
+          vendorId: user?.vendorId ?? 'main',
+          ownerName: user?.name ?? 'Vendor',
+          phone: user?.phone ?? '',
+          email: user?.email,
+          approvalStatus: user?.approvalStatus ?? 'pending',
+          isActive: user?.isActive ?? true,
+          rejectionReason: user?.rejectionReason ?? '',
+          approvedBy: user?.approvedBy,
+          approvedAt: user?.approvedAt,
+        );
+      }
       notifyListeners();
     }
   }
@@ -287,7 +445,12 @@ class AppState extends ChangeNotifier {
     if (role == UserRoles.deliveryPerson) {
       return;
     }
-    if (role == UserRoles.admin || role == UserRoles.superAdmin) {
+    if (role == UserRoles.admin ||
+        role == UserRoles.vendor ||
+        role == UserRoles.superAdmin) {
+      if (user?.approvalStatus != 'approved' || user?.isActive != true) {
+        return;
+      }
       await Future.wait([
         _safeCall(loadOrders),
         _safeCall(loadFavorites),
@@ -363,6 +526,7 @@ class AppState extends ChangeNotifier {
     }
     token = null;
     user = null;
+    vendor = null;
     orders = [];
     adminOrders = [];
     savedAddresses = [];
@@ -1067,6 +1231,154 @@ class AppState extends ChangeNotifier {
       throw StateError('Admin login required');
     }
     await apiService.delete('/admin/users/$userId', token: token);
+  }
+
+  Future<List<VendorModel>> adminVendors() async {
+    if (token == null || user?.role != UserRoles.superAdmin) {
+      throw StateError('Super admin login required');
+    }
+    final data =
+        await apiService.get('/super-admin/vendors', token: token)
+            as List<dynamic>;
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(VendorModel.fromJson)
+        .toList();
+  }
+
+  Future<VendorModel> createVendor({
+    required String name,
+    String vendorId = '',
+    String ownerName = '',
+    String phone = '',
+    String email = '',
+    String businessType = '',
+    String gstin = '',
+    String panNumber = '',
+    String address = '',
+    String pickupAddress = '',
+    String city = '',
+    String state = '',
+    String pincode = '',
+    String bankAccountHolderName = '',
+    String bankAccountNumber = '',
+    String ifscCode = '',
+    String logoUrl = '',
+    String gstCertificateUrl = '',
+    String panCardUrl = '',
+    String cancelledChequeUrl = '',
+    double commissionPercent = 0,
+    String status = 'active',
+  }) async {
+    if (token == null || user?.role != UserRoles.superAdmin) {
+      throw StateError('Super admin login required');
+    }
+    final data =
+        await apiService.post(
+              '/super-admin/vendors',
+              token: token,
+              body: {
+                'name': name,
+                'vendorId': vendorId.trim(),
+                'ownerName': ownerName,
+                'phone': phone,
+                'email': email,
+                'businessType': businessType,
+                'gstin': gstin,
+                'panNumber': panNumber,
+                'address': address,
+                'pickupAddress': pickupAddress,
+                'city': city,
+                'state': state,
+                'pincode': pincode,
+                'bankAccountHolderName': bankAccountHolderName,
+                'bankAccountNumber': bankAccountNumber,
+                'ifscCode': ifscCode,
+                'logoUrl': logoUrl,
+                'gstCertificateUrl': gstCertificateUrl,
+                'panCardUrl': panCardUrl,
+                'cancelledChequeUrl': cancelledChequeUrl,
+                'commissionPercent': commissionPercent,
+                'status': status,
+              },
+            )
+            as Map<String, dynamic>;
+    return VendorModel.fromJson(data);
+  }
+
+  Future<VendorModel> updateVendor({
+    required String vendorId,
+    String? name,
+    String? ownerName,
+    String? phone,
+    String? email,
+    String? businessType,
+    String? gstin,
+    String? panNumber,
+    String? address,
+    String? pickupAddress,
+    String? city,
+    String? state,
+    String? pincode,
+    String? bankAccountHolderName,
+    String? bankAccountNumber,
+    String? ifscCode,
+    String? logoUrl,
+    String? gstCertificateUrl,
+    String? panCardUrl,
+    String? cancelledChequeUrl,
+    double? commissionPercent,
+    String? status,
+    String? approvalStatus,
+    String? rejectionReason,
+  }) async {
+    if (token == null || user?.role != UserRoles.superAdmin) {
+      throw StateError('Super admin login required');
+    }
+    final data =
+        await apiService.put(
+              '/super-admin/vendors/$vendorId',
+              token: token,
+              body: {
+                if (name != null) 'name': name,
+                if (ownerName != null) 'ownerName': ownerName,
+                if (phone != null) 'phone': phone,
+                if (email != null) 'email': email,
+                if (businessType != null) 'businessType': businessType,
+                if (gstin != null) 'gstin': gstin,
+                if (panNumber != null) 'panNumber': panNumber,
+                if (address != null) 'address': address,
+                if (pickupAddress != null) 'pickupAddress': pickupAddress,
+                if (city != null) 'city': city,
+                if (state != null) 'state': state,
+                if (pincode != null) 'pincode': pincode,
+                if (bankAccountHolderName != null)
+                  'bankAccountHolderName': bankAccountHolderName,
+                if (bankAccountNumber != null)
+                  'bankAccountNumber': bankAccountNumber,
+                if (ifscCode != null) 'ifscCode': ifscCode,
+                if (logoUrl != null) 'logoUrl': logoUrl,
+                if (gstCertificateUrl != null)
+                  'gstCertificateUrl': gstCertificateUrl,
+                if (panCardUrl != null) 'panCardUrl': panCardUrl,
+                if (cancelledChequeUrl != null)
+                  'cancelledChequeUrl': cancelledChequeUrl,
+                if (commissionPercent != null)
+                  'commissionPercent': commissionPercent,
+                if (status != null) 'status': status,
+                if (approvalStatus != null) 'approvalStatus': approvalStatus,
+                if (rejectionReason != null) 'rejectionReason': rejectionReason,
+              },
+            )
+            as Map<String, dynamic>;
+    return VendorModel.fromJson(data);
+  }
+
+  Future<void> deleteVendor(String vendorId) async {
+    if (token == null || user?.role != UserRoles.superAdmin) {
+      throw StateError('Super admin login required');
+    }
+    await apiService.delete('/super-admin/vendors/$vendorId', token: token);
   }
 
   Future<List<BannerModel>> adminBanners() async {

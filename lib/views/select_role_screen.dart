@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'admin/admin_login_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 import '../features/delivery/screens/delivery_home_screen.dart';
 import '../providers/app_state.dart';
 import 'delivery/delivery_login_screen.dart';
+import 'vendor/vendor_login_screen.dart';
+import 'vendor/vendor_register_screen.dart';
 import 'super_admin/super_admin_login_screen.dart';
 import 'super_admin/super_admin_dashboard_screen.dart';
 import 'user/user_home_screen.dart';
-import 'user/login_screen.dart';
 
 class SelectRoleScreen extends StatefulWidget {
   const SelectRoleScreen({super.key});
@@ -27,7 +27,10 @@ class _SelectRoleScreenState extends State<SelectRoleScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final state = context.watch<AppState>();
-    if (_redirecting || !state.initialized || !state.signedIn || state.user == null) {
+    if (_redirecting ||
+        !state.initialized ||
+        !state.signedIn ||
+        state.user == null) {
       return;
     }
     _redirecting = true;
@@ -35,6 +38,7 @@ class _SelectRoleScreenState extends State<SelectRoleScreen> {
       if (!mounted) return;
       final target = switch (state.user!.role) {
         'delivery_person' => const DeliveryHomeScreen(),
+        'vendor' => const AdminDashboardScreen(),
         'admin' => const AdminDashboardScreen(),
         'super_admin' => const SuperAdminDashboardScreen(),
         _ => const UserHomeScreen(),
@@ -85,7 +89,7 @@ class _SelectRoleScreenState extends State<SelectRoleScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Open the right dashboard for customer, delivery, admin, or super admin access.',
+                      'Open the right dashboard for customer, delivery, vendor, or super admin access.',
                       style: TextStyle(color: Colors.white70, height: 1.4),
                     ),
                   ],
@@ -110,13 +114,35 @@ class _SelectRoleScreenState extends State<SelectRoleScreen> {
                     Navigator.pushNamed(context, DeliveryLoginScreen.routeName),
               ),
               _RoleCard(
-                title: 'Admin Login',
+                title: 'Vendor Login',
                 subtitle:
-                    'Manage orders, products, customers, and delivery staff.',
+                    'Submit your store for approval or manage your store after approval.',
                 icon: Icons.admin_panel_settings_rounded,
                 color: const Color(0xFFEA580C),
                 onTap: () =>
-                    Navigator.pushNamed(context, AdminLoginScreen.routeName),
+                    Navigator.pushNamed(context, VendorLoginScreen.routeName),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      VendorRegisterScreen.routeName,
+                    ),
+                    icon: const Icon(Icons.app_registration_rounded),
+                    label: const Text('Register as Vendor'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      foregroundColor: const Color(0xFFEA580C),
+                      side: const BorderSide(color: Color(0xFFEA580C)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               _RoleCard(
                 title: 'Super Admin Login',

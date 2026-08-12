@@ -6,6 +6,7 @@ import '../features/routing/customer_routes.dart';
 import '../features/routing/delivery_routes.dart';
 import '../features/routing/shared_routes.dart';
 import '../features/routing/super_admin_routes.dart';
+import '../features/routing/vendor_routes.dart';
 import '../providers/app_state.dart';
 import '../views/access_denied_screen.dart';
 import '../views/delivery/new_order_request_screen.dart';
@@ -18,6 +19,7 @@ class AppRoutes {
     ...DeliveryRoutes.routes,
     ...AdminRoutes.routes,
     ...SuperAdminRoutes.routes,
+    ...VendorRoutes.routes,
   };
 
   static Route<dynamic> onGenerateRoute(

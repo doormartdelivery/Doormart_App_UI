@@ -108,7 +108,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
-              // ── Dark admin hero header ───────────────────────────────
+              // ── Dark vendor hero header ──────────────────────────────
               const _AdminHeroHeader(),
 
               // ── Form area ────────────────────────────────────────────
@@ -123,28 +123,28 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Admin welcome card ───────────────────────
+                          // ── Vendor welcome card ──────────────────────
                           const _AdminWelcomeCard(),
 
                           const SizedBox(height: 28),
 
                           // ── Email ────────────────────────────────────
-                          _FieldLabel('Admin email or phone'),
+                          _FieldLabel('Vendor email or phone'),
                           const SizedBox(height: 8),
                           _Field(
                             controller: _emailCtrl,
-                            hint: 'admin@doormart.com or 9876543210',
+                            hint: 'vendor@doormart.com or 9876543210',
                             icon: Icons.admin_panel_settings_rounded,
                             keyboardType: TextInputType.emailAddress,
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return 'Enter your admin email or phone';
+                                return 'Enter your vendor email or phone';
                               }
                               final value = v.trim();
                               final isEmail = value.contains('@');
-                              final isPhone = RegExp(r'^\+?\d{7,15}$').hasMatch(
-                                value.replaceAll(RegExp(r'\s+'), ''),
-                              );
+                              final isPhone = RegExp(
+                                r'^\+?\d{7,15}$',
+                              ).hasMatch(value.replaceAll(RegExp(r'\s+'), ''));
                               if (!isEmail && !isPhone) {
                                 return 'Enter a valid email or phone number';
                               }
@@ -159,7 +159,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                           const SizedBox(height: 8),
                           _Field(
                             controller: _passCtrl,
-                            hint: 'Enter admin password',
+                            hint: 'Enter vendor password',
                             icon: Icons.lock_rounded,
                             obscure: _obscure,
                             suffix: IconButton(
@@ -185,9 +185,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                Navigator.of(context).pushNamed(
-                                  ForgotPasswordScreen.routeName,
-                                );
+                                Navigator.of(
+                                  context,
+                                ).pushNamed(ForgotPasswordScreen.routeName);
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: _kOrange,
@@ -223,7 +223,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
 
                           const SizedBox(height: 28),
 
-                          // ── Admin access notice ───────────────────────
+                          // ── Vendor access notice ──────────────────────
                           const _AccessNotice(),
 
                           const SizedBox(height: 24),
@@ -244,7 +244,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
   }
 }
 
-// ─── Admin Hero Header ────────────────────────────────────────────────────────
+// ─── Vendor Hero Header ───────────────────────────────────────────────────────
 
 class _AdminHeroHeader extends StatelessWidget {
   const _AdminHeroHeader();
@@ -331,7 +331,7 @@ class _AdminHeroHeader extends StatelessWidget {
                             _PulseDot(),
                             SizedBox(width: 5),
                             Text(
-                              'Admin Portal',
+                              'Vendor Portal',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 12.5,
@@ -388,7 +388,7 @@ class _AdminHeroHeader extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Text(
-                    '🔐 Admin Control Portal',
+                    '🔐 Vendor Control Portal',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12.5,
@@ -460,7 +460,7 @@ class _PulseDotState extends State<_PulseDot>
   }
 }
 
-// ─── Admin Welcome Card ───────────────────────────────────────────────────────
+// ─── Vendor Welcome Card ──────────────────────────────────────────────────────
 
 class _AdminWelcomeCard extends StatelessWidget {
   const _AdminWelcomeCard();
@@ -512,7 +512,7 @@ class _AdminWelcomeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, Admin!',
+                  'Welcome back, Vendor!',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
@@ -754,7 +754,7 @@ class _LoginButtonState extends State<_LoginButton>
                       ),
                       SizedBox(width: 8),
                       Text(
-                        'Access Admin Panel',
+                        'Access Vendor Panel',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 15.5,
@@ -880,7 +880,7 @@ class _AccessNotice extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'This portal is restricted to authorised Doormart administrators. Unauthorised access attempts are logged and monitored.',
+              'This portal is restricted to authorised Doormart vendors. Unauthorised access attempts are logged and monitored.',
               style: TextStyle(
                 fontSize: 11.5,
                 color: Color(0xFF92400E),
@@ -929,7 +929,7 @@ class _Footer extends StatelessWidget {
               ),
             ),
             const Text(
-              ' · Admin',
+              ' · Vendor',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,

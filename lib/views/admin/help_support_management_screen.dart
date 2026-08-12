@@ -21,10 +21,12 @@ class HelpSupportManagementScreen extends StatefulWidget {
   static const routeName = '/admin/help-support';
 
   @override
-  State<HelpSupportManagementScreen> createState() => _HelpSupportManagementScreenState();
+  State<HelpSupportManagementScreen> createState() =>
+      _HelpSupportManagementScreenState();
 }
 
-class _HelpSupportManagementScreenState extends State<HelpSupportManagementScreen> {
+class _HelpSupportManagementScreenState
+    extends State<HelpSupportManagementScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _searchCtrl = TextEditingController();
   final _replyCtrl = TextEditingController();
@@ -63,16 +65,23 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
     });
     try {
       final query = <String, String>{
-        if (_searchCtrl.text.trim().isNotEmpty) 'search': _searchCtrl.text.trim(),
+        if (_searchCtrl.text.trim().isNotEmpty)
+          'search': _searchCtrl.text.trim(),
         if (_statusFilter != 'all') 'status': _statusFilter,
         if (_issueFilter != 'all') 'issueType': _issueFilter,
         if (_priorityFilter != 'all') 'priority': _priorityFilter,
         if (_assignedFilter != 'all') 'assignedTo': _assignedFilter,
       };
-      final path = '/admin/support/tickets${query.isEmpty ? '' : '?${Uri(queryParameters: query).query}'}';
+      final path =
+          '/admin/support/tickets${query.isEmpty ? '' : '?${Uri(queryParameters: query).query}'}';
       final data = await _api.get(path, token: context.read<AppState>().token);
-      final payload = data is Map<String, dynamic> ? data['items'] ?? data['tickets'] ?? [] : data;
-      final items = (payload as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      final payload = data is Map<String, dynamic>
+          ? data['items'] ?? data['tickets'] ?? []
+          : data;
+      final items = (payload as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
       if (!mounted) return;
       setState(() => _tickets = items);
     } catch (e) {
@@ -86,17 +95,30 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
   List<Map<String, dynamic>> get _filteredTickets {
     return _tickets.where((ticket) {
       final q = _searchCtrl.text.trim().toLowerCase();
-      final user = ticket['user'] is Map ? Map<String, dynamic>.from(ticket['user'] as Map) : null;
-      final matchesSearch = q.isEmpty ||
+      final user = ticket['user'] is Map
+          ? Map<String, dynamic>.from(ticket['user'] as Map)
+          : null;
+      final matchesSearch =
+          q.isEmpty ||
           '${ticket['ticketNumber']} ${user?['name'] ?? ticket['userName'] ?? ''} ${user?['phone'] ?? ticket['phone'] ?? ''} ${ticket['orderId'] ?? ''} ${ticket['subject'] ?? ''}'
               .toLowerCase()
               .contains(q);
-      final matchesStatus = _statusFilter == 'all' || ticket['status'] == _statusFilter;
-      final matchesPriority = _priorityFilter == 'all' || ticket['priority'] == _priorityFilter;
-      final matchesIssue = _issueFilter == 'all' || ticket['issueType'] == _issueFilter;
-      final matchesAssigned = _assignedFilter == 'all' || ticket['assignedTo'] == _assignedFilter;
-      final matchesTab = _selectedTab == 'all' || ticket['status'] == _selectedTab;
-      return matchesSearch && matchesStatus && matchesPriority && matchesIssue && matchesAssigned && matchesTab;
+      final matchesStatus =
+          _statusFilter == 'all' || ticket['status'] == _statusFilter;
+      final matchesPriority =
+          _priorityFilter == 'all' || ticket['priority'] == _priorityFilter;
+      final matchesIssue =
+          _issueFilter == 'all' || ticket['issueType'] == _issueFilter;
+      final matchesAssigned =
+          _assignedFilter == 'all' || ticket['assignedTo'] == _assignedFilter;
+      final matchesTab =
+          _selectedTab == 'all' || ticket['status'] == _selectedTab;
+      return matchesSearch &&
+          matchesStatus &&
+          matchesPriority &&
+          matchesIssue &&
+          matchesAssigned &&
+          matchesTab;
     }).toList();
   }
 
@@ -178,17 +200,18 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
       final updated = await _api.patch(
         '/admin/support/tickets/${ticket['_id'] ?? ticket['id']}/status',
         token: context.read<AppState>().token,
-        body: {
-          'status': status,
-          'assignedTo': ticket['assignedTo'] ?? '',
-        },
+        body: {'status': status, 'assignedTo': ticket['assignedTo'] ?? ''},
       );
       if (updated is Map<String, dynamic> && updated['ticket'] is Map) {
-        final updatedTicket = Map<String, dynamic>.from(updated['ticket'] as Map);
+        final updatedTicket = Map<String, dynamic>.from(
+          updated['ticket'] as Map,
+        );
         if (!mounted) return;
         setState(() {
           final key = ticket['_id'] ?? ticket['id'];
-          final index = _tickets.indexWhere((e) => (e['_id'] ?? e['id']) == key);
+          final index = _tickets.indexWhere(
+            (e) => (e['_id'] ?? e['id']) == key,
+          );
           if (index != -1) _tickets[index] = updatedTicket;
         });
       } else {
@@ -201,7 +224,8 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = context.read<AppState>().user?.role == UserRoles.superAdmin;
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: _bg,
@@ -210,7 +234,11 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
         onLogout: () async {
           await context.read<AppState>().logout();
           if (!mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, AdminDashboardScreen.routeName, (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AdminDashboardScreen.routeName,
+            (route) => false,
+          );
         },
       ),
       body: SafeArea(
@@ -225,7 +253,7 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
                 subtitle: 'Manage, reply, assign and resolve user tickets',
                 onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
                 onRefresh: () => setState(() {}),
-                currentRoleLabel: isSuperAdmin ? 'Super Admin' : 'Admin',
+                currentRoleLabel: isSuperAdmin ? 'Super Admin' : 'Vendor',
               ),
               const SizedBox(height: 16),
               GridView.count(
@@ -236,30 +264,81 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _StatCard(title: 'Total Tickets', value: _stats['total'].toString(), icon: Icons.receipt_long_rounded),
-                  _StatCard(title: 'Open Tickets', value: _stats['open'].toString(), icon: Icons.mark_email_unread_rounded),
-                  _StatCard(title: 'In Progress', value: _stats['progress'].toString(), icon: Icons.timelapse_rounded),
-                  _StatCard(title: 'Resolved Tickets', value: _stats['resolved'].toString(), icon: Icons.verified_rounded),
-                  _StatCard(title: 'Closed Tickets', value: _stats['closed'].toString(), icon: Icons.lock_rounded),
-                  _StatCard(title: 'Avg Resolution', value: '4.2h', icon: Icons.query_stats_rounded),
+                  _StatCard(
+                    title: 'Total Tickets',
+                    value: _stats['total'].toString(),
+                    icon: Icons.receipt_long_rounded,
+                  ),
+                  _StatCard(
+                    title: 'Open Tickets',
+                    value: _stats['open'].toString(),
+                    icon: Icons.mark_email_unread_rounded,
+                  ),
+                  _StatCard(
+                    title: 'In Progress',
+                    value: _stats['progress'].toString(),
+                    icon: Icons.timelapse_rounded,
+                  ),
+                  _StatCard(
+                    title: 'Resolved Tickets',
+                    value: _stats['resolved'].toString(),
+                    icon: Icons.verified_rounded,
+                  ),
+                  _StatCard(
+                    title: 'Closed Tickets',
+                    value: _stats['closed'].toString(),
+                    icon: Icons.lock_rounded,
+                  ),
+                  _StatCard(
+                    title: 'Avg Resolution',
+                    value: '4.2h',
+                    icon: Icons.query_stats_rounded,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _TabChip(label: 'All Tickets', selected: _selectedTab == 'all', onTap: () => setState(() => _selectedTab = 'all')),
-                    _TabChip(label: 'Open', selected: _selectedTab == 'open', onTap: () => setState(() => _selectedTab = 'open')),
-                    _TabChip(label: 'In Progress', selected: _selectedTab == 'in_progress', onTap: () => setState(() => _selectedTab = 'in_progress')),
-                    _TabChip(label: 'Resolved', selected: _selectedTab == 'resolved', onTap: () => setState(() => _selectedTab = 'resolved')),
-                    _TabChip(label: 'Closed', selected: _selectedTab == 'closed', onTap: () => setState(() => _selectedTab = 'closed')),
-                    _TabChip(label: 'Urgent', selected: _selectedTab == 'urgent', onTap: () => setState(() => _selectedTab = 'urgent')),
+                    _TabChip(
+                      label: 'All Tickets',
+                      selected: _selectedTab == 'all',
+                      onTap: () => setState(() => _selectedTab = 'all'),
+                    ),
+                    _TabChip(
+                      label: 'Open',
+                      selected: _selectedTab == 'open',
+                      onTap: () => setState(() => _selectedTab = 'open'),
+                    ),
+                    _TabChip(
+                      label: 'In Progress',
+                      selected: _selectedTab == 'in_progress',
+                      onTap: () => setState(() => _selectedTab = 'in_progress'),
+                    ),
+                    _TabChip(
+                      label: 'Resolved',
+                      selected: _selectedTab == 'resolved',
+                      onTap: () => setState(() => _selectedTab = 'resolved'),
+                    ),
+                    _TabChip(
+                      label: 'Closed',
+                      selected: _selectedTab == 'closed',
+                      onTap: () => setState(() => _selectedTab = 'closed'),
+                    ),
+                    _TabChip(
+                      label: 'Urgent',
+                      selected: _selectedTab == 'urgent',
+                      onTap: () => setState(() => _selectedTab = 'urgent'),
+                    ),
                   ],
                 ),
               ),
@@ -292,12 +371,21 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ticket Table', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textDark)),
+                    const Text(
+                      'Ticket Table',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: _textDark,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     if (_loading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 36),
-                        child: Center(child: CircularProgressIndicator(color: _accent)),
+                        child: Center(
+                          child: CircularProgressIndicator(color: _accent),
+                        ),
                       )
                     else if (_filteredTickets.isEmpty)
                       const Padding(
@@ -308,7 +396,9 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: DataTable(
-                          headingRowColor: const MaterialStatePropertyAll(Color(0xFFF6F7FA)),
+                          headingRowColor: const MaterialStatePropertyAll(
+                            Color(0xFFF6F7FA),
+                          ),
                           columns: const [
                             DataColumn(label: Text('Ticket ID')),
                             DataColumn(label: Text('User Name')),
@@ -323,26 +413,84 @@ class _HelpSupportManagementScreenState extends State<HelpSupportManagementScree
                             DataColumn(label: Text('Actions')),
                           ],
                           rows: _filteredTickets.map((ticket) {
-                            final user = ticket['user'] is Map ? Map<String, dynamic>.from(ticket['user'] as Map) : null;
+                            final user = ticket['user'] is Map
+                                ? Map<String, dynamic>.from(
+                                    ticket['user'] as Map,
+                                  )
+                                : null;
                             return DataRow(
                               cells: [
-                                DataCell(Text(ticket['ticketNumber'] ?? ticket['id'] ?? '')),
-                                DataCell(Text(user?['name']?.toString() ?? ticket['userName']?.toString() ?? '')),
-                                DataCell(Text(user?['phone']?.toString() ?? ticket['phone']?.toString() ?? '')),
-                                DataCell(Text(ticket['orderId']?.toString() ?? '')),
-                                DataCell(Text(ticket['issueType']?.toString() ?? '')),
-                                DataCell(Text(ticket['subject']?.toString() ?? '')),
-                                DataCell(_LabelBadge(text: ticket['priority']?.toString() ?? 'low', color: _priorityColor(ticket['priority']?.toString() ?? 'low'))),
-                                DataCell(_LabelBadge(text: ticket['status']?.toString() ?? 'open', color: _statusColor(ticket['status']?.toString() ?? 'open'))),
-                                DataCell(Text(_fmtDate(DateTime.tryParse(ticket['createdAt']?.toString() ?? '') ?? DateTime.now()))),
-                                DataCell(Text(ticket['assignedTo']?.toString() ?? '')),
+                                DataCell(
+                                  Text(
+                                    ticket['ticketNumber'] ??
+                                        ticket['id'] ??
+                                        '',
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    user?['name']?.toString() ??
+                                        ticket['userName']?.toString() ??
+                                        '',
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    user?['phone']?.toString() ??
+                                        ticket['phone']?.toString() ??
+                                        '',
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(ticket['orderId']?.toString() ?? ''),
+                                ),
+                                DataCell(
+                                  Text(ticket['issueType']?.toString() ?? ''),
+                                ),
+                                DataCell(
+                                  Text(ticket['subject']?.toString() ?? ''),
+                                ),
+                                DataCell(
+                                  _LabelBadge(
+                                    text:
+                                        ticket['priority']?.toString() ?? 'low',
+                                    color: _priorityColor(
+                                      ticket['priority']?.toString() ?? 'low',
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  _LabelBadge(
+                                    text:
+                                        ticket['status']?.toString() ?? 'open',
+                                    color: _statusColor(
+                                      ticket['status']?.toString() ?? 'open',
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(
+                                    _fmtDate(
+                                      DateTime.tryParse(
+                                            ticket['createdAt']?.toString() ??
+                                                '',
+                                          ) ??
+                                          DateTime.now(),
+                                    ),
+                                  ),
+                                ),
+                                DataCell(
+                                  Text(ticket['assignedTo']?.toString() ?? ''),
+                                ),
                                 DataCell(
                                   Row(
                                     children: [
                                       IconButton(
                                         tooltip: 'View',
                                         onPressed: () => _openTicket(ticket),
-                                        icon: const Icon(Icons.visibility_rounded),
+                                        icon: const Icon(
+                                          Icons.visibility_rounded,
+                                        ),
                                       ),
                                       IconButton(
                                         tooltip: 'Reply',
@@ -400,7 +548,14 @@ class _AdminTopBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _textDark)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: _textDark,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(subtitle, style: const TextStyle(color: _textMid)),
               ],
@@ -448,13 +603,20 @@ class _RolePill extends StatelessWidget {
         color: _accentSoft,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800, color: _accent)),
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.w800, color: _accent),
+      ),
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.title, required this.value, required this.icon});
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
   final String title;
   final String value;
   final IconData icon;
@@ -484,9 +646,23 @@ class _StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: const TextStyle(color: _textMid, fontWeight: FontWeight.w700, fontSize: 12)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _textDark)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: _textDark,
+                  ),
+                ),
               ],
             ),
           ),
@@ -497,7 +673,11 @@ class _StatCard extends StatelessWidget {
 }
 
 class _TabChip extends StatelessWidget {
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -515,7 +695,9 @@ class _TabChip extends StatelessWidget {
         ),
         selectedColor: _accent,
         backgroundColor: _card,
-        shape: StadiumBorder(side: BorderSide(color: selected ? _accent : _border)),
+        shape: StadiumBorder(
+          side: BorderSide(color: selected ? _accent : _border),
+        ),
       ),
     );
   }
@@ -565,7 +747,9 @@ class _AdminFilters extends StatelessWidget {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_rounded),
               hintText: 'Search by ticket ID, user name, phone, or order ID',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               filled: true,
               fillColor: const Color(0xFFF9FAFC),
             ),
@@ -575,10 +759,38 @@ class _AdminFilters extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _filterDropdown('Status', statusFilter, ['all', 'open', 'in_progress', 'resolved', 'closed'], onStatusChanged),
-              _filterDropdown('Priority', priorityFilter, ['all', 'low', 'medium', 'high', 'urgent'], onPriorityChanged),
-              _filterDropdown('Issue Type', issueFilter, ['all', 'order_issue', 'payment_issue', 'delivery_issue', 'missing_item', 'wrong_item', 'damaged_product', 'refund_request', 'app_bug', 'account_issue', 'other'], onIssueChanged),
-              _filterDropdown('Assigned', assignedFilter, ['all', 'Admin A', 'Admin B'], onAssignedChanged),
+              _filterDropdown('Status', statusFilter, [
+                'all',
+                'open',
+                'in_progress',
+                'resolved',
+                'closed',
+              ], onStatusChanged),
+              _filterDropdown('Priority', priorityFilter, [
+                'all',
+                'low',
+                'medium',
+                'high',
+                'urgent',
+              ], onPriorityChanged),
+              _filterDropdown('Issue Type', issueFilter, [
+                'all',
+                'order_issue',
+                'payment_issue',
+                'delivery_issue',
+                'missing_item',
+                'wrong_item',
+                'damaged_product',
+                'refund_request',
+                'app_bug',
+                'account_issue',
+                'other',
+              ], onIssueChanged),
+              _filterDropdown('Assigned', assignedFilter, [
+                'all',
+                'Vendor A',
+                'Vendor B',
+              ], onAssignedChanged),
               SizedBox(
                 width: 220,
                 child: OutlinedButton.icon(
@@ -594,12 +806,24 @@ class _AdminFilters extends StatelessWidget {
     );
   }
 
-  Widget _filterDropdown(String label, String value, List<String> items, ValueChanged<String> onChanged) {
+  Widget _filterDropdown(
+    String label,
+    String value,
+    List<String> items,
+    ValueChanged<String> onChanged,
+  ) {
     return SizedBox(
       width: 220,
       child: DropdownButtonFormField<String>(
         value: value,
-        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e == 'all' ? 'All $label' : e))).toList(),
+        items: items
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(e == 'all' ? 'All $label' : e),
+              ),
+            )
+            .toList(),
         onChanged: (v) {
           if (v != null) onChanged(v);
         },
@@ -629,15 +853,31 @@ class _AnalyticsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Analytics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textDark)),
+          const Text(
+            'Analytics',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: _textDark,
+            ),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _MiniMetric(label: 'By Status', value: '${stats['open']} open, ${stats['progress']} progress'),
-              _MiniMetric(label: 'By Priority', value: '${stats['urgent']} urgent tickets'),
-              _MiniMetric(label: 'Daily Volume', value: '${stats['total']} total today'),
+              _MiniMetric(
+                label: 'By Status',
+                value: '${stats['open']} open, ${stats['progress']} progress',
+              ),
+              _MiniMetric(
+                label: 'By Priority',
+                value: '${stats['urgent']} urgent tickets',
+              ),
+              _MiniMetric(
+                label: 'Daily Volume',
+                value: '${stats['total']} total today',
+              ),
               _MiniMetric(label: 'Performance', value: '4.2h avg resolution'),
             ],
           ),
@@ -664,7 +904,13 @@ class _MiniMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: _textDark,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(value, style: const TextStyle(color: _textMid)),
         ],
@@ -677,8 +923,16 @@ class _ActivityTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Ticket created', 'Order delayed beyond ETA', Icons.add_circle_outline_rounded),
-      ('Admin replied', 'User informed about next update', Icons.reply_rounded),
+      (
+        'Ticket created',
+        'Order delayed beyond ETA',
+        Icons.add_circle_outline_rounded,
+      ),
+      (
+        'Vendor replied',
+        'User informed about next update',
+        Icons.reply_rounded,
+      ),
       ('Status changed', 'Moved to In Progress', Icons.swap_horiz_rounded),
       ('Ticket resolved', 'Issue closed successfully', Icons.verified_rounded),
     ];
@@ -692,7 +946,14 @@ class _ActivityTimeline extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textDark)),
+          const Text(
+            'Recent Activity',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: _textDark,
+            ),
+          ),
           const SizedBox(height: 12),
           ...items.map(
             (item) => Padding(
@@ -713,8 +974,14 @@ class _ActivityTimeline extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.$1, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text(item.$2, style: const TextStyle(color: _textMid, fontSize: 12)),
+                        Text(
+                          item.$1,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          item.$2,
+                          style: const TextStyle(color: _textMid, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -742,7 +1009,11 @@ class _LabelBadge extends StatelessWidget {
       ),
       child: Text(
         text.toUpperCase(),
-        style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 11),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -767,7 +1038,9 @@ class _TicketDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = ticket['user'] is Map ? Map<String, dynamic>.from(ticket['user'] as Map) : null;
+    final user = ticket['user'] is Map
+        ? Map<String, dynamic>.from(ticket['user'] as Map)
+        : null;
     return DraggableScrollableSheet(
       initialChildSize: 0.86,
       minChildSize: 0.55,
@@ -795,10 +1068,16 @@ class _TicketDetailsSheet extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 (ticket['ticketNumber'] ?? ticket['id'] ?? '').toString(),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 8),
-              Text((ticket['subject'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(
+                (ticket['subject'] ?? '').toString(),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 16),
               _detailRow('User', user?['name'] ?? ticket['userName'] ?? ''),
               _detailRow('Phone', user?['phone'] ?? ticket['phone'] ?? ''),
@@ -813,7 +1092,10 @@ class _TicketDetailsSheet extends StatelessWidget {
                 value: currentStatus,
                 items: const [
                   DropdownMenuItem(value: 'open', child: Text('Open')),
-                  DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
+                  DropdownMenuItem(
+                    value: 'in_progress',
+                    child: Text('In Progress'),
+                  ),
                   DropdownMenuItem(value: 'resolved', child: Text('Resolved')),
                   DropdownMenuItem(value: 'closed', child: Text('Closed')),
                 ],
@@ -826,7 +1108,10 @@ class _TicketDetailsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text('Description', style: TextStyle(fontWeight: FontWeight.w900)),
+              const Text(
+                'Description',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 6),
               Text((ticket['description'] ?? '').toString()),
               const SizedBox(height: 16),
@@ -879,7 +1164,13 @@ class _TicketDetailsSheet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 100, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800))),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
           Expanded(child: Text((value ?? '').toString())),
         ],
       ),

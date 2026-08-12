@@ -15,6 +15,7 @@ import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
+import '../super_admin/super_admin_vendors_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -172,6 +173,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       if (isSuperAdmin)
         _AdminSection(
+          title: 'Vendor management',
+          subtitle: 'Business accounts and details',
+          icon: Icons.storefront,
+          accent: const Color(0xFF0F766E),
+          builder: (_) => const SuperAdminVendorsScreen(),
+        ),
+      if (isSuperAdmin)
+        _AdminSection(
           title: 'Delivery partners',
           subtitle: 'Assignments and status',
           icon: Icons.delivery_dining,
@@ -225,7 +234,7 @@ class _AdminDrawer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Admin menu',
+                            'Vendor menu',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w900,
@@ -484,7 +493,7 @@ class _HeroCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Admin dashboard',
+                    'Vendor dashboard',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: _kTextDark,

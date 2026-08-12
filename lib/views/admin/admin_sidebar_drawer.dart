@@ -14,6 +14,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import '../super_admin/super_admin_vendors_screen.dart';
 
 const _kBg = Color(0xFFF6F6F6);
 const _kCard = Colors.white;
@@ -34,18 +35,82 @@ class AdminSidebarDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = context.read<AppState>().user?.role == UserRoles.superAdmin;
+    final isSuperAdmin =
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
     final items = [
-      ('Overview', Icons.dashboard, AdminDashboardScreen.routeName, const Color(0xFF0F766E)),
-      ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName, const Color(0xFF0F766E)),
-      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName, const Color(0xFFB45309)),
-      if (isSuperAdmin) ('Ticket Management', Icons.support_agent, HelpSupportManagementScreen.routeName, const Color(0xFFE8541A)),
-      ('Products', Icons.inventory_2, ManageProductsScreen.routeName, const Color(0xFF2563EB)),
-      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName, const Color(0xFF059669)),
-      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName, const Color(0xFFEA580C)),
-      if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName, const Color(0xFF7C3AED)),
-      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName, const Color(0xFFDB2777)),
-      ('Stock alerts', Icons.warning_amber, StockScreen.routeName, const Color(0xFFDC2626)),
+      (
+        'Overview',
+        Icons.dashboard,
+        AdminDashboardScreen.routeName,
+        const Color(0xFF0F766E),
+      ),
+      (
+        'Orders',
+        Icons.receipt_long,
+        AdminOrdersScreen.routeName,
+        const Color(0xFF0F766E),
+      ),
+      if (isSuperAdmin)
+        (
+          'Notifications',
+          Icons.notifications_active,
+          AdminNotificationsScreen.routeName,
+          const Color(0xFFB45309),
+        ),
+      if (isSuperAdmin)
+        (
+          'Ticket Management',
+          Icons.support_agent,
+          HelpSupportManagementScreen.routeName,
+          const Color(0xFFE8541A),
+        ),
+      (
+        'Products',
+        Icons.inventory_2,
+        ManageProductsScreen.routeName,
+        const Color(0xFF2563EB),
+      ),
+      if (isSuperAdmin)
+        (
+          'Categories',
+          Icons.category,
+          ManageCategoriesScreen.routeName,
+          const Color(0xFF059669),
+        ),
+      if (isSuperAdmin)
+        (
+          'Banners',
+          Icons.slideshow,
+          ManageBannersScreen.routeName,
+          const Color(0xFFEA580C),
+        ),
+      if (isSuperAdmin)
+        (
+          'Users',
+          Icons.groups,
+          ManageUsersScreen.routeName,
+          const Color(0xFF7C3AED),
+        ),
+      if (isSuperAdmin)
+        (
+          'Vendors',
+          Icons.storefront,
+          SuperAdminVendorsScreen.routeName,
+          const Color(0xFF0F766E),
+        ),
+      if (isSuperAdmin)
+        (
+          'Delivery partners',
+          Icons.delivery_dining,
+          ManageDeliveryScreen.routeName,
+          const Color(0xFFDB2777),
+        ),
+      (
+        'Stock alerts',
+        Icons.warning_amber,
+        StockScreen.routeName,
+        const Color(0xFFDC2626),
+      ),
     ];
 
     return Drawer(
@@ -68,9 +133,18 @@ class AdminSidebarDrawer extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: _kTextDark)),
+                          Text(
+                            'Vendor menu',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: _kTextDark,
+                            ),
+                          ),
                           SizedBox(height: 4),
-                          Text('Navigate the control center', style: TextStyle(color: _kTextMid)),
+                          Text(
+                            'Navigate the control center',
+                            style: TextStyle(color: _kTextMid),
+                          ),
                         ],
                       ),
                     ),
@@ -126,18 +200,24 @@ class AdminSidebarDrawer extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                      Text(
-                                        item.$1 == 'Overview'
-                                            ? 'Back to dashboard'
-                                            : item.$1 == 'Ticket Management'
-                                                ? 'Manage user tickets'
-                                                : 'Open section',
-                                        style: const TextStyle(color: _kTextMid, fontSize: 12),
+                                    Text(
+                                      item.$1 == 'Overview'
+                                          ? 'Back to dashboard'
+                                          : item.$1 == 'Ticket Management'
+                                          ? 'Manage user tickets'
+                                          : 'Open section',
+                                      style: const TextStyle(
+                                        color: _kTextMid,
+                                        fontSize: 12,
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.chevron_right, color: selected ? accent : _kTextMid),
+                              Icon(
+                                Icons.chevron_right,
+                                color: selected ? accent : _kTextMid,
+                              ),
                             ],
                           ),
                         ),
@@ -160,10 +240,15 @@ class AdminSidebarDrawer extends StatelessWidget {
                       side: const BorderSide(color: _kOrange),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: _kOrangeLight,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
                     icon: const Icon(Icons.logout),
-                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                    label: const Text(
+                      'Logout',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ),

@@ -23,8 +23,20 @@ class RoleAccess {
   static bool canAccessRoute(String? role, String routeName) {
     if (routeName == '/login' ||
         routeName == '/signup' ||
-        routeName == '/splash') {
+        routeName == '/splash' ||
+        routeName == '/vendor/login' ||
+        routeName == '/vendor/register' ||
+        routeName == '/vendor/register-success' ||
+        routeName == '/vendor/status') {
       return true;
+    }
+    if (routeName.startsWith('/vendor')) {
+      if (routeName == '/vendor/dashboard') {
+        return role == UserRoles.vendor ||
+            role == UserRoles.admin ||
+            role == UserRoles.superAdmin;
+      }
+      return role == UserRoles.vendor;
     }
     if (routeName.startsWith('/super-admin')) {
       return role == UserRoles.superAdmin || routeName == '/super-admin/login';
@@ -39,6 +51,7 @@ class RoleAccess {
         return role == UserRoles.superAdmin || routeName == '/admin/login';
       }
       return role == UserRoles.admin ||
+          role == UserRoles.vendor ||
           role == UserRoles.superAdmin ||
           routeName == '/admin/login';
     }
@@ -55,6 +68,8 @@ class RoleAccess {
     switch (role) {
       case UserRoles.deliveryPerson:
         return '/delivery';
+      case UserRoles.vendor:
+        return '/vendor/dashboard';
       case UserRoles.admin:
         return '/admin';
       case UserRoles.superAdmin:
