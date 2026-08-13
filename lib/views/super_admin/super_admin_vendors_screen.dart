@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
-import '../admin/admin_logout_confirm.dart';
 import '../admin/admin_sidebar_drawer.dart';
 
 class SuperAdminVendorsScreen extends StatefulWidget {
@@ -309,13 +308,13 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
       drawer: AdminSidebarDrawer(
         currentRoute: SuperAdminVendorsScreen.routeName,
         onLogout: () async {
-          final appState = context.read<AppState>();
-          final navigator = Navigator.of(context);
-          if (!await confirmAdminLogout(context)) return;
-          navigator.pop();
-          await appState.logout();
+          final logoutRoute = context.read<AppState>().logoutRouteName;
+          await context.read<AppState>().logout();
           if (!context.mounted) return;
-          navigator.pushNamedAndRemoveUntil('/login', (route) => false);
+          Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+            logoutRoute,
+            (route) => false,
+          );
         },
       ),
       body: SafeArea(
@@ -1613,6 +1612,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
   late final TextEditingController _ownerNameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+  late final TextEditingController _confirmPasswordController;
   late final TextEditingController _businessTypeController;
   late final TextEditingController _gstController;
   late final TextEditingController _panController;
@@ -1626,6 +1627,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
   late final TextEditingController _ifscController;
   bool _saving = false;
   bool get _isEditing => widget.vendor != null;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   String? _storeLogo;
@@ -1647,6 +1650,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     _ownerNameController = TextEditingController(text: vendor?.ownerName ?? '');
     _phoneController = TextEditingController(text: vendor?.phone ?? '');
     _emailController = TextEditingController(text: vendor?.email ?? '');
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
     _businessTypeController = TextEditingController(
       text: vendor?.businessType ?? '',
     );
@@ -1697,6 +1702,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     _ownerNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _businessTypeController.dispose();
     _gstController.dispose();
     _panController.dispose();
@@ -1757,11 +1764,24 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
       _showError('Vendor name is required');
       return;
     }
+    if (!_isEditing) {
+      final password = _passwordController.text.trim();
+      final confirmPassword = _confirmPasswordController.text.trim();
+      if (password.isEmpty || confirmPassword.isEmpty) {
+        _showError('Password and confirm password are required');
+        return;
+      }
+      if (password != confirmPassword) {
+        _showError('Passwords do not match');
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final state = context.read<AppState>();
+      late final VendorModel savedVendor;
       if (_isEditing) {
-        await state.updateVendor(
+        savedVendor = await state.updateVendor(
           vendorId: widget.vendor!.id,
           name: name,
           ownerName: _ownerNameController.text.trim(),
@@ -1784,12 +1804,14 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           cancelledChequeUrl: _cancelledCheque ?? '',
         );
       } else {
-        await state.createVendor(
+        savedVendor = await state.createVendor(
           name: name,
           vendorId: _vendorIdController.text.trim(),
           ownerName: _ownerNameController.text.trim(),
           phone: _phoneController.text.trim(),
           email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          confirmPassword: _confirmPasswordController.text.trim(),
           businessType: _businessTypeController.text.trim(),
           gstin: _gstController.text.trim(),
           panNumber: _panController.text.trim(),
@@ -1808,13 +1830,16 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
         );
       }
       if (!mounted) return;
-      Navigator.pop(context, true);
+      Navigator.of(context).pop(savedVendor);
     } on ApiException catch (error) {
       if (!mounted) return;
       _showError(error.message);
     } on StateError catch (error) {
       if (!mounted) return;
       _showError(error.message);
+    } catch (error) {
+      if (!mounted) return;
+      _showError('Unable to save vendor: ${error.toString()}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1918,6 +1943,51 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                   ],
                 ),
                 const SizedBox(height: 16),
+                if (!_isEditing) ...[
+                  _FormSection(
+                    title: 'Login Credentials',
+                    subtitle: 'Used by the vendor to sign in',
+                    children: [
+                    _buildTextField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      obscureText: _obscurePassword,
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: const Color(0xFFE8541A),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildTextField(
+                      controller: _confirmPasswordController,
+                      label: 'Confirm Password',
+                      icon: Icons.lock_reset_rounded,
+                      obscureText: _obscureConfirmPassword,
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
+                        ),
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: const Color(0xFFE8541A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                  const SizedBox(height: 16),
+                ],
                 _FormSection(
                   title: 'Business Details',
                   subtitle: 'Registration and address information',
@@ -2101,7 +2171,9 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
         ),
         actions: [
           TextButton(
-            onPressed: _saving ? null : () => Navigator.pop(context),
+            onPressed: _saving
+                ? null
+                : () => Navigator.of(context, rootNavigator: true).pop(),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
@@ -2160,7 +2232,9 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     required IconData icon,
     TextInputType? keyboardType,
     bool enabled = true,
+    bool obscureText = false,
     String? helper,
+    Widget? suffixIcon,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -2176,6 +2250,7 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
             controller: controller,
             enabled: enabled,
             keyboardType: keyboardType,
+            obscureText: obscureText,
             decoration: InputDecoration(
               labelText: label,
               labelStyle: const TextStyle(
@@ -2183,6 +2258,7 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                 fontWeight: FontWeight.w600,
               ),
               prefixIcon: Icon(icon, color: const Color(0xFFE8541A)),
+              suffixIcon: suffixIcon,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

@@ -1360,9 +1360,70 @@ class _ProductRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = _sectionProducts(state.products, 'fresh_picks');
+        final products = _freshPickProducts(state.products);
+        if (products.isEmpty) {
+          return SizedBox(
+            height: 352,
+            child: Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _kBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: _kGreenLight,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.local_fire_department_rounded,
+                        color: _kGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No fresh picks yet',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: _kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Vendors can mark products as fresh picks while adding them.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _kTextMid,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         return SizedBox(
-          height: 320,
+          height: 352,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
@@ -2291,6 +2352,12 @@ List<ProductModel> _sectionProducts(
       .where((product) => product.dashboardSection == section)
       .toList();
   return scoped.isNotEmpty ? scoped : List<ProductModel>.from(products);
+}
+
+List<ProductModel> _freshPickProducts(List<ProductModel> products) {
+  return products
+      .where((product) => product.dashboardSection == 'fresh_picks')
+      .toList();
 }
 
 class _TopOffersFeed extends StatelessWidget {

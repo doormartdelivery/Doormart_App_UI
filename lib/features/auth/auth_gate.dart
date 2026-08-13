@@ -9,6 +9,7 @@ import '../../views/user/user_home_screen.dart';
 import '../../views/user/login_screen.dart';
 import '../../views/admin/admin_dashboard_screen.dart';
 import '../../views/super_admin/super_admin_dashboard_screen.dart';
+import '../../views/vendor/vendor_dashboard_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -66,6 +67,7 @@ class _AuthGateState extends State<AuthGate> {
       _target = switch (role) {
         UserRoles.deliveryPerson => const DeliveryHomeScreen(),
         UserRoles.admin => const AdminDashboardScreen(),
+        UserRoles.vendor => const VendorDashboardScreen(),
         UserRoles.superAdmin => const SuperAdminDashboardScreen(),
         UserRoles.user => const UserHomeScreen(),
         _ => null,

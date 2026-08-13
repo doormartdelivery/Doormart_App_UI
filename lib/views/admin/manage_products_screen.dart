@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../models/product_model.dart';
+import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../app_page.dart';
 import 'admin_logout_confirm.dart';
@@ -34,6 +33,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
   String _query = '';
+  Future<List<VendorModel>>? _vendorsFuture;
 
   @override
   void initState() {
@@ -41,6 +41,11 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     Future.microtask(() async {
       final state = context.read<AppState>();
       await Future.wait([state.loadProducts(), state.loadCategories()]);
+      if (!mounted) return;
+      if (state.user?.role == UserRoles.superAdmin) {
+        _vendorsFuture = state.adminVendors();
+        if (mounted) setState(() {});
+      }
     });
   }
 
@@ -73,17 +78,32 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     }).toList();
   }
 
-  List<ProductModel> _sortedProducts(List<ProductModel> products) {
+  List<ProductModel> _sortedProducts(
+    List<ProductModel> products, {
+    required bool showVendorColumn,
+  }) {
     final sorted = [...products];
+    final categoryIndex = showVendorColumn ? 2 : 1;
+    final stockIndex = showVendorColumn ? 3 : 2;
+    final costIndex = showVendorColumn ? 4 : 3;
+    final priceIndex = showVendorColumn ? 5 : 4;
     int compare(ProductModel a, ProductModel b) {
-      return switch (_sortColumnIndex) {
-        0 => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        1 => a.category.toLowerCase().compareTo(b.category.toLowerCase()),
-        2 => a.stock.compareTo(b.stock),
-        3 => a.cost.compareTo(b.cost),
-        4 => a.price.compareTo(b.price),
-        _ => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-      };
+      if (_sortColumnIndex == 0) {
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      }
+      if (_sortColumnIndex == categoryIndex) {
+        return a.category.toLowerCase().compareTo(b.category.toLowerCase());
+      }
+      if (_sortColumnIndex == stockIndex) {
+        return a.stock.compareTo(b.stock);
+      }
+      if (_sortColumnIndex == costIndex) {
+        return a.cost.compareTo(b.cost);
+      }
+      if (_sortColumnIndex == priceIndex) {
+        return a.price.compareTo(b.price);
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
 
     sorted.sort((a, b) => _sortAscending ? compare(a, b) : -compare(a, b));
@@ -112,6 +132,18 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     setState(() {});
   }
 
+  Future<void> _openViewProductDetails(
+    ProductModel product, {
+    String vendorName = 'Main store',
+  }) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) =>
+          _ProductDetailsDialog(product: product, vendorName: vendorName),
+    );
+  }
+
   Future<void> _deleteProduct(ProductModel product) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -138,17 +170,25 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = context.read<AppState>().user?.role;
+    final isVendor = role == UserRoles.vendor;
+    final isSuperAdmin = role == UserRoles.superAdmin;
     return AppPage(
-      title: 'Manage products',
+      title: isSuperAdmin
+          ? 'Super admin products'
+          : isVendor
+          ? 'Vendor products'
+          : 'Manage products',
       scaffoldKey: _scaffoldKey,
       drawer: AdminSidebarDrawer(
         currentRoute: ManageProductsScreen.routeName,
         onLogout: () async {
           if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+          Navigator.pushNamedAndRemoveUntil(context, logoutRoute, (_) => false);
         },
       ),
       leading: Builder(
@@ -168,7 +208,10 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       children: [
         Consumer<AppState>(
           builder: (ctx, state, _) {
-            final allProducts = _sortedProducts(state.products);
+            final allProducts = _sortedProducts(
+              state.products,
+              showVendorColumn: isSuperAdmin,
+            );
             final products = _filteredProducts(allProducts);
 
             if (state.loading && products.isEmpty) {
@@ -184,34 +227,100 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
               return _EmptyState(onAdd: _openAddProductForm);
             }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HeroCard(products: allProducts, onAdd: _openAddProductForm),
-                const SizedBox(height: 14),
-                _SearchField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _query = v),
-                  onClear: _query.isEmpty
-                      ? null
-                      : () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                ),
-                const SizedBox(height: 14),
-                if (products.isEmpty)
-                  const _NothingFound()
-                else
-                  _ProductsTable(
-                    products: products,
-                    sortColumnIndex: _sortColumnIndex,
-                    sortAscending: _sortAscending,
-                    onSort: _sortBy,
-                    onEdit: _openEditProductForm,
-                    onDelete: _deleteProduct,
+            if (!isSuperAdmin) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _HeroCard(
+                    products: allProducts,
+                    onAdd: _openAddProductForm,
+                    isVendor: isVendor,
                   ),
-              ],
+                  const SizedBox(height: 14),
+                  _SearchField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() => _query = v),
+                    onClear: _query.isEmpty
+                        ? null
+                        : () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                  ),
+                  const SizedBox(height: 14),
+                  if (products.isEmpty)
+                    const _NothingFound()
+                  else
+                    _ProductsTable(
+                      products: products,
+                      sortColumnIndex: _sortColumnIndex,
+                      sortAscending: _sortAscending,
+                      onSort: _sortBy,
+                      onEdit: _openEditProductForm,
+                      onDelete: _deleteProduct,
+                      onView: (product) => _openViewProductDetails(product),
+                      showVendorColumn: false,
+                      resolveVendorName: _resolveVendorName,
+                    ),
+                ],
+              );
+            }
+
+            return FutureBuilder<List<VendorModel>>(
+              future: _vendorsFuture ?? state.adminVendors(),
+              builder: (context, vendorSnapshot) {
+                final vendors = vendorSnapshot.data ?? const <VendorModel>[];
+                String resolveVendorName(String vendorId) =>
+                    _resolveVendorName(vendorId, vendors);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _HeroCard(
+                      products: allProducts,
+                      onAdd: _openAddProductForm,
+                      isVendor: isVendor,
+                    ),
+                    const SizedBox(height: 14),
+                    _SearchField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _query = v),
+                      onClear: _query.isEmpty
+                          ? null
+                          : () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                    ),
+                    const SizedBox(height: 14),
+                    if (vendorSnapshot.connectionState ==
+                            ConnectionState.waiting &&
+                        vendors.isEmpty &&
+                        products.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (products.isEmpty)
+                      const _NothingFound()
+                    else
+                      _ProductsTable(
+                        products: products,
+                        sortColumnIndex: _sortColumnIndex,
+                        sortAscending: _sortAscending,
+                        onSort: _sortBy,
+                        onEdit: _openEditProductForm,
+                        onDelete: _deleteProduct,
+                        onView: (product) => _openViewProductDetails(
+                          product,
+                          vendorName: resolveVendorName(product.vendorId),
+                        ),
+                        showVendorColumn: true,
+                        resolveVendorName: resolveVendorName,
+                      ),
+                  ],
+                );
+              },
             );
           },
         ),
@@ -282,7 +391,11 @@ class _AdminDrawer extends StatelessWidget {
         ),
       ('Products', Icons.inventory_2_rounded, ManageProductsScreen.routeName),
       if (isSuperAdmin)
-        ('Categories', Icons.category_rounded, ManageCategoriesScreen.routeName),
+        (
+          'Categories',
+          Icons.category_rounded,
+          ManageCategoriesScreen.routeName,
+        ),
       if (isSuperAdmin)
         ('Banners', Icons.slideshow_rounded, ManageBannersScreen.routeName),
       if (isSuperAdmin)
@@ -434,9 +547,14 @@ class _AdminDrawer extends StatelessWidget {
 // ─── Hero Card ────────────────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.products, required this.onAdd});
+  const _HeroCard({
+    required this.products,
+    required this.onAdd,
+    required this.isVendor,
+  });
   final List<ProductModel> products;
   final VoidCallback onAdd;
+  final bool isVendor;
 
   @override
   Widget build(BuildContext context) {
@@ -479,10 +597,10 @@ class _HeroCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Product inventory',
-                  style: TextStyle(
+                  isVendor ? 'Vendor inventory' : 'Product inventory',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFF1A1A1A),
@@ -502,9 +620,9 @@ class _HeroCard extends StatelessWidget {
                 ),
                 onPressed: onAdd,
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text(
-                  'Add Product',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                label: Text(
+                  isVendor ? 'Add Product' : 'Add Product',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -516,7 +634,7 @@ class _HeroCard extends StatelessWidget {
             children: [
               _Metric(
                 '${products.length}',
-                'Products',
+                isVendor ? 'Your products' : 'Products',
                 Icons.widgets_rounded,
                 const Color(0xFFE8541A),
                 const Color(0xFFFFF0EB),
@@ -668,6 +786,9 @@ class _ProductsTable extends StatelessWidget {
     required this.onSort,
     required this.onEdit,
     required this.onDelete,
+    required this.onView,
+    required this.showVendorColumn,
+    required this.resolveVendorName,
   });
 
   final List<ProductModel> products;
@@ -676,6 +797,9 @@ class _ProductsTable extends StatelessWidget {
   final ValueChanged<int> onSort;
   final ValueChanged<ProductModel> onEdit;
   final ValueChanged<ProductModel> onDelete;
+  final Future<void> Function(ProductModel product) onView;
+  final bool showVendorColumn;
+  final String Function(String vendorId) resolveVendorName;
 
   @override
   Widget build(BuildContext context) {
@@ -722,24 +846,25 @@ class _ProductsTable extends StatelessWidget {
                     label: const Text('Product'),
                     onSort: (_, __) => onSort(0),
                   ),
+                  if (showVendorColumn) const DataColumn(label: Text('Vendor')),
                   DataColumn(
                     label: const Text('Category'),
-                    onSort: (_, __) => onSort(1),
+                    onSort: (_, __) => onSort(showVendorColumn ? 2 : 1),
                   ),
                   DataColumn(
                     label: const Text('Stock'),
                     numeric: true,
-                    onSort: (_, __) => onSort(2),
+                    onSort: (_, __) => onSort(showVendorColumn ? 3 : 2),
                   ),
                   DataColumn(
                     label: const Text('Cost'),
                     numeric: true,
-                    onSort: (_, __) => onSort(3),
+                    onSort: (_, __) => onSort(showVendorColumn ? 4 : 3),
                   ),
                   DataColumn(
                     label: const Text('Price'),
                     numeric: true,
-                    onSort: (_, __) => onSort(4),
+                    onSort: (_, __) => onSort(showVendorColumn ? 5 : 4),
                   ),
                   const DataColumn(label: Text('Unit')),
                   const DataColumn(label: Text('Actions')),
@@ -756,6 +881,12 @@ class _ProductsTable extends StatelessWidget {
                     }),
                     cells: [
                       DataCell(_ProductNameCell(product: p)),
+                      if (showVendorColumn)
+                        DataCell(
+                          _VendorBadge(
+                            vendorName: resolveVendorName(p.vendorId),
+                          ),
+                        ),
                       DataCell(_CategoryBadge(category: p.category)),
                       DataCell(_StockBadge(stock: p.stock)),
                       DataCell(Text('Rs ${p.cost.toStringAsFixed(0)}')),
@@ -773,6 +904,22 @@ class _ProductsTable extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFE8541A),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                              ),
+                              onPressed: () => onView(p),
+                              icon: const Icon(
+                                Icons.visibility_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('View'),
+                            ),
+                            const SizedBox(width: 4),
                             IconButton(
                               tooltip: 'Edit',
                               icon: const Icon(Icons.edit_rounded, size: 20),
@@ -796,6 +943,29 @@ class _ProductsTable extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorBadge extends StatelessWidget {
+  const _VendorBadge({required this.vendorName});
+  final String vendorName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8541A).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        vendorName,
+        style: const TextStyle(
+          color: Color(0xFFE8541A),
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -900,6 +1070,207 @@ class _StockBadge extends StatelessWidget {
         style: TextStyle(color: color, fontWeight: FontWeight.w900),
       ),
     );
+  }
+}
+
+class _ProductDetailsDialog extends StatelessWidget {
+  const _ProductDetailsDialog({
+    required this.product,
+    this.vendorName = 'Main store',
+  });
+
+  final ProductModel product;
+  final String vendorName;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = product.imageUrl.trim();
+    final hasImage = imageUrl.startsWith('http');
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      title: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.visibility_rounded,
+              color: Color(0xFFE8541A),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Product details',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 640,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  height: 190,
+                  width: double.infinity,
+                  child: hasImage
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const _ImagePlaceholder(),
+                        )
+                      : const _ImagePlaceholder(),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _InfoPill(label: 'Product ID', value: product.id),
+                  _InfoPill(label: 'Vendor', value: vendorName),
+                  _InfoPill(label: 'Vendor ID', value: product.vendorId),
+                  _InfoPill(label: 'Category', value: product.category),
+                  _InfoPill(label: 'Stock', value: '${product.stock}'),
+                  _InfoPill(label: 'Cost', value: 'Rs ${product.cost}'),
+                  _InfoPill(label: 'Price', value: 'Rs ${product.price}'),
+                  _InfoPill(label: 'MRP', value: 'Rs ${product.mrp}'),
+                  _InfoPill(label: 'Unit', value: product.unit),
+                  _InfoPill(label: 'Rating', value: product.rating.toString()),
+                  _InfoPill(
+                    label: 'Section',
+                    value: _sectionLabel(product.dashboardSection),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Description',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Text(
+                  product.description.trim().isEmpty
+                      ? 'No description provided'
+                      : product.description,
+                  style: const TextStyle(
+                    color: Color(0xFF334155),
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFE8541A),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 170),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF9E9E9E),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value.isEmpty ? '-' : value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _resolveVendorName(
+  String vendorId, [
+  List<VendorModel> vendors = const [],
+]) {
+  final value = vendorId.trim();
+  if (value.isEmpty || value == 'main') {
+    return 'Main store';
+  }
+  for (final vendor in vendors) {
+    if (vendor.vendorId == value || vendor.id == value) {
+      final name = vendor.name.trim();
+      return name.isEmpty ? value : name;
+    }
+  }
+  return value;
+}
+
+String _sectionLabel(String section) {
+  switch (section) {
+    case 'fresh_picks':
+      return 'Fresh picks';
+    case 'daily_essentials':
+      return 'Daily essentials';
+    case 'popular_products':
+      return 'Popular products';
+    default:
+      return section;
   }
 }
 

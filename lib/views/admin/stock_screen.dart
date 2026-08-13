@@ -114,6 +114,9 @@ class _StockScreenState extends State<StockScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin =
+        context.read<AppState>().user?.role == UserRoles.admin ||
+            context.read<AppState>().user?.role == UserRoles.superAdmin;
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F6F6),
@@ -122,9 +125,14 @@ class _StockScreenState extends State<StockScreen>
         onLogout: () async {
           if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            logoutRoute,
+            (route) => false,
+          );
         },
       ),
       body: SafeArea(
@@ -189,13 +197,15 @@ class _StockScreenState extends State<StockScreen>
                     _AnimatedIn(
                       animation: _controller,
                       index: 2,
-                      child: _CheckoutConfigCard(
-                        deliveryChargeController: _deliveryChargeController,
-                        gstController: _gstController,
-                        currentDeliveryCharge: context.read<AppState>().deliveryChargeAmount,
-                        currentGstPercent: context.read<AppState>().gstPercent,
-                        onSave: _saveCheckoutSettings,
-                      ),
+                      child: isAdmin
+                          ? _CheckoutConfigCard(
+                              deliveryChargeController: _deliveryChargeController,
+                              gstController: _gstController,
+                              currentDeliveryCharge: context.read<AppState>().deliveryChargeAmount,
+                              currentGstPercent: context.read<AppState>().gstPercent,
+                              onSave: _saveCheckoutSettings,
+                            )
+                          : const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 16),
                     _AnimatedIn(

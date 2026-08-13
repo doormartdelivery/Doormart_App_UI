@@ -5,8 +5,8 @@ import '../../core/constants.dart';
 import '../../mascot/walking_mascot_widget.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
-import 'admin_logout_confirm.dart';
 import 'admin_notifications_screen.dart';
+import 'admin_logout_confirm.dart';
 import 'admin_orders_screen.dart';
 import 'help_support_management_screen.dart';
 import 'manage_categories_screen.dart';
@@ -52,13 +52,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Navigator.pop(context);
         },
         onLogout: () async {
-          if (!await confirmAdminLogout(context)) return;
-          Navigator.pop(context);
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/login',
+          Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+            logoutRoute,
             (route) => false,
           );
         },
@@ -321,7 +319,10 @@ class _AdminDrawer extends StatelessWidget {
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: onLogout,
+                    onPressed: () async {
+                      if (!await confirmAdminLogout(context)) return;
+                      await onLogout();
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _kOrange,
                       side: const BorderSide(color: _kOrange),
@@ -394,7 +395,16 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vendorId = context.watch<AppState>().user?.vendorId ?? 'main';
+    final state = context.watch<AppState>();
+    final vendorId = state.user?.vendorId ?? 'main';
+    final isSuperAdmin = state.user?.role == UserRoles.superAdmin;
+    final superAdminLabel = isSuperAdmin ? 'Super Admin main' : 'Vendor main';
+    final roleLabel = isSuperAdmin ? 'Super Admin' : 'Vendor';
+    final dashboardTitle =
+        isSuperAdmin ? 'Super Admin dashboard' : 'Vendor dashboard';
+    final dashboardSubtitle = isSuperAdmin
+        ? 'Track orders, products, categories, users, and delivery operations from one place.'
+        : 'Track your orders and manage your own products from one place.';
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: Container(
@@ -475,7 +485,9 @@ class _HeroCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      'Vendor $vendorId',
+                      vendorId.toLowerCase() == 'main'
+                          ? superAdminLabel
+                          : '$roleLabel $vendorId',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -484,24 +496,24 @@ class _HeroCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 18,
+              ),
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 18,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Vendor dashboard',
+                    dashboardTitle,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: _kTextDark,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Track orders, products, categories, users, and delivery operations from one place.',
+                  Text(
+                    dashboardSubtitle,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

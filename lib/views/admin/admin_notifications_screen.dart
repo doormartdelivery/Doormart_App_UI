@@ -352,9 +352,14 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         onLogout: () async {
           if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            logoutRoute,
+            (route) => false,
+          );
         },
       ),
       body: SafeArea(

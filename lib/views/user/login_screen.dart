@@ -149,6 +149,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (_loading) return;
     setState(() => _error = null);
     HapticFeedback.mediumImpact();
+    await context.read<AppState>().logout();
     if (!mounted) return;
     Navigator.of(
       context,
