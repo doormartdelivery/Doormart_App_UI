@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import '../../features/delivery/screens/delivery_home_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
+import '../vendor/vendor_dashboard_screen.dart';
 import 'user_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -50,6 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
       final target = switch (state.user?.role) {
         'delivery_person' => const DeliveryHomeScreen(),
         'admin' => const AdminDashboardScreen(),
+        'vendor' => const VendorDashboardScreen(),
         'super_admin' => const SuperAdminDashboardScreen(),
         'user' => const UserHomeScreen(),
         _ => const LoginScreen(),

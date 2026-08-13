@@ -72,6 +72,21 @@ class AppState extends ChangeNotifier {
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
   bool get signedIn => token != null;
+  String get logoutRouteName {
+    switch (user?.role) {
+      case UserRoles.vendor:
+        return '/vendor/login';
+      case UserRoles.superAdmin:
+        return '/super-admin/login';
+      case UserRoles.admin:
+        return '/admin/login';
+      case UserRoles.deliveryPerson:
+        return '/delivery/login';
+      case UserRoles.user:
+      default:
+        return '/login';
+    }
+  }
 
   Future<void> bootstrap() async {
     try {
@@ -513,7 +528,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    final currentToken = await _messagingService.getToken();
+    final currentToken = await _messagingService.getTokenSafe();
     if (token != null && currentToken != null && currentToken.isNotEmpty) {
       try {
         await _messagingService.removeToken(
@@ -790,8 +805,10 @@ class AppState extends ChangeNotifier {
     String? fileName,
   }) async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
-      throw StateError('Admin login required');
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.vendor &&
+            user?.role != UserRoles.superAdmin)) {
+      throw StateError('Vendor or admin login required');
     }
 
     final data =
@@ -821,8 +838,10 @@ class AppState extends ChangeNotifier {
     String imageUrl = '',
   }) async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
-      throw StateError('Admin login required');
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.vendor &&
+            user?.role != UserRoles.superAdmin)) {
+      throw StateError('Vendor or admin login required');
     }
 
     final data =
@@ -865,8 +884,10 @@ class AppState extends ChangeNotifier {
     String imageUrl = '',
   }) async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
-      throw StateError('Admin login required');
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.vendor &&
+            user?.role != UserRoles.superAdmin)) {
+      throw StateError('Vendor or admin login required');
     }
 
     final data =
@@ -902,8 +923,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteProduct(String productId) async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
-      throw StateError('Admin login required');
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.vendor &&
+            user?.role != UserRoles.superAdmin)) {
+      throw StateError('Vendor or admin login required');
     }
 
     await apiService.delete('/products/$productId', token: token);
@@ -1002,7 +1025,9 @@ class AppState extends ChangeNotifier {
 
   Future<Map<String, dynamic>> adminDashboard() async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.vendor &&
+            user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
     return await apiService.get('/admin/dashboard', token: token)
@@ -1238,7 +1263,10 @@ class AppState extends ChangeNotifier {
       throw StateError('Super admin login required');
     }
     final data =
-        await apiService.get('/super-admin/vendors', token: token)
+        await apiService.get(
+              '/super-admin/vendors?_ts=${DateTime.now().millisecondsSinceEpoch}',
+              token: token,
+            )
             as List<dynamic>;
     return data
         .whereType<Map<String, dynamic>>()
@@ -1252,6 +1280,8 @@ class AppState extends ChangeNotifier {
     String ownerName = '',
     String phone = '',
     String email = '',
+    String password = '',
+    String confirmPassword = '',
     String businessType = '',
     String gstin = '',
     String panNumber = '',
@@ -1283,6 +1313,8 @@ class AppState extends ChangeNotifier {
                 'ownerName': ownerName,
                 'phone': phone,
                 'email': email,
+                'password': password,
+                'confirmPassword': confirmPassword,
                 'businessType': businessType,
                 'gstin': gstin,
                 'panNumber': panNumber,

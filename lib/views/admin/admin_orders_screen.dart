@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../models/order_model.dart';
+import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
@@ -38,6 +39,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   bool _sortAscending = false;
   String _query = '';
   String? _vendorFilter;
+  Map<String, VendorModel> _vendorLookup = {};
 
   @override
   void initState() {
@@ -46,7 +48,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..forward();
-    context.read<AppState>().loadAdminOrders();
+    final state = context.read<AppState>();
+    state.loadAdminOrders();
+    if (state.user?.role == UserRoles.superAdmin) {
+      _loadVendorLookup();
+    }
     _startPolling();
   }
 
@@ -55,9 +61,35 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
       if (!mounted) return false;
       await Future.delayed(const Duration(seconds: 4));
       if (!mounted) return false;
-      await context.read<AppState>().loadAdminOrders();
+      final state = context.read<AppState>();
+      await state.loadAdminOrders();
+      if (state.user?.role == UserRoles.superAdmin) {
+        await _loadVendorLookup();
+      }
       return true;
     });
+  }
+
+  Future<void> _loadVendorLookup() async {
+    final state = context.read<AppState>();
+    if (state.user?.role != UserRoles.superAdmin) {
+      if (mounted) {
+        setState(() => _vendorLookup = {});
+      }
+      return;
+    }
+    try {
+      final vendors = await state.adminVendors();
+      if (!mounted) return;
+      setState(() {
+        _vendorLookup = {
+          for (final vendor in vendors) vendor.vendorId: vendor,
+          for (final vendor in vendors) vendor.id: vendor,
+        };
+      });
+    } catch (error) {
+      debugPrint('Vendor lookup skipped: $error');
+    }
   }
 
   @override
@@ -73,7 +105,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   }
 
   Future<void> _refreshOrders() async {
-    await context.read<AppState>().loadAdminOrders();
+    final state = context.read<AppState>();
+    await state.loadAdminOrders();
+    if (state.user?.role == UserRoles.superAdmin) {
+      await _loadVendorLookup();
+    }
     if (!mounted) return;
     setState(() {
       _animationController
@@ -122,12 +158,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     if (query.isEmpty) return orders;
 
     return orders.where((order) {
+      final vendor = _vendorLookup[order.vendorId];
+      final vendorLocation = _vendorLocationLabel(vendor);
       return order.id.toLowerCase().contains(query) ||
           order.displayOrderId.toLowerCase().contains(query) ||
           _shortId(order.id).toLowerCase().contains(query) ||
           _statusLabel(order.status).toLowerCase().contains(query) ||
           order.total.toStringAsFixed(0).contains(query) ||
           (order.deliveryPersonName ?? '').toLowerCase().contains(query) ||
+          _vendorLabel(order.vendorId).toLowerCase().contains(query) ||
+          (vendor?.name ?? '').toLowerCase().contains(query) ||
+          vendorLocation.toLowerCase().contains(query) ||
           order.customerName.toLowerCase().contains(query) ||
           order.customerPhone.toLowerCase().contains(query) ||
           order.customerAddress.toLowerCase().contains(query) ||
@@ -144,9 +185,14 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
         onLogout: () async {
           if (!await confirmAdminLogout(context)) return;
           Navigator.pop(context);
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            logoutRoute,
+            (route) => false,
+          );
         },
       ),
       // appBar: AppBar(
@@ -226,6 +272,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                       : _OrdersTable(
                           orders: orders,
                           showVendor: isSuperAdmin,
+                          vendorLookup: _vendorLookup,
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _sortAscending,
                           onSort: _sortBy,
@@ -307,7 +354,6 @@ class _AdminDrawer extends StatelessWidget {
                       Color(0xFFDC2626),
                     ];
                     final accent = accentColors[index % accentColors.length];
-                    final selected = item.$3 == AdminOrdersScreen.routeName;
                     return Material(
                       color: _kCard,
                       borderRadius: BorderRadius.circular(18),
@@ -825,6 +871,7 @@ class _OrdersTable extends StatelessWidget {
   const _OrdersTable({
     required this.orders,
     required this.showVendor,
+    required this.vendorLookup,
     required this.sortColumnIndex,
     required this.sortAscending,
     required this.onSort,
@@ -833,6 +880,7 @@ class _OrdersTable extends StatelessWidget {
 
   final List<OrderModel> orders;
   final bool showVendor;
+  final Map<String, VendorModel> vendorLookup;
   final int sortColumnIndex;
   final bool sortAscending;
   final ValueChanged<int> onSort;
@@ -908,9 +956,11 @@ class _OrdersTable extends StatelessWidget {
                           onSort: (_, __) => onSort(0),
                         ),
                         if (showVendor) const DataColumn(label: Text('Vendor')),
+                        if (showVendor)
+                          const DataColumn(label: Text('Vendor Location')),
                         const DataColumn(label: Text('Customer')),
                         const DataColumn(label: Text('Phone')),
-                        const DataColumn(label: Text('Address')),
+                        const DataColumn(label: Text('Customer Address')),
                         DataColumn(
                           label: const Text('Placed Time'),
                           onSort: (_, __) => onSort(0),
@@ -991,6 +1041,20 @@ class _OrdersTable extends StatelessWidget {
                                   index: index,
                                   child: _VendorBadge(
                                     vendorId: order.vendorId,
+                                    vendorName:
+                                        vendorLookup[order.vendorId]?.name,
+                                  ),
+                                ),
+                              ),
+                            if (showVendor)
+                              DataCell(
+                                _TableCellIn(
+                                  animationKey: '${order.id}-vendor-location',
+                                  index: index,
+                                  child: _VendorLocationBadge(
+                                    location: _vendorLocationLabel(
+                                      vendorLookup[order.vendorId],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1440,9 +1504,10 @@ class _InvoiceTotalBox extends StatelessWidget {
 }
 
 class _VendorBadge extends StatelessWidget {
-  const _VendorBadge({required this.vendorId});
+  const _VendorBadge({required this.vendorId, this.vendorName});
 
   final String vendorId;
+  final String? vendorName;
 
   @override
   Widget build(BuildContext context) {
@@ -1453,6 +1518,63 @@ class _VendorBadge extends StatelessWidget {
     final background = isMain
         ? const Color(0xFFCCFBF1)
         : const Color(0xFFEDE9FE);
+    final label = vendorName?.trim().isNotEmpty == true
+        ? vendorName!.trim()
+        : _vendorLabel(vendorId);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.storefront, size: 13, color: color),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'ID: ${_vendorLabel(vendorId)}',
+            style: TextStyle(
+              color: color.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w700,
+              fontSize: 10.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorLocationBadge extends StatelessWidget {
+  const _VendorLocationBadge({required this.location});
+
+  final String location;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = location.trim().isNotEmpty && location.trim() != '-';
+    final color = hasLocation ? const Color(0xFF0F766E) : const Color(0xFF64748B);
+    final background = hasLocation
+        ? const Color(0xFFEAF7EF)
+        : const Color(0xFFF1F5F9);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1464,10 +1586,10 @@ class _VendorBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.storefront, size: 13, color: color),
+          Icon(Icons.location_on_outlined, size: 13, color: color),
           const SizedBox(width: 5),
           Text(
-            _vendorLabel(vendorId),
+            hasLocation ? location : '-',
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w800,
@@ -1865,6 +1987,23 @@ String _vendorLabel(String vendorId) {
   if (raw.isEmpty || raw == 'main') return 'Main';
   final readable = raw.replaceFirst(RegExp(r'^vendor[-_]', caseSensitive: false), '');
   return _titleCase(readable);
+}
+
+String _vendorLocationLabel(VendorModel? vendor) {
+  if (vendor == null) return '-';
+  final parts = <String>[
+    vendor.city.trim(),
+    vendor.state.trim(),
+  ].where((part) => part.isNotEmpty).toList();
+  if (parts.isNotEmpty) {
+    final cityState = parts.join(', ');
+    if (vendor.pincode.trim().isNotEmpty) {
+      return '$cityState - ${vendor.pincode.trim()}';
+    }
+    return cityState;
+  }
+  if (vendor.address.trim().isNotEmpty) return vendor.address.trim();
+  return '-';
 }
 
 String _titleCase(String value) {

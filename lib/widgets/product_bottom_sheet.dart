@@ -6,7 +6,6 @@ import '../models/product_model.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
-const _kOrangeDeep = Color(0xFFD44010);
 const _kOrangeLight = Color(0xFFFFF0EB);
 const _kGreen = Color(0xFF0F9D58);
 const _kGreenLight = Color(0xFFEAF7EF);
@@ -246,6 +245,11 @@ class _ProductSheetState extends State<_ProductSheet>
 
                     // Delivery promise strip
                     _DeliveryStrip(),
+
+                    const SizedBox(height: 14),
+
+                    // Vendor / source block
+                    _VendorSourceCard(product: product),
 
                     const SizedBox(height: 14),
 
@@ -632,6 +636,83 @@ class _DeliveryStrip extends StatelessWidget {
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorSourceCard extends StatelessWidget {
+  const _VendorSourceCard({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final vendorName = _vendorNameFor(product);
+    final vendorCity = product.supplierCity.trim();
+    final sourceLine = vendorName == 'Doormart Main Store'
+        ? 'Fulfilled from the main store'
+        : 'Fulfilled by $vendorName';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8F4),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF7D9C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: _kOrange,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Sourced directly from',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            vendorName,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            vendorCity.isEmpty ? sourceLine : '$sourceLine in $vendorCity',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+              height: 1.4,
             ),
           ),
         ],
@@ -1056,6 +1137,12 @@ String _unitLabel(String value) {
 String _descriptionFor(ProductModel product) {
   return 'Fresh ${product.name.toLowerCase()} — sourced directly and '
       'delivered to your door in under 10 minutes.';
+}
+
+String _vendorNameFor(ProductModel product) {
+  final supplier = product.supplierName.trim();
+  if (supplier.isNotEmpty) return supplier;
+  return 'Doormart Main Store';
 }
 
 Color _categoryAccent(String category) {

@@ -232,11 +232,12 @@ class _HelpSupportManagementScreenState
       drawer: AdminSidebarDrawer(
         currentRoute: HelpSupportManagementScreen.routeName,
         onLogout: () async {
+          final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!mounted) return;
           Navigator.pushNamedAndRemoveUntil(
             context,
-            AdminDashboardScreen.routeName,
+            logoutRoute,
             (route) => false,
           );
         },

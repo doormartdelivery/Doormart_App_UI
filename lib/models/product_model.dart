@@ -10,6 +10,8 @@ class ProductModel {
     required this.stock,
     required this.imageUrl,
     this.vendorId = 'main',
+    this.supplierName = '',
+    this.supplierCity = '',
     this.description = '',
     this.dashboardSection = 'daily_essentials',
     this.rating = 0,
@@ -25,6 +27,8 @@ class ProductModel {
   final int stock;
   final String imageUrl;
   final String vendorId;
+  final String supplierName;
+  final String supplierCity;
   final String description;
   final String dashboardSection;
   final double rating;
@@ -36,7 +40,7 @@ class ProductModel {
     final stock = (json['stock'] as num?)?.toInt();
     final stockValue = (stockQuantity != null && stockQuantity > 0)
         ? stockQuantity
-        : (stock != null ? stock : (stockQuantity ?? 0));
+        : (stock ?? 0);
     return ProductModel(
       id: json['_id'] as String? ?? json['id'] as String,
       name: json['name'] as String,
@@ -46,6 +50,8 @@ class ProductModel {
       stock: (stockValue as num).toInt(),
       imageUrl: NetworkImageUrl.normalize(json['imageUrl'] as String?),
       vendorId: json['vendorId'] as String? ?? 'main',
+      supplierName: json['supplierName'] as String? ?? '',
+      supplierCity: json['supplierCity'] as String? ?? '',
       description: json['description'] as String? ?? '',
       dashboardSection:
           json['dashboardSection'] as String? ?? 'daily_essentials',
@@ -65,6 +71,8 @@ class ProductModel {
     'stock': stock,
     'imageUrl': imageUrl,
     'vendorId': vendorId,
+    'supplierName': supplierName,
+    'supplierCity': supplierCity,
     'description': description,
     'dashboardSection': dashboardSection,
     'rating': rating,

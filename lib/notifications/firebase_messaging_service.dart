@@ -76,6 +76,13 @@ class FirebaseMessagingService {
   }
 
   Future<String?> getToken() => FirebaseMessaging.instance.getToken();
+  Future<String?> getTokenSafe() async {
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (error) {
+      return null;
+    }
+  }
 
   Future<void> removeToken({
     required String token,

@@ -37,6 +37,10 @@ class AdminSidebarDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSuperAdmin =
         context.read<AppState>().user?.role == UserRoles.superAdmin;
+    final menuTitle = isSuperAdmin ? 'Super Admin menu' : 'Vendor menu';
+    final menuSubtitle = isSuperAdmin
+        ? 'Navigate the super admin control center'
+        : 'Navigate the vendor control center';
     final items = [
       (
         'Overview',
@@ -65,7 +69,7 @@ class AdminSidebarDrawer extends StatelessWidget {
           const Color(0xFFE8541A),
         ),
       (
-        'Products',
+        isSuperAdmin ? 'Products' : 'My Products',
         Icons.inventory_2,
         ManageProductsScreen.routeName,
         const Color(0xFF2563EB),
@@ -119,7 +123,7 @@ class AdminSidebarDrawer extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
                 child: Row(
                   children: [
@@ -134,7 +138,7 @@ class AdminSidebarDrawer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Vendor menu',
+                            menuTitle,
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               color: _kTextDark,
@@ -142,7 +146,7 @@ class AdminSidebarDrawer extends StatelessWidget {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Navigate the control center',
+                            menuSubtitle,
                             style: TextStyle(color: _kTextMid),
                           ),
                         ],
@@ -156,7 +160,7 @@ class AdminSidebarDrawer extends StatelessWidget {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final selected = item.$3 == currentRoute;
@@ -205,6 +209,8 @@ class AdminSidebarDrawer extends StatelessWidget {
                                           ? 'Back to dashboard'
                                           : item.$1 == 'Ticket Management'
                                           ? 'Manage user tickets'
+                                          : item.$1 == 'My Products'
+                                          ? 'Manage your catalog'
                                           : 'Open section',
                                       style: const TextStyle(
                                         color: _kTextMid,
@@ -232,7 +238,14 @@ class AdminSidebarDrawer extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      final navigator = Navigator.of(
+                        context,
+                        rootNavigator: true,
+                      );
                       if (!await confirmAdminLogout(context)) return;
+                      if (navigator.canPop()) {
+                        navigator.pop();
+                      }
                       await onLogout();
                     },
                     style: OutlinedButton.styleFrom(

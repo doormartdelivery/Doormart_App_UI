@@ -10,6 +10,7 @@ import 'core/role_access.dart';
 import 'providers/app_state.dart';
 import 'features/delivery/providers/delivery_provider.dart';
 import 'features/delivery/screens/delivery_home_screen.dart';
+import 'views/vendor/vendor_dashboard_screen.dart';
 import 'views/user/user_home_screen.dart';
 import 'views/user/splash_screen.dart';
 
@@ -50,9 +51,11 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
 
     final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
     navigator.pushNamedAndRemoveUntil(
-      targetRoute == DeliveryHomeScreen.routeName
-          ? DeliveryHomeScreen.routeName
-          : UserHomeScreen.routeName,
+      switch (targetRoute) {
+        DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+        VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
+        _ => UserHomeScreen.routeName,
+      },
       (route) => route.isFirst,
     );
   }
@@ -66,9 +69,11 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
 
     final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
     navigator.pushNamedAndRemoveUntil(
-      targetRoute == DeliveryHomeScreen.routeName
-          ? DeliveryHomeScreen.routeName
-          : UserHomeScreen.routeName,
+      switch (targetRoute) {
+        DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+        VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
+        _ => UserHomeScreen.routeName,
+      },
       (route) => route.isFirst,
     );
   }

@@ -45,7 +45,7 @@ class ProductCard extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                flex: 60,
+                flex: 58,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -88,9 +88,9 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               Expanded(
-                flex: 40,
+                flex: 42,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -106,6 +106,17 @@ class ProductCard extends StatelessWidget {
                               fontSize: 17,
                             ),
                       ),
+                      if (_storeLabel(product).isNotEmpty)
+                        Text(
+                          _storeLabel(product),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE8541A),
+                          ),
+                        ),
                       Text(
                         product.unit.trim().isEmpty
                             ? '1 item'
@@ -131,27 +142,27 @@ class ProductCard extends StatelessWidget {
                                   ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: const Color(0xFF101010),
-                                    fontSize: 15,
+                                    fontSize: 14,
                                   ),
                             ),
                           ),
                           const Icon(
                             Icons.timer,
-                            size: 12,
+                            size: 11,
                             color: Color(0xFFE8541A),
                           ),
                           const SizedBox(width: 2),
                           Text(
                             '${product.stock > 20 ? 10 : 18} min',
                             style: const TextStyle(
-                              fontSize: 9,
+                              fontSize: 8,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                       Container(
-                        height: 38,
+                        height: 34,
                         decoration: BoxDecoration(
                           color: const Color(0xFFE8541A),
                           borderRadius: BorderRadius.circular(14),
@@ -177,7 +188,7 @@ class ProductCard extends StatelessWidget {
                               'Add to Cart',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                             style: FilledButton.styleFrom(
@@ -202,6 +213,14 @@ class ProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _storeLabel(ProductModel product) {
+  final name = product.supplierName.trim();
+  final city = product.supplierCity.trim();
+  if (name.isEmpty) return '';
+  if (city.isEmpty) return name;
+  return '$name · $city';
 }
 
 class _ProductImage extends StatelessWidget {
