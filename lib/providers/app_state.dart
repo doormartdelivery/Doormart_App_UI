@@ -998,11 +998,44 @@ class AppState extends ChangeNotifier {
                   'scheduledFor': scheduledFor.toIso8601String(),
               },
             )
-            as Map<String, dynamic>;
-    final order = OrderModel.fromJson(data);
-    orders.insert(0, order);
-    clearCart();
-    return order;
+            as dynamic;
+    final createdOrders = _extractCreatedOrders(data);
+    if (createdOrders.isEmpty) {
+      throw StateError('Order creation failed');
+    }
+    orders.insertAll(0, createdOrders.reversed.toList());
+    await clearCart();
+    return createdOrders.first;
+  }
+
+  List<OrderModel> _extractCreatedOrders(dynamic data) {
+    if (data is List) {
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(OrderModel.fromJson)
+          .toList();
+    }
+
+    if (data is Map<String, dynamic>) {
+      final ordersJson = data['orders'];
+      if (ordersJson is List && ordersJson.isNotEmpty) {
+        return ordersJson
+            .whereType<Map<String, dynamic>>()
+            .map(OrderModel.fromJson)
+            .toList();
+      }
+
+      final orderJson = data['order'];
+      if (orderJson is Map<String, dynamic>) {
+        return [OrderModel.fromJson(orderJson)];
+      }
+
+      if (data.containsKey('_id') || data.containsKey('id')) {
+        return [OrderModel.fromJson(data)];
+      }
+    }
+
+    return const [];
   }
 
   Future<Map<String, dynamic>> loadCheckoutSummary() async {

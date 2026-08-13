@@ -47,8 +47,14 @@ class DeliveryOrderModel {
     required this.paymentType,
     required this.status,
     required this.createdAt,
+    this.customerLine1,
+    this.customerCity,
+    this.customerPincode,
     this.vendorStoreName,
     this.vendorAddress,
+    this.vendorPickupAddress,
+    this.vendorCity,
+    this.vendorPincode,
     this.vendorPhone,
     this.codAmount,
     this.orderId,
@@ -63,6 +69,9 @@ class DeliveryOrderModel {
   final String customerPhone;
   final String customerAddress;
   final String customerArea;
+  final String? customerLine1;
+  final String? customerCity;
+  final String? customerPincode;
   final List<DeliveryOrderItem> items;
   final double totalAmount;
   final String paymentType;
@@ -70,6 +79,9 @@ class DeliveryOrderModel {
   final DateTime createdAt;
   final String? vendorStoreName;
   final String? vendorAddress;
+  final String? vendorPickupAddress;
+  final String? vendorCity;
+  final String? vendorPincode;
   final String? vendorPhone;
   final DateTime? deliveredAt;
   final double? codAmount;
@@ -119,6 +131,12 @@ class DeliveryOrderModel {
       customerAddress: json['customerAddress'] as String? ??
           (addressText.isNotEmpty ? addressText : (json['address']?.toString() ?? '')),
       customerArea: json['customerArea'] as String? ?? addressMap?['area'] as String? ?? addressMap?['city'] as String? ?? json['area'] as String? ?? 'Unknown area',
+      customerLine1: json['customerLine1'] as String? ??
+          addressMap?['line1'] as String? ??
+          addressMap?['addressLine1'] as String? ??
+          addressMap?['street'] as String?,
+      customerCity: json['customerCity'] as String? ?? addressMap?['city'] as String?,
+      customerPincode: json['customerPincode'] as String? ?? addressMap?['pincode'] as String?,
       items: itemsJson.map(DeliveryOrderItem.fromJson).toList(),
       totalAmount: (json['totalAmount'] as num? ?? json['total'] as num? ?? 0).toDouble(),
       paymentType: json['paymentType'] as String? ?? json['paymentMethod'] as String? ?? json['payment_method'] as String? ?? 'Online',
@@ -126,6 +144,9 @@ class DeliveryOrderModel {
       createdAt: _parseDate(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
       vendorStoreName: json['vendorStoreName'] as String?,
       vendorAddress: json['vendorAddress'] as String?,
+      vendorPickupAddress: json['vendorPickupAddress'] as String?,
+      vendorCity: json['vendorCity'] as String?,
+      vendorPincode: json['vendorPincode'] as String?,
       vendorPhone: json['vendorPhone'] as String?,
       deliveredAt: _parseDate(json['deliveredAt'] as String? ?? json['completedAt'] as String? ?? json['deliveryCompletedAt'] as String? ?? ''),
       codAmount: (json['codAmount'] as num?)?.toDouble(),

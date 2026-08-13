@@ -103,6 +103,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             final selectedAddress = _resolveAddress(state);
             final canOrder =
                 addresses.isNotEmpty && state.cart.isNotEmpty && selectedAddress != null;
+            final vendorEntries = <String, String>{};
+            for (final line in state.cart) {
+              final vendorId = line.product.vendorId.trim().isEmpty
+                  ? 'main'
+                  : line.product.vendorId.trim();
+              final storeName = line.product.supplierName.trim().isNotEmpty
+                  ? line.product.supplierName.trim()
+                  : (vendorId == 'main' ? 'Main Store' : vendorId);
+              final city = line.product.supplierCity.trim();
+              vendorEntries.putIfAbsent(
+                vendorId,
+                () => city.isNotEmpty ? '$storeName, $city' : storeName,
+              );
+            }
+            final vendorLabels = vendorEntries.values.toList(growable: false);
+            final hasMultiVendorCart = vendorEntries.length > 1;
 
             return Column(
               children: [
@@ -208,6 +224,89 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             );
                           },
                         ),
+
+                        if (hasMultiVendorCart) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: _kOrangeLight,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.storefront_rounded,
+                                        color: _kOrange,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Text(
+                                        'Stores in your cart',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: _kTextDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'This cart will be split into separate orders by store.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF666666),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: vendorLabels
+                                      .map(
+                                        (label) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _kOrangeLight,
+                                            borderRadius: BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: _kOrange.withValues(alpha: 0.12),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            label,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: _kOrange,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
 
                         const SizedBox(height: 24),
 

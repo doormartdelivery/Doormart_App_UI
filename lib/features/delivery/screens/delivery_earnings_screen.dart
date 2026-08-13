@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/delivery_provider.dart';
+import '../widgets/delivery_sidebar_drawer.dart';
 import 'delivery_home_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_profile_screen.dart';
@@ -39,11 +40,19 @@ class _DeliveryEarningsScreenState extends State<DeliveryEarningsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
+      drawer: const DeliverySidebarDrawer(
+        currentRoute: DeliveryEarningsScreen.routeName,
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) => IconButton(
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.menu_rounded, color: Color(0xFF1A1A1A)),
+          ),
+        ),
         title: const Text(
           'Earnings',
           style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
@@ -87,27 +96,6 @@ class _DeliveryEarningsScreenState extends State<DeliveryEarningsScreen> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: _BottomNav(
-        index: 2,
-        onTap: (i) {
-          if (i == 0) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryHomeScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (i == 1) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryHistoryScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (i == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
       ),
     );
   }

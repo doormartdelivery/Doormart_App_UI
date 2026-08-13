@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/app_state.dart';
 import '../providers/delivery_provider.dart';
+import '../widgets/delivery_sidebar_drawer.dart';
 import 'delivery_login_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_home_screen.dart';
@@ -98,6 +99,9 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
 
     return Scaffold(
       backgroundColor: _kBg,
+      drawer: const DeliverySidebarDrawer(
+        currentRoute: DeliveryProfileScreen.routeName,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -150,28 +154,6 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
         ),
       ),
 
-      // ── Bottom Nav ────────────────────────────────────────────────────
-      bottomNavigationBar: _BottomNav(
-        index: _navIndex,
-        onTap: (i) {
-          setState(() => _navIndex = i);
-          if (i == 0) {
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(DeliveryHomeScreen.routeName);
-          }
-          if (i == 1) {
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(DeliveryHistoryScreen.routeName);
-          }
-          if (i == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
-            );
-          }
-        },
-      ),
     );
   }
 }
@@ -216,7 +198,13 @@ class _AppBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Row(
         children: [
-          const SizedBox(width: 4),
+          Builder(
+            builder: (context) => IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu_rounded, color: _kTextDark),
+              tooltip: 'Open menu',
+            ),
+          ),
           RichText(
             text: const TextSpan(
               children: [

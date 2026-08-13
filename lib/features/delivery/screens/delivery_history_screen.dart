@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/delivery_order_model.dart';
 import '../providers/delivery_provider.dart';
+import '../widgets/delivery_sidebar_drawer.dart';
 import 'delivery_home_screen.dart';
 import 'delivery_earnings_screen.dart';
 import 'delivery_profile_screen.dart';
@@ -46,11 +47,19 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
+      drawer: const DeliverySidebarDrawer(
+        currentRoute: DeliveryHistoryScreen.routeName,
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) => IconButton(
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.menu_rounded, color: Color(0xFF1A1A1A)),
+          ),
+        ),
         title: const Text(
           'Delivery History',
           style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
@@ -137,28 +146,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             ],
           ],
         ),
-      ),
-      bottomNavigationBar: _BottomNav(
-        index: 1,
-        onTap: (i) {
-          if (i == 0) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryHomeScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (i == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const DeliveryEarningsScreen(),
-              ),
-            );
-          } else if (i == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              DeliveryProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
       ),
     );
   }
@@ -431,6 +418,16 @@ class _HistoryOrderCard extends StatelessWidget {
                         color: Color(0xFF444444),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    if (order.vendorStoreName?.trim().isNotEmpty == true)
+                      Text(
+                        order.vendorStoreName!.trim(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFE8541A),
+                        ),
+                      ),
                     const SizedBox(height: 6),
                     Text(
                       '${_formatDate(_historyDate(order))} • ${order.customerArea}',
@@ -445,6 +442,11 @@ class _HistoryOrderCard extends StatelessWidget {
                           icon: Icons.shopping_bag_rounded,
                           label: '${order.itemCount} items',
                         ),
+                        if (order.vendorStoreName?.trim().isNotEmpty == true)
+                          _MiniInfoChip(
+                            icon: Icons.storefront_rounded,
+                            label: order.vendorStoreName!.trim(),
+                          ),
                         _MiniInfoChip(
                           icon: Icons.payments_rounded,
                           label: '₹${order.totalAmount.toStringAsFixed(2)}',
@@ -506,12 +508,83 @@ void _showOrderDetails(BuildContext context, DeliveryOrderModel order) {
                   order.customerName,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF555555)),
                 ),
+                if (order.vendorStoreName?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 6),
+                  _DetailTile(
+                    icon: Icons.storefront_rounded,
+                    title: 'Vendor Store',
+                    value: order.vendorStoreName!.trim(),
+                  ),
+                  const SizedBox(height: 12),
+                  if (order.vendorAddress?.trim().isNotEmpty == true)
+                    _DetailTile(
+                      icon: Icons.location_on_rounded,
+                      title: 'Vendor Address',
+                      value: order.vendorAddress!.trim(),
+                    ),
+                  if (order.vendorPickupAddress?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 12),
+                    _DetailTile(
+                      icon: Icons.local_shipping_rounded,
+                      title: 'Pickup Address',
+                      value: order.vendorPickupAddress!.trim(),
+                    ),
+                  ],
+                  if (order.vendorCity?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 12),
+                    _DetailTile(
+                      icon: Icons.location_city_rounded,
+                      title: 'Pickup City',
+                      value: order.vendorCity!.trim(),
+                    ),
+                  ],
+                  if (order.vendorPincode?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 12),
+                    _DetailTile(
+                      icon: Icons.pin_drop_rounded,
+                      title: 'Pickup Pincode',
+                      value: order.vendorPincode!.trim(),
+                    ),
+                  ],
+                  if (order.vendorAddress?.trim().isNotEmpty == true) const SizedBox(height: 12),
+                  if (order.vendorPhone?.trim().isNotEmpty == true)
+                    _DetailTile(
+                      icon: Icons.call_rounded,
+                      title: 'Vendor Phone',
+                      value: order.vendorPhone!.trim(),
+                    ),
+                  if (order.vendorPhone?.trim().isNotEmpty == true) const SizedBox(height: 16),
+                ],
                 const SizedBox(height: 16),
                 _DetailTile(
                   icon: Icons.location_on_rounded,
                   title: 'Delivered Address',
                   value: order.customerAddress.isNotEmpty ? order.customerAddress : order.customerArea,
                 ),
+                if (order.customerLine1?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _DetailTile(
+                    icon: Icons.home_rounded,
+                    title: 'Customer Street',
+                    value: order.customerLine1!.trim(),
+                  ),
+                ],
+                if (order.customerCity?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _DetailTile(
+                    icon: Icons.location_city_rounded,
+                    title: 'Customer City',
+                    value: order.customerCity!.trim(),
+                  ),
+                ],
+                if (order.customerPincode?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _DetailTile(
+                    icon: Icons.pin_drop_rounded,
+                    title: 'Customer Pincode',
+                    value: order.customerPincode!.trim(),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 _DetailTile(
                   icon: Icons.payments_rounded,

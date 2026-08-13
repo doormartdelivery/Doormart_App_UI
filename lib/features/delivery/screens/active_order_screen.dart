@@ -206,8 +206,10 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                         Expanded(
                           child: _MiniStat(
                             icon: Icons.storefront_rounded,
-                            label: 'Customer',
-                            value: order.customerName,
+                            label: 'Store',
+                            value: order.vendorStoreName?.trim().isNotEmpty == true
+                                ? order.vendorStoreName!.trim()
+                                : 'Vendor store',
                           ),
                         ),
                       ],
@@ -222,12 +224,70 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                 child: Column(
                   children: [
                     _DashboardCard(
+                      title: 'Vendor Details',
+                      child: Column(
+                        children: [
+                          _infoRow(
+                            'Store name',
+                            order.vendorStoreName?.trim().isNotEmpty == true
+                                ? order.vendorStoreName!.trim()
+                                : '—',
+                          ),
+                          _infoRow(
+                            'Pickup address',
+                            order.vendorPickupAddress?.trim().isNotEmpty == true
+                                ? order.vendorPickupAddress!.trim()
+                                : (order.vendorAddress?.trim().isNotEmpty == true
+                                    ? order.vendorAddress!.trim()
+                                    : '—'),
+                          ),
+                          _infoRow(
+                            'Pickup city',
+                            order.vendorCity?.trim().isNotEmpty == true
+                                ? order.vendorCity!.trim()
+                                : '—',
+                          ),
+                          _infoRow(
+                            'Pickup pincode',
+                            order.vendorPincode?.trim().isNotEmpty == true
+                                ? order.vendorPincode!.trim()
+                                : '—',
+                          ),
+                          _infoRow(
+                            'Store phone',
+                            order.vendorPhone?.trim().isNotEmpty == true
+                                ? order.vendorPhone!.trim()
+                                : '—',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _DashboardCard(
                       title: 'Order Summary',
                       child: Column(
                         children: [
                           _infoRow('Customer name', order.customerName),
                           _infoRow('Customer phone', order.customerPhone),
                           _infoRow('Customer address', order.customerAddress),
+                          _infoRow(
+                            'Customer street',
+                            order.customerLine1?.trim().isNotEmpty == true
+                                ? order.customerLine1!.trim()
+                                : '—',
+                          ),
+                          _infoRow(
+                            'Customer city',
+                            order.customerCity?.trim().isNotEmpty == true
+                                ? order.customerCity!.trim()
+                                : '—',
+                          ),
+                          _infoRow(
+                            'Customer pincode',
+                            order.customerPincode?.trim().isNotEmpty == true
+                                ? order.customerPincode!.trim()
+                                : '—',
+                          ),
                           _infoRow('Customer area', order.customerArea),
                           _infoRow('Payment method', order.paymentType),
                           if (isCod)
