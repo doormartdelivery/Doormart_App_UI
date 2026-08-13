@@ -235,7 +235,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
               )
             else
               SizedBox(
-                height: 350,
+                height: 430,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: provider.pendingRequests.length,
@@ -407,11 +407,11 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-          'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
-          style: const TextStyle(
-            fontSize: 13,
-            color: _kTextMid,
-            fontWeight: FontWeight.w500,
+            'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: _kTextMid,
+              fontWeight: FontWeight.w500,
             ),
           ),
 
@@ -723,7 +723,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(22),
@@ -742,16 +742,16 @@ class _NewRequestCardState extends State<_NewRequestCard> {
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: _kOrangeLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.storefront_rounded,
                   color: _kOrange,
-                  size: 24,
+                  size: 26,
                 ),
               ),
               const SizedBox(width: 12),
@@ -803,7 +803,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
           _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
           _detailLine(
@@ -824,7 +824,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
           ),
 
           // ── Pickup ────────────────────────────────────────────────────
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           Row(
             children: [
@@ -910,6 +910,39 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  const Text(
+                    'Vendor Details',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _detailLine(
+                    'Store',
+                    _text(widget.order.vendorStoreName, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Address',
+                    _text(widget.order.vendorAddress, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Phone',
+                    _text(widget.order.vendorPhone, fallback: '—'),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 24),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Customer Details',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _detailLine(
                     'Customer',
                     _text(widget.order.customerName, fallback: '—'),

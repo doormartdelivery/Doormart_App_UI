@@ -47,6 +47,9 @@ class DeliveryOrderModel {
     required this.paymentType,
     required this.status,
     required this.createdAt,
+    this.vendorStoreName,
+    this.vendorAddress,
+    this.vendorPhone,
     this.codAmount,
     this.orderId,
     this.deliveryEarning,
@@ -65,6 +68,9 @@ class DeliveryOrderModel {
   final String paymentType;
   final DeliveryOrderStatus status;
   final DateTime createdAt;
+  final String? vendorStoreName;
+  final String? vendorAddress;
+  final String? vendorPhone;
   final DateTime? deliveredAt;
   final double? codAmount;
   final double? deliveryEarning;
@@ -118,6 +124,9 @@ class DeliveryOrderModel {
       paymentType: json['paymentType'] as String? ?? json['paymentMethod'] as String? ?? json['payment_method'] as String? ?? 'Online',
       status: _statusFromJson(json['status'] as String?),
       createdAt: _parseDate(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
+      vendorStoreName: json['vendorStoreName'] as String?,
+      vendorAddress: json['vendorAddress'] as String?,
+      vendorPhone: json['vendorPhone'] as String?,
       deliveredAt: _parseDate(json['deliveredAt'] as String? ?? json['completedAt'] as String? ?? json['deliveryCompletedAt'] as String? ?? ''),
       codAmount: (json['codAmount'] as num?)?.toDouble(),
       deliveryEarning: (json['deliveryEarning'] as num?)?.toDouble(),
