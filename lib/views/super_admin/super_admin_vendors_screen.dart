@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import '../../features/operations/services/location_service.dart';
 import '../admin/admin_sidebar_drawer.dart';
 
 class SuperAdminVendorsScreen extends StatefulWidget {
@@ -311,10 +312,10 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
           final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-            logoutRoute,
-            (route) => false,
-          );
+          Navigator.of(
+            context,
+            rootNavigator: true,
+          ).pushNamedAndRemoveUntil(logoutRoute, (route) => false);
         },
       ),
       body: SafeArea(
@@ -1640,6 +1641,9 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
   String? _panCardName;
   String? _cancelledChequeName;
   String? _uploadingField;
+  double? _pickupLatitude;
+  double? _pickupLongitude;
+  bool _capturingPickupLocation = false;
 
   @override
   void initState() {
@@ -1661,6 +1665,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     _pickupAddressController = TextEditingController(
       text: vendor?.pickupAddress ?? '',
     );
+    _pickupLatitude = vendor?.pickupLatitude;
+    _pickupLongitude = vendor?.pickupLongitude;
     _cityController = TextEditingController(text: vendor?.city ?? '');
     _stateController = TextEditingController(text: vendor?.state ?? '');
     _pincodeController = TextEditingController(text: vendor?.pincode ?? '');
@@ -1675,7 +1681,9 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     _gstCertificate = vendor?.gstCertificateUrl.isNotEmpty == true
         ? vendor!.gstCertificateUrl
         : null;
-    _panCard = vendor?.panCardUrl.isNotEmpty == true ? vendor!.panCardUrl : null;
+    _panCard = vendor?.panCardUrl.isNotEmpty == true
+        ? vendor!.panCardUrl
+        : null;
     _cancelledCheque = vendor?.cancelledChequeUrl.isNotEmpty == true
         ? vendor!.cancelledChequeUrl
         : null;
@@ -1719,6 +1727,24 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     super.dispose();
   }
 
+  Future<void> _capturePickupLocation() async {
+    setState(() => _capturingPickupLocation = true);
+    try {
+      final location = await LocationService().currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _pickupLatitude = location.latitude;
+        _pickupLongitude = location.longitude;
+      });
+      _showError('Pickup location saved');
+    } catch (error) {
+      if (!mounted) return;
+      _showError(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _capturingPickupLocation = false);
+    }
+  }
+
   Future<void> _pickAsset({
     required String field,
     required List<XTypeGroup> acceptedTypeGroups,
@@ -1752,7 +1778,9 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
       if (mounted) setState(() {});
     } catch (error) {
       if (!mounted) return;
-      _showError('Upload failed: ${error.toString().replaceFirst('Exception: ', '')}');
+      _showError(
+        'Upload failed: ${error.toString().replaceFirst('Exception: ', '')}',
+      );
     } finally {
       if (mounted) setState(() => _uploadingField = null);
     }
@@ -1802,6 +1830,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           gstCertificateUrl: _gstCertificate ?? '',
           panCardUrl: _panCard ?? '',
           cancelledChequeUrl: _cancelledCheque ?? '',
+          pickupLatitude: _pickupLatitude,
+          pickupLongitude: _pickupLongitude,
         );
       } else {
         savedVendor = await state.createVendor(
@@ -1827,6 +1857,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           gstCertificateUrl: _gstCertificate ?? '',
           panCardUrl: _panCard ?? '',
           cancelledChequeUrl: _cancelledCheque ?? '',
+          pickupLatitude: _pickupLatitude,
+          pickupLongitude: _pickupLongitude,
         );
       }
       if (!mounted) return;
@@ -1948,44 +1980,44 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                     title: 'Login Credentials',
                     subtitle: 'Used by the vendor to sign in',
                     children: [
-                    _buildTextField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      icon: Icons.lock_outline_rounded,
-                      obscureText: _obscurePassword,
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: const Color(0xFFE8541A),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _buildTextField(
-                      controller: _confirmPasswordController,
-                      label: 'Confirm Password',
-                      icon: Icons.lock_reset_rounded,
-                      obscureText: _obscureConfirmPassword,
-                      suffixIcon: IconButton(
-                        onPressed: () => setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        ),
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: const Color(0xFFE8541A),
+                      _buildTextField(
+                        controller: _passwordController,
+                        label: 'Password',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePassword,
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: const Color(0xFFE8541A),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _confirmPasswordController,
+                        label: 'Confirm Password',
+                        icon: Icons.lock_reset_rounded,
+                        obscureText: _obscureConfirmPassword,
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          ),
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: const Color(0xFFE8541A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                 ],
                 _FormSection(
@@ -2028,6 +2060,25 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                       controller: _pickupAddressController,
                       label: 'Pickup Address',
                       icon: Icons.local_shipping_rounded,
+                    ),
+                    const SizedBox(height: 14),
+                    _LocationCard(
+                      title: 'Pickup exact location',
+                      subtitle:
+                          'Use the vendor store pin for accurate pickup navigation.',
+                      latitude: _pickupLatitude,
+                      longitude: _pickupLongitude,
+                      capturing: _capturingPickupLocation,
+                      onCapture: _capturePickupLocation,
+                      onClear:
+                          _pickupLatitude != null || _pickupLongitude != null
+                          ? () {
+                              setState(() {
+                                _pickupLatitude = null;
+                                _pickupLongitude = null;
+                              });
+                            }
+                          : null,
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -2332,6 +2383,153 @@ class _FormSection extends StatelessWidget {
   }
 }
 
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({
+    required this.title,
+    required this.subtitle,
+    required this.latitude,
+    required this.longitude,
+    required this.capturing,
+    required this.onCapture,
+    required this.onClear,
+  });
+
+  final String title;
+  final String subtitle;
+  final double? latitude;
+  final double? longitude;
+  final bool capturing;
+  final VoidCallback onCapture;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = latitude != null && longitude != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7F2),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1D4C8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE9DD),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.my_location_rounded,
+                  color: Color(0xFFE8541A),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasLocation
+                ? 'Saved pin: ${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}'
+                : 'No exact pin saved yet.',
+            style: TextStyle(
+              color: hasLocation
+                  ? const Color(0xFF166534)
+                  : const Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: capturing ? null : onCapture,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8541A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: capturing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.gps_fixed_rounded, size: 18),
+                  label: Text(
+                    capturing ? 'Capturing...' : 'Use current location',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: onClear,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8541A),
+                    side: const BorderSide(color: Color(0xFFF3C3AF)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _UploadTile extends StatelessWidget {
   const _UploadTile({
     required this.title,
@@ -2361,7 +2559,9 @@ class _UploadTile extends StatelessWidget {
             color: uploaded ? const Color(0xFFFFF0EB) : const Color(0xFFFDF8F4),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: uploaded ? const Color(0xFFF3C3AF) : const Color(0xFFF1D4C8),
+              color: uploaded
+                  ? const Color(0xFFF3C3AF)
+                  : const Color(0xFFF1D4C8),
               width: 1.3,
             ),
           ),
@@ -2377,8 +2577,12 @@ class _UploadTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(11),
                 ),
                 child: Icon(
-                  uploaded ? Icons.check_circle_rounded : Icons.upload_file_rounded,
-                  color: uploaded ? const Color(0xFFE8541A) : const Color(0xFFC63A0E),
+                  uploaded
+                      ? Icons.check_circle_rounded
+                      : Icons.upload_file_rounded,
+                  color: uploaded
+                      ? const Color(0xFFE8541A)
+                      : const Color(0xFFC63A0E),
                   size: 19,
                 ),
               ),
@@ -2399,9 +2603,13 @@ class _UploadTile extends StatelessWidget {
                     Text(
                       uploading
                           ? 'Uploading...'
-                          : (value == null || value!.isEmpty ? 'Tap to upload' : value!),
+                          : (value == null || value!.isEmpty
+                                ? 'Tap to upload'
+                                : value!),
                       style: TextStyle(
-                        color: uploaded ? const Color(0xFFE8541A) : const Color(0xFF64748B),
+                        color: uploaded
+                            ? const Color(0xFFE8541A)
+                            : const Color(0xFF64748B),
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -2420,7 +2628,11 @@ class _UploadTile extends StatelessWidget {
                   ),
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFFB4B4C4), size: 20),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB4B4C4),
+                  size: 20,
+                ),
             ],
           ),
         ),

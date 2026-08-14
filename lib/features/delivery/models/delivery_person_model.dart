@@ -13,6 +13,8 @@ class DeliveryPersonModel {
     this.avatarUrl,
     this.panNumber = '',
     this.panCardUrl,
+    this.licenseNumber = '',
+    this.licenseCardUrl,
     this.aadhaarNumber = '',
     this.aadhaarCardUrl,
   });
@@ -30,6 +32,8 @@ class DeliveryPersonModel {
   final String? avatarUrl;
   final String panNumber;
   final String? panCardUrl;
+  final String licenseNumber;
+  final String? licenseCardUrl;
   final String aadhaarNumber;
   final String? aadhaarCardUrl;
 
@@ -56,6 +60,8 @@ class DeliveryPersonModel {
       avatarUrl: json['avatarUrl'] as String? ?? json['avatar'] as String?,
       panNumber: json['panNumber'] as String? ?? '',
       panCardUrl: json['panCardUrl'] as String?,
+      licenseNumber: json['licenseNumber'] as String? ?? '',
+      licenseCardUrl: json['licenseCardUrl'] as String?,
       aadhaarNumber: json['aadhaarNumber'] as String? ?? '',
       aadhaarCardUrl: json['aadhaarCardUrl'] as String?,
     );

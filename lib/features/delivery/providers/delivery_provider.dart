@@ -66,12 +66,14 @@ class DeliveryProvider extends ChangeNotifier {
       name: user.name,
       phone: user.phone,
       vehicleNumber: '',
+      licenseNumber: '',
       status: user.status,
       isOnline: false,
       active: true,
       completedOrders: 0,
       todayEarnings: 0,
       avatarUrl: user.avatarUrl.isNotEmpty ? user.avatarUrl : null,
+      licenseCardUrl: null,
     );
   }
 
@@ -134,12 +136,19 @@ class DeliveryProvider extends ChangeNotifier {
           delivery?['vehicleNumber'] as String? ??
           user['vehicleNumber'] as String? ??
           '',
+      licenseNumber:
+          delivery?['licenseNumber'] as String? ??
+          user['licenseNumber'] as String? ??
+          '',
       status: status,
       isOnline: false,
       active: (delivery?['active'] as bool?) ?? true,
       completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
       todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
       avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
+      licenseCardUrl:
+          delivery?['licenseCardUrl'] as String? ??
+          user['licenseCardUrl'] as String?,
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_deliveryTokenKey, authToken ?? '');
@@ -200,6 +209,7 @@ class DeliveryProvider extends ChangeNotifier {
           name: deliveryPerson!.name,
           phone: deliveryPerson!.phone,
           vehicleNumber: deliveryPerson!.vehicleNumber,
+          licenseNumber: deliveryPerson!.licenseNumber,
           status: deliveryPerson!.status,
           isOnline: deliveryPerson!.isOnline,
           active: deliveryPerson!.active,
@@ -207,6 +217,7 @@ class DeliveryProvider extends ChangeNotifier {
               (earnings['completedOrders'] as num? ?? history.length).toInt(),
           todayEarnings: totalEarnings,
           avatarUrl: deliveryPerson!.avatarUrl,
+          licenseCardUrl: deliveryPerson!.licenseCardUrl,
         );
       });
     } catch (e) {
@@ -223,6 +234,8 @@ class DeliveryProvider extends ChangeNotifier {
     String? vehicleNumber,
     String? panNumber,
     String? panCardUrl,
+    String? licenseNumber,
+    String? licenseCardUrl,
     String? aadhaarNumber,
     String? aadhaarCardUrl,
   }) async {
@@ -241,6 +254,8 @@ class DeliveryProvider extends ChangeNotifier {
           vehicleNumber: vehicleNumber,
           panNumber: panNumber,
           panCardUrl: panCardUrl,
+          licenseNumber: licenseNumber,
+          licenseCardUrl: licenseCardUrl,
           aadhaarNumber: aadhaarNumber,
           aadhaarCardUrl: aadhaarCardUrl,
         );
@@ -261,16 +276,23 @@ class DeliveryProvider extends ChangeNotifier {
         status: (user['status'] as String? ?? 'active').toLowerCase(),
         isOnline: false,
         active: (delivery?['active'] as bool?) ?? false,
-        completedOrders:
-            (delivery?['completedOrders'] as num? ?? 0).toInt(),
+        completedOrders: (delivery?['completedOrders'] as num? ?? 0).toInt(),
         todayEarnings: (delivery?['todayEarnings'] as num? ?? 0).toDouble(),
         avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
         panNumber: delivery?['panNumber'] as String? ?? panNumber?.trim() ?? '',
         panCardUrl: delivery?['panCardUrl'] as String? ?? panCardUrl,
+        licenseNumber:
+            delivery?['licenseNumber'] as String? ??
+            licenseNumber?.trim() ??
+            '',
+        licenseCardUrl:
+            delivery?['licenseCardUrl'] as String? ?? licenseCardUrl,
         aadhaarNumber:
-            delivery?['aadhaarNumber'] as String? ?? aadhaarNumber?.trim() ?? '',
-        aadhaarCardUrl: delivery?['aadhaarCardUrl'] as String? ??
-            aadhaarCardUrl,
+            delivery?['aadhaarNumber'] as String? ??
+            aadhaarNumber?.trim() ??
+            '',
+        aadhaarCardUrl:
+            delivery?['aadhaarCardUrl'] as String? ?? aadhaarCardUrl,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -317,6 +339,8 @@ class DeliveryProvider extends ChangeNotifier {
       completedOrders: deliveryPerson?.completedOrders ?? 0,
       todayEarnings: deliveryPerson?.todayEarnings ?? 0,
       avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
+      licenseNumber: delivery?['licenseNumber'] as String? ?? '',
+      licenseCardUrl: delivery?['licenseCardUrl'] as String?,
     );
     notifyListeners();
   }
@@ -344,12 +368,16 @@ class DeliveryProvider extends ChangeNotifier {
         vehicleNumber:
             delivery?['vehicleNumber'] as String? ??
             deliveryPerson!.vehicleNumber,
+        licenseNumber:
+            delivery?['licenseNumber'] as String? ??
+            deliveryPerson!.licenseNumber,
         status: user?['status'] as String? ?? deliveryPerson!.status,
         isOnline: delivery?['isOnline'] as bool? ?? deliveryPerson!.isOnline,
         active: deliveryPerson!.active,
         completedOrders: deliveryPerson!.completedOrders,
         todayEarnings: deliveryPerson!.todayEarnings,
         avatarUrl: deliveryPerson!.avatarUrl,
+        licenseCardUrl: deliveryPerson!.licenseCardUrl,
       );
       notifyListeners();
       return null;
@@ -403,12 +431,14 @@ class DeliveryProvider extends ChangeNotifier {
         name: person.name,
         phone: person.phone,
         vehicleNumber: person.vehicleNumber,
+        licenseNumber: person.licenseNumber,
         status: person.status,
         isOnline: true,
         active: person.active,
         completedOrders: person.completedOrders,
         todayEarnings: person.todayEarnings,
         avatarUrl: person.avatarUrl,
+        licenseCardUrl: person.licenseCardUrl,
       );
       online = true;
       _connectRealtimeChannel();
@@ -440,6 +470,8 @@ class DeliveryProvider extends ChangeNotifier {
         completedOrders: deliveryPerson!.completedOrders,
         todayEarnings: deliveryPerson!.todayEarnings,
         avatarUrl: deliveryPerson!.avatarUrl,
+        licenseNumber: deliveryPerson!.licenseNumber,
+        licenseCardUrl: deliveryPerson!.licenseCardUrl,
       );
     });
   }
@@ -535,7 +567,9 @@ class DeliveryProvider extends ChangeNotifier {
 
     try {
       final currentToken = await _messagingService.getToken();
-      if (authToken != null && currentToken != null && currentToken.isNotEmpty) {
+      if (authToken != null &&
+          currentToken != null &&
+          currentToken.isNotEmpty) {
         await _messagingService.removeToken(
           token: currentToken,
           authToken: authToken!,

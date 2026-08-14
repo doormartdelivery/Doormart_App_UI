@@ -46,9 +46,9 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
         _otpVerified = true;
         _otpError = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP matched successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('OTP matched successfully')));
       return;
     }
 
@@ -56,9 +56,9 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
       _otpVerified = false;
       _otpError = 'OTP does not match';
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('OTP does not match')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('OTP does not match')));
   }
 
   @override
@@ -132,16 +132,18 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
 
     final status = _statusLabel(order.status);
     final isCod = order.isCod;
-    final canEnterOtp = order.status == DeliveryOrderStatus.pickedUp ||
+    final canEnterOtp =
+        order.status == DeliveryOrderStatus.pickedUp ||
         order.status == DeliveryOrderStatus.outForDelivery ||
         order.status == DeliveryOrderStatus.delivered;
-    final pickupFlowColor = order.status == DeliveryOrderStatus.pickedUp ||
+    final pickupFlowColor =
+        order.status == DeliveryOrderStatus.pickedUp ||
             order.status == DeliveryOrderStatus.outForDelivery ||
             order.status == DeliveryOrderStatus.delivered
         ? const Color(0xFFE8541A)
         : const Color(0xFFD1D5DB);
-    final otpMatches = _otpVerified &&
-        _otpController.text.trim() == order.deliveryOtpDisplay;
+    final otpMatches =
+        _otpVerified && _otpController.text.trim() == order.deliveryOtpDisplay;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
@@ -169,15 +171,22 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                       children: [
                         IconButton(
                           onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white,
+                          ),
                           tooltip: 'Back',
                         ),
-                        const Icon(Icons.delivery_dining_rounded, color: Colors.white),
+                        const Icon(
+                          Icons.delivery_dining_rounded,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Active Order',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -190,8 +199,8 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                     Text(
                       'Track and complete the assigned delivery.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.86),
-                          ),
+                        color: Colors.white.withValues(alpha: 0.86),
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Row(
@@ -208,7 +217,8 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                           child: _MiniStat(
                             icon: Icons.storefront_rounded,
                             label: 'Store',
-                            value: order.vendorStoreName?.trim().isNotEmpty == true
+                            value:
+                                order.vendorStoreName?.trim().isNotEmpty == true
                                 ? order.vendorStoreName!.trim()
                                 : 'Vendor store',
                           ),
@@ -238,9 +248,10 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             'Pickup address',
                             order.vendorPickupAddress?.trim().isNotEmpty == true
                                 ? order.vendorPickupAddress!.trim()
-                                : (order.vendorAddress?.trim().isNotEmpty == true
-                                    ? order.vendorAddress!.trim()
-                                    : '—'),
+                                : (order.vendorAddress?.trim().isNotEmpty ==
+                                          true
+                                      ? order.vendorAddress!.trim()
+                                      : '—'),
                           ),
                           _infoRow(
                             'Pickup city',
@@ -265,16 +276,19 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             label: 'Get Vendor Directions',
                             subtitle: 'Open turn-by-turn pickup navigation',
                             icon: Icons.store_mall_directory_rounded,
-                            onPressed: _hasAddress(
-                                  order.vendorPickupAddress ?? order.vendorAddress,
+                            onPressed:
+                                _hasAddress(
+                                  order.vendorPickupAddress ??
+                                      order.vendorAddress,
                                 )
                                 ? () => _openDirections(
-                                      address: order.vendorPickupAddress ??
-                                          order.vendorAddress ??
-                                          '',
-                                      latitude: order.vendorLatitude,
-                                      longitude: order.vendorLongitude,
-                                    )
+                                    address:
+                                        order.vendorPickupAddress ??
+                                        order.vendorAddress ??
+                                        '',
+                                    latitude: order.vendorLatitude,
+                                    longitude: order.vendorLongitude,
+                                  )
                                 : null,
                           ),
                         ],
@@ -313,7 +327,10 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               'COD amount',
                               '₹${order.codAmount?.toStringAsFixed(2) ?? order.totalAmount.toStringAsFixed(2)}',
                             ),
-                          _infoRow('Total amount', '₹${order.totalAmount.toStringAsFixed(2)}'),
+                          _infoRow(
+                            'Total amount',
+                            '₹${order.totalAmount.toStringAsFixed(2)}',
+                          ),
                           _infoRow('Created at', _formatDate(order.createdAt)),
                           const SizedBox(height: 4),
                           _MapActionButton(
@@ -322,10 +339,10 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             icon: Icons.map_outlined,
                             onPressed: _hasAddress(order.customerAddress)
                                 ? () => _openDirections(
-                                      address: order.customerAddress,
-                                      latitude: order.customerLatitude,
-                                      longitude: order.customerLongitude,
-                                    )
+                                    address: order.customerAddress,
+                                    latitude: order.customerLatitude,
+                                    longitude: order.customerLongitude,
+                                  )
                                 : null,
                           ),
                         ],
@@ -343,7 +360,9 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               children: order.items
                                   .map(
                                     (item) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
                                       child: _OrderedItemTile(item: item),
                                     ),
                                   )
@@ -379,142 +398,14 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: _otpController,
-                              enabled: canEnterOtp,
-                              keyboardType: TextInputType.number,
-                              maxLength: 6,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                counterText: '',
-                                hintText: canEnterOtp
-                                    ? 'Enter OTP to unlock delivery'
-                                    : 'OTP unlocks after pickup',
-                                hintStyle: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.45),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white.withValues(alpha: 0.08),
-                                errorText: _otpError,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(color: Color(0xFFFFA142)),
-                                ),
-                              ),
-                              onChanged: (value) {
-                                if (!canEnterOtp) return;
-                                setState(() {
-                                  _otpError = null;
-                                  _otpVerified = false;
-                                });
-                              },
+                            _FlowIntro(
+                              subtitle:
+                                  'Follow these steps from top to bottom. The arrows show exactly what comes next.',
+                              highlight: pickupFlowColor,
                             ),
-                            const SizedBox(height: 2),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: canEnterOtp ? () => _verifyOtp(order) : null,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Color(0xFFFFA142)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Verify OTP',
-                                  style: TextStyle(fontWeight: FontWeight.w900),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [Color(0xFFFF8A3D), Color(0xFFE8541A)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFFE8541A).withValues(alpha: 0.25),
-                                        blurRadius: 14,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.bolt_rounded,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Control Center',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Fast actions for delivery execution',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.68),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Flow',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            _ActionTile(
+                            const SizedBox(height: 14),
+                            _FlowActionTile(
+                              step: '1',
                               icon: Icons.map_outlined,
                               title: 'Get Customer Directions',
                               subtitle: 'Open turn-by-turn delivery navigation',
@@ -526,44 +417,81 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                       longitude: order.customerLongitude,
                                     )
                                   : null,
+                              disabledLabel: 'Customer address not available',
                             ),
                             const SizedBox(height: 10),
-                            _ActionTile(
+                            _FlowArrow(color: pickupFlowColor),
+                            const SizedBox(height: 10),
+                            _FlowActionTile(
+                              step: '2',
                               icon: Icons.call_outlined,
                               title: 'Call customer',
-                              subtitle: 'Connect instantly with the customer',
+                              subtitle: 'Speak with the customer before pickup',
                               accent: const Color(0xFFFFA142),
                               onTap: () => _call(order.customerPhone),
                             ),
                             const SizedBox(height: 10),
-                            _ActionTile(
+                            _FlowArrow(color: pickupFlowColor),
+                            const SizedBox(height: 10),
+                            _FlowActionTile(
+                              step: '3',
                               icon: Icons.inventory_2_outlined,
                               title: 'Mark Picked Up',
-                              subtitle: 'Update when package leaves the shed',
+                              subtitle:
+                                  'Tap after the parcel leaves the vendor',
                               accent: const Color(0xFFFFB366),
                               onTap: provider.markPickedUp,
                             ),
-                            const SizedBox(height: 6),
-                            _PickupToOtpArrow(color: pickupFlowColor),
-                            const SizedBox(height: 6),
                             const SizedBox(height: 10),
-                            _ActionTile(
+                            _FlowArrow(color: pickupFlowColor),
+                            const SizedBox(height: 10),
+                            _OtpFlowCard(
+                              step: '4',
+                              title: 'Verify delivery OTP',
+                              subtitle: canEnterOtp
+                                  ? 'Enter the OTP only after pickup to unlock delivery completion.'
+                                  : 'Pickup first, then the OTP field becomes active.',
+                              canEnterOtp: canEnterOtp,
+                              controller: _otpController,
+                              errorText: _otpError,
+                              onChanged: () {
+                                if (!canEnterOtp) return;
+                                setState(() {
+                                  _otpError = null;
+                                  _otpVerified = false;
+                                });
+                              },
+                              onVerify: () => _verifyOtp(order),
+                            ),
+                            const SizedBox(height: 10),
+                            _FlowArrow(color: pickupFlowColor),
+                            const SizedBox(height: 10),
+                            _FlowActionTile(
+                              step: '5',
                               icon: Icons.local_shipping_rounded,
                               title: 'Mark Delivered',
-                              subtitle: 'Complete the delivery flow',
+                              subtitle:
+                                  'Finish the order only after OTP is verified',
                               accent: const Color(0xFFE8541A),
                               isPrimary: true,
                               onTap: otpMatches && !_markingDelivered
                                   ? () async {
                                       setState(() => _markingDelivered = true);
-                                      final message = await provider.markDelivered(_otpController.text);
+                                      final message = await provider
+                                          .markDelivered(_otpController.text);
                                       if (!context.mounted) return;
                                       setState(() => _markingDelivered = false);
                                       if (message == null) {
-                                        showToast(context, 'Order delivered successfully');
+                                        showToast(
+                                          context,
+                                          'Order delivered successfully',
+                                        );
                                       } else if (message.isNotEmpty) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(content: Text(message)));
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(content: Text(message)),
+                                        );
                                       }
                                     }
                                   : null,
@@ -707,10 +635,12 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     }
 
     final appUri = switch (defaultTargetPlatform) {
-      TargetPlatform.android => Uri.parse('google.navigation:q=$destination&mode=d'),
+      TargetPlatform.android => Uri.parse(
+        'google.navigation:q=$destination&mode=d',
+      ),
       TargetPlatform.iOS => Uri.parse(
-          'comgooglemaps://?daddr=$destination&directionsmode=driving',
-        ),
+        'comgooglemaps://?daddr=$destination&directionsmode=driving',
+      ),
       _ => webUri,
     };
 
@@ -732,45 +662,468 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   }
 }
 
-class _PickupToOtpArrow extends StatelessWidget {
-  const _PickupToOtpArrow({required this.color});
+class _FlowIntro extends StatelessWidget {
+  const _FlowIntro({required this.subtitle, required this.highlight});
+
+  final String subtitle;
+  final Color highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  highlight.withValues(alpha: 0.95),
+                  const Color(0xFFE8541A),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: highlight.withValues(alpha: 0.24),
+                  blurRadius: 16,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.alt_route_rounded, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Delivery flow',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+            ),
+            child: Text(
+              '1 → 5',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlowArrow extends StatelessWidget {
+  const _FlowArrow({required this.color});
 
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
           Expanded(
             child: Divider(
-              color: color,
-              thickness: 2,
+              color: color.withValues(alpha: 0.5),
+              thickness: 1.6,
               height: 0,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Container(
-            width: 28,
-            height: 28,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.14),
               shape: BoxShape.circle,
               border: Border.all(color: color.withValues(alpha: 0.45)),
             ),
             child: Icon(
-              Icons.arrow_downward_rounded,
+              Icons.keyboard_arrow_down_rounded,
               color: color,
-              size: 16,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Divider(
-              color: color,
-              thickness: 2,
+              color: color.withValues(alpha: 0.5),
+              thickness: 1.6,
               height: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlowActionTile extends StatelessWidget {
+  const _FlowActionTile({
+    required this.step,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.onTap,
+    this.isPrimary = false,
+    this.disabled = false,
+    this.disabledLabel,
+    this.onDisabledTap,
+    this.loading = false,
+  });
+
+  final String step;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final VoidCallback? onTap;
+  final bool isPrimary;
+  final bool disabled;
+  final String? disabledLabel;
+  final VoidCallback? onDisabledTap;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null && !disabled && !loading;
+    return InkWell(
+      onTap: disabled ? onDisabledTap : onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? accent.withValues(alpha: 0.16)
+              : Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isPrimary
+                ? accent.withValues(alpha: 0.35)
+                : Colors.white.withValues(alpha: 0.10),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent,
+                    isPrimary
+                        ? const Color(0xFFE8541A)
+                        : accent.withValues(alpha: 0.78),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Center(child: Icon(icon, color: Colors.white, size: 26)),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent, width: 1.2),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        step,
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (disabledLabel != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      disabledLabel!,
+                      style: TextStyle(
+                        color: enabled
+                            ? Colors.white.withValues(alpha: 0.50)
+                            : const Color(0xFFFFC07A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Icon(
+                  loading
+                      ? Icons.hourglass_top_rounded
+                      : disabled
+                      ? Icons.lock_outline_rounded
+                      : Icons.arrow_forward_rounded,
+                  color: loading
+                      ? Colors.white
+                      : disabled
+                      ? Colors.white.withValues(alpha: 0.50)
+                      : Colors.white,
+                  size: 20,
+                ),
+                if (isPrimary) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Final',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OtpFlowCard extends StatelessWidget {
+  const _OtpFlowCard({
+    required this.step,
+    required this.title,
+    required this.subtitle,
+    required this.canEnterOtp,
+    required this.controller,
+    required this.errorText,
+    required this.onChanged,
+    required this.onVerify,
+  });
+
+  final String step;
+  final String title;
+  final String subtitle;
+  final bool canEnterOtp;
+  final TextEditingController controller;
+  final String? errorText;
+  final VoidCallback onChanged;
+  final VoidCallback onVerify;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFFB366), Color(0xFFE8541A)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: Text(
+                    step,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            enabled: canEnterOtp,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: canEnterOtp
+                  ? 'Enter OTP to verify'
+                  : 'OTP unlocks after pickup',
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.08),
+              errorText: errorText,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.18),
+                ),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                borderSide: BorderSide(color: Color(0xFFFFA142)),
+              ),
+            ),
+            onChanged: (_) => onChanged(),
+          ),
+          const SizedBox(height: 2),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: canEnterOtp ? onVerify : null,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFFFA142)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Verify OTP',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
             ),
           ),
         ],
@@ -808,9 +1161,9 @@ class _DashboardCard extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF111827),
-                ),
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF111827),
+            ),
           ),
           const SizedBox(height: 16),
           child,
@@ -844,9 +1197,13 @@ class _MapActionButton extends StatelessWidget {
           onPressed: onPressed,
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            foregroundColor: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+            foregroundColor: enabled
+                ? const Color(0xFFE8541A)
+                : const Color(0xFF9CA3AF),
             side: BorderSide(
-              color: enabled ? const Color(0xFFE8541A) : const Color(0xFFD1D5DB),
+              color: enabled
+                  ? const Color(0xFFE8541A)
+                  : const Color(0xFFD1D5DB),
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
@@ -865,7 +1222,9 @@ class _MapActionButton extends StatelessWidget {
                 ),
                 child: Icon(
                   icon,
-                  color: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+                  color: enabled
+                      ? const Color(0xFFE8541A)
+                      : const Color(0xFF9CA3AF),
                   size: 22,
                 ),
               ),
@@ -886,7 +1245,9 @@ class _MapActionButton extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: enabled ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                        color: enabled
+                            ? const Color(0xFF6B7280)
+                            : const Color(0xFF9CA3AF),
                       ),
                     ),
                   ],
@@ -895,7 +1256,9 @@ class _MapActionButton extends StatelessWidget {
               Icon(
                 Icons.open_in_new_rounded,
                 size: 18,
-                color: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+                color: enabled
+                    ? const Color(0xFFE8541A)
+                    : const Color(0xFF9CA3AF),
               ),
             ],
           ),
@@ -953,13 +1316,17 @@ class _BottomNav extends StatelessWidget {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: selected ? const Color(0xFFE8541A) : Colors.transparent,
+                          color: selected
+                              ? const Color(0xFFE8541A)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(
                           item.$1,
                           size: 22,
-                          color: selected ? Colors.white : const Color(0xFF888888),
+                          color: selected
+                              ? Colors.white
+                              : const Color(0xFF888888),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -968,7 +1335,9 @@ class _BottomNav extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: selected ? const Color(0xFFE8541A) : const Color(0xFF888888),
+                          color: selected
+                              ? const Color(0xFFE8541A)
+                              : const Color(0xFF888888),
                         ),
                       ),
                     ],
@@ -1043,8 +1412,8 @@ class _ItemChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          color: const Color(0xFFFFF0EB),
-          borderRadius: BorderRadius.circular(999),
+        color: const Color(0xFFFFF0EB),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFFFD2C0)),
       ),
       child: Text(
@@ -1077,7 +1446,9 @@ class _OrderedItemTile extends StatelessWidget {
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+            borderRadius: const BorderRadius.horizontal(
+              left: Radius.circular(18),
+            ),
             child: Container(
               width: 72,
               height: 72,
@@ -1130,13 +1501,12 @@ class _OrderedItemTile extends StatelessWidget {
                     children: [
                       _Badge(
                         label: 'Item total',
-                        value: hasPrice ? '₹${item.lineTotal.toStringAsFixed(2)}' : '—',
+                        value: hasPrice
+                            ? '₹${item.lineTotal.toStringAsFixed(2)}'
+                            : '—',
                       ),
                       const SizedBox(width: 10),
-                      _Badge(
-                        label: 'Ordered',
-                        value: '${item.quantity}',
-                      ),
+                      _Badge(label: 'Ordered', value: '${item.quantity}'),
                     ],
                   ),
                 ],
@@ -1186,162 +1556,6 @@ class _Badge extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.onTap,
-    this.isPrimary = false,
-    this.disabled = false,
-    this.disabledLabel,
-    this.onDisabledTap,
-    this.loading = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final VoidCallback? onTap;
-  final bool isPrimary;
-  final bool disabled;
-  final String? disabledLabel;
-  final VoidCallback? onDisabledTap;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: disabled ? onDisabledTap : onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isPrimary
-                  ? [
-                      accent.withValues(alpha: 0.95),
-                      const Color(0xFFFF7A2F),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: 0.08),
-                      Colors.white.withValues(alpha: 0.04),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isPrimary ? accent.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
-            ),
-            boxShadow: disabled
-                ? []
-                : [
-                    BoxShadow(
-                      color: accent.withValues(alpha: isPrimary ? 0.34 : 0.12),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-          ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                    ),
-                    child: loading
-                        ? const Padding(
-                            padding: EdgeInsets.all(11),
-                            child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Stack(
-                        children: [
-                          Center(child: Icon(icon, color: Colors.white, size: 22)),
-                          Positioned(
-                            right: 3,
-                            bottom: 3,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.22),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.white,
-                                size: 8,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      disabled && disabledLabel != null ? disabledLabel! : title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 12,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                ),
-                child: Icon(
-                  loading
-                      ? Icons.hourglass_top_rounded
-                      : disabled
-                          ? Icons.lock_rounded
-                          : Icons.arrow_forward_rounded,
-                  color: Colors.white.withValues(alpha: 0.92),
-                  size: 16,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

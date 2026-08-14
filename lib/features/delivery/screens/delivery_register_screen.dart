@@ -37,6 +37,7 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _vehicleCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
   final _panCtrl = TextEditingController();
   final _aadhaarCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -49,8 +50,10 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
   String? _photoUrl;
   String? _photoName;
   String? _panCard;
+  String? _licenseCard;
   String? _aadhaarCard;
   String? _panCardName;
+  String? _licenseCardName;
   String? _aadhaarCardName;
   String? _uploadingField;
 
@@ -75,6 +78,7 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _vehicleCtrl.dispose();
+    _licenseCtrl.dispose();
     _panCtrl.dispose();
     _aadhaarCtrl.dispose();
     _passwordCtrl.dispose();
@@ -117,7 +121,10 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
       if (mounted) setState(() {});
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}');
+      setState(
+        () => _error =
+            'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}',
+      );
     } finally {
       if (mounted) setState(() => _uploadingField = null);
     }
@@ -138,8 +145,10 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
       setState(() => _error = 'Please upload a delivery person photo');
       return;
     }
-    if (_panCard == null || _aadhaarCard == null) {
-      setState(() => _error = 'Please upload PAN card and Aadhaar card');
+    if (_panCard == null || _licenseCard == null || _aadhaarCard == null) {
+      setState(
+        () => _error = 'Please upload PAN card, licence photo and Aadhaar card',
+      );
       return;
     }
 
@@ -151,9 +160,7 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
       final error = await provider.register(
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
-        email: _emailCtrl.text.trim().isEmpty
-            ? null
-            : _emailCtrl.text.trim(),
+        email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         avatarUrl: _photoUrl,
         password: _passwordCtrl.text,
         vehicleNumber: _vehicleCtrl.text.trim().isEmpty
@@ -161,6 +168,8 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
             : _vehicleCtrl.text.trim(),
         panNumber: _panCtrl.text.trim(),
         panCardUrl: _panCard,
+        licenseNumber: _licenseCtrl.text.trim(),
+        licenseCardUrl: _licenseCard,
         aadhaarNumber: _aadhaarCtrl.text.trim(),
         aadhaarCardUrl: _aadhaarCard,
       );
@@ -174,7 +183,10 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
         final appState = context.read<AppState>();
         appState.token = provider.authToken;
         appState.user = user;
-        await SessionService().saveSession(token: provider.authToken!, user: user);
+        await SessionService().saveSession(
+          token: provider.authToken!,
+          user: user,
+        );
       }
       HapticFeedback.mediumImpact();
       navigator.pushNamedAndRemoveUntil(
@@ -265,7 +277,8 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                           validator: (v) {
                             final text = v?.trim() ?? '';
                             if (text.isEmpty) return null;
-                            if (!text.contains('@')) return 'Enter a valid email';
+                            if (!text.contains('@'))
+                              return 'Enter a valid email';
                             return null;
                           },
                         ),
@@ -281,6 +294,20 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                               : null,
                         ),
                         const SizedBox(height: 16),
+                        _FieldLabel('Licence number'),
+                        const SizedBox(height: 8),
+                        _Field(
+                          controller: _licenseCtrl,
+                          hint: 'DL1234567890123',
+                          icon: Icons.drive_eta_rounded,
+                          validator: (v) {
+                            final text = v?.trim() ?? '';
+                            if (text.isEmpty)
+                              return 'Enter your licence number';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         _FieldLabel('PAN number'),
                         const SizedBox(height: 8),
                         _Field(
@@ -290,8 +317,9 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                           validator: (v) {
                             final text = v?.trim().toUpperCase() ?? '';
                             if (text.isEmpty) return 'Enter PAN number';
-                            if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$')
-                                .hasMatch(text)) {
+                            if (!RegExp(
+                              r'^[A-Z]{5}[0-9]{4}[A-Z]$',
+                            ).hasMatch(text)) {
                               return 'Enter a valid PAN number';
                             }
                             return null;
@@ -309,11 +337,42 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                             acceptedTypeGroups: const [
                               XTypeGroup(
                                 label: 'Documents',
-                                extensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+                                extensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp',
+                                  'pdf',
+                                ],
                               ),
                             ],
                             onSelected: (value) => _panCard = value,
                             onNameSelected: (value) => _panCardName = value,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _FieldLabel('Licence photo'),
+                        const SizedBox(height: 8),
+                        _DocumentUploadField(
+                          fileName: _licenseCardName,
+                          hint: 'Upload driving licence photo',
+                          uploading: _uploadingField == 'license',
+                          onTap: () => _pickAsset(
+                            field: 'license',
+                            acceptedTypeGroups: const [
+                              XTypeGroup(
+                                label: 'Documents',
+                                extensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp',
+                                  'pdf',
+                                ],
+                              ),
+                            ],
+                            onSelected: (value) => _licenseCard = value,
+                            onNameSelected: (value) => _licenseCardName = value,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -325,7 +384,8 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                           icon: Icons.credit_card_rounded,
                           keyboardType: TextInputType.number,
                           validator: (v) {
-                            final text = v?.replaceAll(RegExp(r'\s+'), '') ?? '';
+                            final text =
+                                v?.replaceAll(RegExp(r'\s+'), '') ?? '';
                             if (text.isEmpty) return 'Enter Aadhaar number';
                             if (!RegExp(r'^\d{12}$').hasMatch(text)) {
                               return 'Enter a valid 12-digit Aadhaar number';
@@ -345,12 +405,17 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                             acceptedTypeGroups: const [
                               XTypeGroup(
                                 label: 'Documents',
-                                extensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+                                extensions: [
+                                  'png',
+                                  'jpg',
+                                  'jpeg',
+                                  'webp',
+                                  'pdf',
+                                ],
                               ),
                             ],
                             onSelected: (value) => _aadhaarCard = value,
-                            onNameSelected: (value) =>
-                                _aadhaarCardName = value,
+                            onNameSelected: (value) => _aadhaarCardName = value,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -422,11 +487,11 @@ class _DeliveryRegisterScreenState extends State<DeliveryRegisterScreen>
                         _SecondaryAction(
                           label: 'Already have an account?',
                           action: 'Login',
-                          onTap: () => Navigator.of(context)
-                              .pushNamedAndRemoveUntil(
-                            DeliveryLoginScreen.routeName,
-                            (route) => false,
-                          ),
+                          onTap: () =>
+                              Navigator.of(context).pushNamedAndRemoveUntil(
+                                DeliveryLoginScreen.routeName,
+                                (route) => false,
+                              ),
                         ),
                         const SizedBox(height: 24),
                         const _InfoStrip(),
@@ -539,8 +604,10 @@ class _HeroHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(999),
@@ -707,8 +774,10 @@ class _Field extends StatelessWidget {
             fontSize: 14,
           ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 14,
+          ),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Icon(icon, color: _kOrange, size: 20),
@@ -848,11 +917,7 @@ class _TermsRow extends StatelessWidget {
             padding: EdgeInsets.only(top: 11),
             child: Text(
               'I agree to the Terms & Conditions and confirm the details provided are correct.',
-              style: TextStyle(
-                color: _kTextMid,
-                fontSize: 12.5,
-                height: 1.35,
-              ),
+              style: TextStyle(color: _kTextMid, fontSize: 12.5, height: 1.35),
             ),
           ),
         ),

@@ -252,6 +252,8 @@ class AppState extends ChangeNotifier {
     String gstCertificate = '',
     String panCard = '',
     String cancelledCheque = '',
+    double? pickupLatitude,
+    double? pickupLongitude,
   }) async {
     final data =
         await apiService.post(
@@ -278,6 +280,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificate,
                 'panCardUrl': panCard,
                 'cancelledChequeUrl': cancelledCheque,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
               },
             )
             as Map<String, dynamic>;
@@ -994,7 +1001,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<OrderModel> checkout({
-    required String address,
+    required AddressModel address,
     String paymentMethod = 'razorpay',
     String? paymentId,
     DateTime? scheduledFor,
@@ -1008,7 +1015,14 @@ class AppState extends ChangeNotifier {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
                 'gstPercent': gstPercent,
-                'address': address,
+                'address': {
+                  'line1': address.line1,
+                  'city': address.city,
+                  'pincode': address.pincode,
+                  'label': address.label,
+                  'fullAddress': address.fullAddress,
+                  ...address.toLocationJson(),
+                },
                 'paymentMethod': paymentMethod,
                 if (paymentId != null) 'paymentId': paymentId,
                 if (scheduledFor != null)
@@ -1245,6 +1259,15 @@ class AppState extends ChangeNotifier {
     String? role,
     String? status,
     String? vendorId,
+    String? panNumber,
+    String? panCardUrl,
+    String? licenseNumber,
+    String? licenseCardUrl,
+    String? aadhaarNumber,
+    String? aadhaarCardUrl,
+    String? vehicleNumber,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1259,6 +1282,15 @@ class AppState extends ChangeNotifier {
       if (role != null) 'role': role,
       if (status != null) 'status': status,
       if (vendorId != null && vendorId.isNotEmpty) 'vendorId': vendorId,
+      if (panNumber != null) 'panNumber': panNumber,
+      if (panCardUrl != null) 'panCardUrl': panCardUrl,
+      if (licenseNumber != null) 'licenseNumber': licenseNumber,
+      if (licenseCardUrl != null) 'licenseCardUrl': licenseCardUrl,
+      if (aadhaarNumber != null) 'aadhaarNumber': aadhaarNumber,
+      if (aadhaarCardUrl != null) 'aadhaarCardUrl': aadhaarCardUrl,
+      if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
+      if (latitude != null && longitude != null)
+        'currentLocation': {'latitude': latitude, 'longitude': longitude},
     };
     final data =
         await apiService.put('/admin/users/$userId', token: token, body: body)
@@ -1275,6 +1307,15 @@ class AppState extends ChangeNotifier {
     String role = UserRoles.deliveryPerson,
     String status = 'active',
     String? vendorId,
+    String panNumber = '',
+    String panCardUrl = '',
+    String licenseNumber = '',
+    String licenseCardUrl = '',
+    String aadhaarNumber = '',
+    String aadhaarCardUrl = '',
+    String vehicleNumber = '',
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1294,6 +1335,18 @@ class AppState extends ChangeNotifier {
                 'status': status,
                 if (vendorId != null && vendorId.isNotEmpty)
                   'vendorId': vendorId,
+                if (panNumber.isNotEmpty) 'panNumber': panNumber,
+                if (panCardUrl.isNotEmpty) 'panCardUrl': panCardUrl,
+                if (licenseNumber.isNotEmpty) 'licenseNumber': licenseNumber,
+                if (licenseCardUrl.isNotEmpty) 'licenseCardUrl': licenseCardUrl,
+                if (aadhaarNumber.isNotEmpty) 'aadhaarNumber': aadhaarNumber,
+                if (aadhaarCardUrl.isNotEmpty) 'aadhaarCardUrl': aadhaarCardUrl,
+                if (vehicleNumber.isNotEmpty) 'vehicleNumber': vehicleNumber,
+                if (latitude != null && longitude != null)
+                  'currentLocation': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                  },
               },
             )
             as Map<String, dynamic>;
@@ -1347,6 +1400,8 @@ class AppState extends ChangeNotifier {
     String gstCertificateUrl = '',
     String panCardUrl = '',
     String cancelledChequeUrl = '',
+    double? pickupLatitude,
+    double? pickupLongitude,
     double commissionPercent = 0,
     String status = 'active',
   }) async {
@@ -1380,6 +1435,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificateUrl,
                 'panCardUrl': panCardUrl,
                 'cancelledChequeUrl': cancelledChequeUrl,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
                 'commissionPercent': commissionPercent,
                 'status': status,
               },
@@ -1409,6 +1469,8 @@ class AppState extends ChangeNotifier {
     String? gstCertificateUrl,
     String? panCardUrl,
     String? cancelledChequeUrl,
+    double? pickupLatitude,
+    double? pickupLongitude,
     double? commissionPercent,
     String? status,
     String? approvalStatus,
@@ -1445,6 +1507,11 @@ class AppState extends ChangeNotifier {
                 if (panCardUrl != null) 'panCardUrl': panCardUrl,
                 if (cancelledChequeUrl != null)
                   'cancelledChequeUrl': cancelledChequeUrl,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
                 if (commissionPercent != null)
                   'commissionPercent': commissionPercent,
                 if (status != null) 'status': status,
@@ -1615,6 +1682,8 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null) throw StateError('Please login first');
     final data =
@@ -1626,6 +1695,8 @@ class AppState extends ChangeNotifier {
                 'line1': line1,
                 'city': city,
                 'pincode': pincode,
+                if (latitude != null && longitude != null)
+                  'location': {'latitude': latitude, 'longitude': longitude},
               },
             )
             as Map<String, dynamic>;
@@ -1640,6 +1711,8 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null) throw StateError('Please login first');
     final data =
@@ -1651,6 +1724,8 @@ class AppState extends ChangeNotifier {
                 'line1': line1,
                 'city': city,
                 'pincode': pincode,
+                if (latitude != null && longitude != null)
+                  'location': {'latitude': latitude, 'longitude': longitude},
               },
             )
             as Map<String, dynamic>;
@@ -1786,8 +1861,7 @@ class AppState extends ChangeNotifier {
       onOrderDelivered: (_) async {
         debugPrint('Socket order delivered event received; reloading orders.');
         dashboardRefreshTick++;
-        final messenger =
-            DoormartDeliveryApp.scaffoldMessengerKey.currentState;
+        final messenger = DoormartDeliveryApp.scaffoldMessengerKey.currentState;
         await loadOrders();
         await loadAdminOrders();
         if (messenger != null) {

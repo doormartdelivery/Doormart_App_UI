@@ -17,10 +17,7 @@ class DeliveryApiService {
     if (email != null) body['email'] = email;
     if (phone != null) body['phone'] = phone;
     final response =
-        await _apiService.post(
-              '/delivery/login',
-              body: body,
-            )
+        await _apiService.post('/delivery/login', body: body)
             as Map<String, dynamic>;
     final user = response['user'] as Map<String, dynamic>?;
     final deliveryPerson = response['deliveryPerson'] as Map<String, dynamic>?;
@@ -43,6 +40,8 @@ class DeliveryApiService {
     String? vehicleNumber,
     String? panNumber,
     String? panCardUrl,
+    String? licenseNumber,
+    String? licenseCardUrl,
     String? aadhaarNumber,
     String? aadhaarCardUrl,
   }) async {
@@ -67,6 +66,12 @@ class DeliveryApiService {
     if (panCardUrl != null && panCardUrl.trim().isNotEmpty) {
       body['panCardUrl'] = panCardUrl.trim();
     }
+    if (licenseNumber != null && licenseNumber.trim().isNotEmpty) {
+      body['licenseNumber'] = licenseNumber.trim();
+    }
+    if (licenseCardUrl != null && licenseCardUrl.trim().isNotEmpty) {
+      body['licenseCardUrl'] = licenseCardUrl.trim();
+    }
     if (aadhaarNumber != null && aadhaarNumber.trim().isNotEmpty) {
       body['aadhaarNumber'] = aadhaarNumber.trim();
     }
@@ -74,10 +79,7 @@ class DeliveryApiService {
       body['aadhaarCardUrl'] = aadhaarCardUrl.trim();
     }
     final response =
-        await _apiService.post(
-              '/auth/register',
-              body: body,
-            )
+        await _apiService.post('/auth/register', body: body)
             as Map<String, dynamic>;
     final user = response['user'] as Map<String, dynamic>?;
     if (user == null) {

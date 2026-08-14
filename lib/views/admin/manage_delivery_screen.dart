@@ -87,6 +87,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
                   user: u,
                   deliveryDoc: deliveryByUserId[u.id],
                 ),
+                deliveryDoc: deliveryByUserId[u.id],
               ),
             )
             .toList();
@@ -105,7 +106,9 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
   List<_DeliveryPartnerRow> get _filtered {
     var items = List<_DeliveryPartnerRow>.from(_allPartners);
     if (_filter != 'All') {
-      items = items.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == _filter).toList();
+      items = items
+          .where((u) => _statusLabel(u.user, isOnline: u.isOnline) == _filter)
+          .toList();
     }
     if (_query.trim().isNotEmpty) {
       final q = _query.trim().toLowerCase();
@@ -127,34 +130,20 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
       builder: (_) => const _PartnerDialog(),
     );
     if (newUser == null || !mounted) return;
-
-    // Instantly add to local list — no full reload needed
-    setState(
-      () => _allPartners = [
-        _DeliveryPartnerRow(user: newUser, isOnline: false),
-        ..._allPartners,
-      ],
-    );
+    await _load();
     _showSnack('${newUser.name} added');
   }
 
   // ── Edit partner ──────────────────────────────────────────────────────────
-  Future<void> _editPartner(UserModel user) async {
+  Future<void> _editPartner(_DeliveryPartnerRow partner) async {
     final updated = await showDialog<UserModel>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _PartnerDialog(user: user),
+      builder: (_) =>
+          _PartnerDialog(user: partner.user, deliveryDoc: partner.deliveryDoc),
     );
     if (updated == null || !mounted) return;
-
-    // Replace in local list instantly
-    setState(() {
-      _allPartners = _allPartners.map((row) {
-        return row.user.id == updated.id
-            ? _DeliveryPartnerRow(user: updated, isOnline: row.isOnline)
-            : row;
-      }).toList();
-    });
+    await _load();
     _showSnack('${updated.name} updated');
   }
 
@@ -169,8 +158,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     try {
       await context.read<AppState>().deleteAdminUser(user.id);
       if (!mounted) return;
-      // Remove from local list instantly
-      setState(() => _allPartners.removeWhere((row) => row.user.id == user.id));
+      await _load();
       _showSnack('${user.name} removed');
     } catch (e) {
       if (!mounted) return;
@@ -204,27 +192,21 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
           final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            logoutRoute,
-            (_) => false,
-          );
+          Navigator.pushNamedAndRemoveUntil(context, logoutRoute, (_) => false);
         },
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: _kOrange))
+          ? const Center(child: CircularProgressIndicator(color: _kOrange))
           : _error != null
-              ? _ErrorView(message: _error!, onRetry: _load)
-              : _buildBody(),
+          ? _ErrorView(message: _error!, onRetry: _load)
+          : _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: _kOrange,
         onPressed: _addPartner,
         icon: const Icon(Icons.person_add_rounded, color: Colors.white),
         label: const Text(
           'Add Partner',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w800),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -236,10 +218,12 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final partners = _filtered;
     final total = _allPartners.length;
-    final online =
-        _allPartners.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Online').length;
-    final offline =
-        _allPartners.where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Offline').length;
+    final online = _allPartners
+        .where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Online')
+        .length;
+    final offline = _allPartners
+        .where((u) => _statusLabel(u.user, isOnline: u.isOnline) == 'Offline')
+        .length;
 
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 100 + bottomInset),
@@ -257,16 +241,26 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _StatCard(label: 'Total', value: '$total',
-                  icon: Icons.groups_rounded, color: _kOrange),
+              _StatCard(
+                label: 'Total',
+                value: '$total',
+                icon: Icons.groups_rounded,
+                color: _kOrange,
+              ),
               const SizedBox(width: 10),
-              _StatCard(label: 'Online', value: '$online',
-                  icon: Icons.wifi_rounded,
-                  color: const Color(0xFF16A34A)),
+              _StatCard(
+                label: 'Online',
+                value: '$online',
+                icon: Icons.wifi_rounded,
+                color: const Color(0xFF16A34A),
+              ),
               const SizedBox(width: 10),
-              _StatCard(label: 'Offline', value: '$offline',
-                  icon: Icons.wifi_off_rounded,
-                  color: const Color(0xFF64748B)),
+              _StatCard(
+                label: 'Offline',
+                value: '$offline',
+                icon: Icons.wifi_off_rounded,
+                color: const Color(0xFF64748B),
+              ),
             ],
           ),
         ),
@@ -292,9 +286,10 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
             filled: true,
             fillColor: _kCard,
             contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18)),
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: const BorderSide(color: _kBorder),
@@ -313,14 +308,23 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _Chip(label: 'All', selected: _filter == 'All',
-                  onTap: () => setState(() => _filter = 'All')),
+              _Chip(
+                label: 'All',
+                selected: _filter == 'All',
+                onTap: () => setState(() => _filter = 'All'),
+              ),
               const SizedBox(width: 8),
-              _Chip(label: 'Online', selected: _filter == 'Online',
-                  onTap: () => setState(() => _filter = 'Online')),
+              _Chip(
+                label: 'Online',
+                selected: _filter == 'Online',
+                onTap: () => setState(() => _filter = 'Online'),
+              ),
               const SizedBox(width: 8),
-              _Chip(label: 'Offline', selected: _filter == 'Offline',
-                  onTap: () => setState(() => _filter = 'Offline')),
+              _Chip(
+                label: 'Offline',
+                selected: _filter == 'Offline',
+                onTap: () => setState(() => _filter = 'Offline'),
+              ),
             ],
           ),
         ),
@@ -337,7 +341,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               child: _PartnerCard(
                 user: u.user,
                 isOnline: u.isOnline,
-                onEdit: () => _editPartner(u.user),
+                onEdit: () => _editPartner(u),
                 onDelete: () => _deletePartner(u.user),
               ),
             ),
@@ -464,16 +468,22 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, size: 16, color: color),
           ),
           const SizedBox(height: 10),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: color)),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: _kTextMid)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _kTextMid,
+            ),
+          ),
         ],
       ),
     );
@@ -483,10 +493,11 @@ class _StatCard extends StatelessWidget {
 // ─── Filter Chip ──────────────────────────────────────────────────────────────
 
 class _Chip extends StatelessWidget {
-  const _Chip(
-      {required this.label,
-      required this.selected,
-      required this.onTap});
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -497,20 +508,18 @@ class _Chip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? _kOrange : _kCard,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-              color: selected ? _kOrange : _kBorder),
+          border: Border.all(color: selected ? _kOrange : _kBorder),
           boxShadow: selected
               ? [
                   BoxShadow(
                     color: _kOrange.withValues(alpha: 0.28),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
-                  )
+                  ),
                 ]
               : [],
         ),
@@ -607,8 +616,7 @@ class _PartnerCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: statusColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                       ),
                     ),
@@ -643,7 +651,9 @@ class _PartnerCard extends StatelessWidget {
                       // Status pill
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: statusBg,
                           borderRadius: BorderRadius.circular(999),
@@ -693,27 +703,34 @@ class _PartnerCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             child: Row(
               children: [
-                const Icon(Icons.electric_bike_rounded,
-                    size: 16, color: _kTextMid),
+                const Icon(
+                  Icons.electric_bike_rounded,
+                  size: 16,
+                  color: _kTextMid,
+                ),
                 const SizedBox(width: 6),
-                Text(vehicle,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: _kTextDark,
-                    )),
+                Text(
+                  vehicle,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: _kTextDark,
+                  ),
+                ),
                 const SizedBox(width: 14),
-                const Icon(Icons.phone_rounded,
-                    size: 14, color: _kTextMid),
+                const Icon(Icons.phone_rounded, size: 14, color: _kTextMid),
                 const SizedBox(width: 4),
-                Text(user.phone,
-                    style: const TextStyle(
-                        fontSize: 12, color: _kTextMid)),
+                Text(
+                  user.phone,
+                  style: const TextStyle(fontSize: 12, color: _kTextMid),
+                ),
                 const Spacer(),
                 if ((user.email ?? '').isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(8),
@@ -779,12 +796,19 @@ class _DeleteDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      icon: const Icon(Icons.person_off_rounded,
-          color: Color(0xFFDC2626), size: 44),
-      title: const Text('Delete partner',
-          style: TextStyle(fontWeight: FontWeight.w900)),
-      content: Text('Remove "$name" from the delivery team?',
-          textAlign: TextAlign.center),
+      icon: const Icon(
+        Icons.person_off_rounded,
+        color: Color(0xFFDC2626),
+        size: 44,
+      ),
+      title: const Text(
+        'Delete partner',
+        style: TextStyle(fontWeight: FontWeight.w900),
+      ),
+      content: Text(
+        'Remove "$name" from the delivery team?',
+        textAlign: TextAlign.center,
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
@@ -792,7 +816,8 @@ class _DeleteDialog extends StatelessWidget {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626)),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete'),
         ),
@@ -818,28 +843,39 @@ class _EmptyState extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.delivery_dining_rounded,
-              size: 56, color: Color(0xFFEEEEEE)),
+          const Icon(
+            Icons.delivery_dining_rounded,
+            size: 56,
+            color: Color(0xFFEEEEEE),
+          ),
           const SizedBox(height: 12),
-          const Text('No partners found',
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: _kTextMid,
-                  fontSize: 16)),
+          const Text(
+            'No partners found',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: _kTextMid,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 6),
-          const Text('Add a delivery partner to get started',
-              style: TextStyle(color: _kTextMid, fontSize: 13)),
+          const Text(
+            'Add a delivery partner to get started',
+            style: TextStyle(color: _kTextMid, fontSize: 13),
+          ),
           const SizedBox(height: 20),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: _kOrange,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             onPressed: onAdd,
             icon: const Icon(Icons.person_add_rounded),
-            label: const Text('Add Partner',
-                style: TextStyle(fontWeight: FontWeight.w800)),
+            label: const Text(
+              'Add Partner',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
         ],
       ),
@@ -862,12 +898,17 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 56, color: Color(0xFFDC2626)),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: Color(0xFFDC2626),
+            ),
             const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: _kTextMid)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _kTextMid),
+            ),
             const SizedBox(height: 20),
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: _kOrange),
@@ -887,31 +928,65 @@ class _ErrorView extends StatelessWidget {
 // Parent updates _allPartners instantly without reload
 
 class _PartnerDialog extends StatefulWidget {
-  const _PartnerDialog({this.user});
+  const _PartnerDialog({this.user, this.deliveryDoc});
   final UserModel? user;
+  final Map<String, dynamic>? deliveryDoc;
 
   @override
   State<_PartnerDialog> createState() => _PartnerDialogState();
 }
 
 class _PartnerDialogState extends State<_PartnerDialog> {
-  late final TextEditingController _nameCtrl =
-      TextEditingController(text: widget.user?.name ?? '');
-  late final TextEditingController _phoneCtrl =
-      TextEditingController(text: widget.user?.phone ?? '');
-  late final TextEditingController _emailCtrl =
-      TextEditingController(text: widget.user?.email ?? '');
-  late final TextEditingController _avatarCtrl =
-      TextEditingController(text: widget.user?.avatarUrl ?? '');
+  late final TextEditingController _nameCtrl = TextEditingController(
+    text: widget.user?.name ?? '',
+  );
+  late final TextEditingController _phoneCtrl = TextEditingController(
+    text: widget.user?.phone ?? '',
+  );
+  late final TextEditingController _emailCtrl = TextEditingController(
+    text: widget.user?.email ?? '',
+  );
+  late final TextEditingController _avatarCtrl = TextEditingController(
+    text: widget.user?.avatarUrl ?? '',
+  );
   late final TextEditingController _passwordCtrl = TextEditingController();
+  late final TextEditingController _confirmCtrl = TextEditingController();
+  late final TextEditingController _vehicleCtrl = TextEditingController(
+    text: widget.deliveryDoc?['vehicleNumber']?.toString() ?? '',
+  );
+  late final TextEditingController _licenseCtrl = TextEditingController(
+    text: widget.deliveryDoc?['licenseNumber']?.toString() ?? '',
+  );
 
   Uint8List? _avatarBytes;
   bool _uploading = false;
+  String? _uploadingField;
   bool _saving = false;
   String? _uploadError;
   String? _saveError;
+  String? _panCardUrl;
+  String? _licenseCardUrl;
+  String? _aadhaarCardUrl;
+  String? _panCardName;
+  String? _licenseCardName;
+  String? _aadhaarCardName;
 
   bool get _isEdit => widget.user != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _panCardUrl = widget.deliveryDoc?['panCardUrl']?.toString();
+    _licenseCardUrl = widget.deliveryDoc?['licenseCardUrl']?.toString();
+    _aadhaarCardUrl = widget.deliveryDoc?['aadhaarCardUrl']?.toString();
+    _panCardName = (_panCardUrl ?? '').isNotEmpty ? 'Uploaded file' : null;
+    _licenseCardName = (_licenseCardUrl ?? '').isNotEmpty
+        ? 'Uploaded file'
+        : null;
+    _aadhaarCardName = (_aadhaarCardUrl ?? '').isNotEmpty
+        ? 'Uploaded file'
+        : null;
+  }
 
   @override
   void dispose() {
@@ -920,6 +995,9 @@ class _PartnerDialogState extends State<_PartnerDialog> {
     _emailCtrl.dispose();
     _avatarCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
+    _vehicleCtrl.dispose();
+    _licenseCtrl.dispose();
     super.dispose();
   }
 
@@ -930,18 +1008,20 @@ class _PartnerDialogState extends State<_PartnerDialog> {
       _uploadError = null;
     });
     try {
-      final picked = await ImagePicker()
-          .pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
       if (picked == null) {
         setState(() => _uploading = false);
         return;
       }
       final bytes = await picked.readAsBytes();
       final url = await context.read<AppState>().uploadProductImage(
-            picked.path,
-            bytes: bytes,
-            fileName: picked.name,
-          );
+        picked.path,
+        bytes: bytes,
+        fileName: picked.name,
+      );
       if (!mounted) return;
       setState(() {
         _avatarCtrl.text = url;
@@ -954,6 +1034,47 @@ class _PartnerDialogState extends State<_PartnerDialog> {
         _uploadError =
             'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}';
         _uploading = false;
+      });
+    }
+  }
+
+  Future<void> _pickDocument({
+    required String field,
+    required void Function(String url) onSelected,
+    required void Function(String name) onNameSelected,
+  }) async {
+    setState(() {
+      _uploadingField = field;
+      _saveError = null;
+      _uploadError = null;
+    });
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (picked == null) {
+        if (mounted) setState(() => _uploadingField = null);
+        return;
+      }
+      final bytes = await picked.readAsBytes();
+      final url = await context.read<AppState>().uploadProductImage(
+        picked.path,
+        bytes: bytes,
+        fileName: picked.name,
+      );
+      if (!mounted) return;
+      setState(() {
+        onSelected(url);
+        onNameSelected(picked.name);
+        _uploadingField = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _uploadError =
+            'Upload failed: ${e.toString().replaceFirst('Exception: ', '')}';
+        _uploadingField = null;
       });
     }
   }
@@ -984,6 +1105,22 @@ class _PartnerDialogState extends State<_PartnerDialog> {
           setState(() => _saveError = 'Password is required');
           return;
         }
+        if (_confirmCtrl.text.trim() != _passwordCtrl.text.trim()) {
+          setState(() => _saveError = 'Passwords do not match');
+          return;
+        }
+        if (_vehicleCtrl.text.trim().isEmpty) {
+          setState(() => _saveError = 'Vehicle number is required');
+          return;
+        }
+        if (_licenseCtrl.text.trim().isEmpty) {
+          setState(() => _saveError = 'Licence number is required');
+          return;
+        }
+        if (_licenseCardUrl == null) {
+          setState(() => _saveError = 'Licence photo is required');
+          return;
+        }
         saved = await state.createAdminUser(
           name: _nameCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
@@ -991,8 +1128,18 @@ class _PartnerDialogState extends State<_PartnerDialog> {
           avatarUrl: _avatarCtrl.text.trim(),
           password: _passwordCtrl.text.trim(),
           role: UserRoles.deliveryPerson,
+          vehicleNumber: _vehicleCtrl.text.trim(),
+          licenseNumber: _licenseCtrl.text.trim(),
+          licenseCardUrl: _licenseCardUrl ?? '',
+          panCardUrl: _panCardUrl ?? '',
+          aadhaarCardUrl: _aadhaarCardUrl ?? '',
         );
       } else {
+        if (_passwordCtrl.text.trim().isNotEmpty &&
+            _confirmCtrl.text.trim() != _passwordCtrl.text.trim()) {
+          setState(() => _saveError = 'Passwords do not match');
+          return;
+        }
         saved = await state.updateAdminUser(
           userId: widget.user!.id,
           name: _nameCtrl.text.trim(),
@@ -1004,6 +1151,11 @@ class _PartnerDialogState extends State<_PartnerDialog> {
               : _passwordCtrl.text.trim(),
           role: UserRoles.deliveryPerson,
           status: widget.user!.status,
+          vehicleNumber: _vehicleCtrl.text.trim(),
+          licenseNumber: _licenseCtrl.text.trim(),
+          licenseCardUrl: _licenseCardUrl,
+          panCardUrl: _panCardUrl,
+          aadhaarCardUrl: _aadhaarCardUrl,
         );
       }
 
@@ -1015,8 +1167,7 @@ class _PartnerDialogState extends State<_PartnerDialog> {
       setState(() => _saveError = e.message);
     } catch (e) {
       if (!mounted) return;
-      setState(() =>
-          _saveError = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _saveError = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1025,9 +1176,8 @@ class _PartnerDialogState extends State<_PartnerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFFFFFBF8),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      backgroundColor: const Color(0xFFF7F7F8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -1036,22 +1186,22 @@ class _PartnerDialogState extends State<_PartnerDialog> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _kOrangeLight,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF26522), Color(0xFFD44010)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              _isEdit
-                  ? Icons.edit_rounded
-                  : Icons.person_add_rounded,
-              color: _kOrange,
+            child: const Icon(
+              Icons.delivery_dining_rounded,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              _isEdit
-                  ? 'Edit Delivery Partner'
-                  : 'Add Delivery Partner',
+              _isEdit ? 'Edit Delivery Partner' : 'Add Delivery Partner',
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 color: _kTextDark,
@@ -1062,7 +1212,7 @@ class _PartnerDialogState extends State<_PartnerDialog> {
         ],
       ),
       content: SizedBox(
-        width: 480,
+        width: 640,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1070,13 +1220,116 @@ class _PartnerDialogState extends State<_PartnerDialog> {
             children: [
               const SizedBox(height: 8),
 
-              // ── Avatar upload ─────────────────────────────────────
+              _SectionHeader(
+                title: 'Profile',
+                subtitle: 'Photo and identity details',
+              ),
+
+              const SizedBox(height: 12),
+
               _AvatarSection(
                 bytes: _avatarBytes,
                 existingUrl: widget.user?.avatarUrl ?? '',
                 uploading: _uploading,
                 uploadError: _uploadError,
                 onPick: _pickAvatar,
+              ),
+
+              const SizedBox(height: 14),
+
+              _SectionHeader(
+                title: 'Documents',
+                subtitle: 'PAN, licence and Aadhaar verification',
+              ),
+
+              const SizedBox(height: 12),
+
+              _DocumentUploadCard(
+                title: 'PAN card photo',
+                subtitle: 'Upload a clear photo or scan of the PAN card.',
+                value: _panCardName ?? '',
+                uploading: _uploadingField == 'pan',
+                onTap: () => _pickDocument(
+                  field: 'pan',
+                  onSelected: (url) => _panCardUrl = url,
+                  onNameSelected: (name) => _panCardName = name,
+                ),
+                onClear: _panCardUrl != null
+                    ? () {
+                        setState(() {
+                          _panCardUrl = null;
+                          _panCardName = null;
+                        });
+                      }
+                    : null,
+              ),
+
+              const SizedBox(height: 12),
+
+              _DocumentUploadCard(
+                title: 'Licence photo',
+                subtitle:
+                    'Upload a clear photo or scan of the driving licence.',
+                value: _licenseCardName ?? '',
+                uploading: _uploadingField == 'license',
+                onTap: () => _pickDocument(
+                  field: 'license',
+                  onSelected: (url) => _licenseCardUrl = url,
+                  onNameSelected: (name) => _licenseCardName = name,
+                ),
+                onClear: _licenseCardUrl != null
+                    ? () {
+                        setState(() {
+                          _licenseCardUrl = null;
+                          _licenseCardName = null;
+                        });
+                      }
+                    : null,
+              ),
+
+              const SizedBox(height: 12),
+
+              _DocumentUploadCard(
+                title: 'Aadhaar card photo',
+                subtitle: 'Upload the front side or a clear scan of Aadhaar.',
+                value: _aadhaarCardName ?? '',
+                uploading: _uploadingField == 'aadhaar',
+                onTap: () => _pickDocument(
+                  field: 'aadhaar',
+                  onSelected: (url) => _aadhaarCardUrl = url,
+                  onNameSelected: (name) => _aadhaarCardName = name,
+                ),
+                onClear: _aadhaarCardUrl != null
+                    ? () {
+                        setState(() {
+                          _aadhaarCardUrl = null;
+                          _aadhaarCardName = null;
+                        });
+                      }
+                    : null,
+              ),
+
+              const SizedBox(height: 14),
+
+              _SectionHeader(
+                title: 'Basic Details',
+                subtitle: 'Contact and vehicle information',
+              ),
+
+              const SizedBox(height: 12),
+
+              _DialogField(
+                controller: _vehicleCtrl,
+                label: 'Vehicle number *',
+                icon: Icons.two_wheeler_rounded,
+              ),
+
+              const SizedBox(height: 16),
+
+              _DialogField(
+                controller: _licenseCtrl,
+                label: 'Licence number *',
+                icon: Icons.drive_eta_rounded,
               ),
 
               const SizedBox(height: 16),
@@ -1114,6 +1367,15 @@ class _PartnerDialogState extends State<_PartnerDialog> {
                 obscureText: true,
               ),
 
+              _DialogField(
+                controller: _confirmCtrl,
+                label: _isEdit
+                    ? 'Confirm password (if changing)'
+                    : 'Confirm password *',
+                icon: Icons.lock_outline_rounded,
+                obscureText: true,
+              ),
+
               // ── Save error ────────────────────────────────────────
               if (_saveError != null)
                 Container(
@@ -1123,13 +1385,15 @@ class _PartnerDialogState extends State<_PartnerDialog> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF1F2),
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: const Color(0xFFFFCDD2)),
+                    border: Border.all(color: const Color(0xFFFFCDD2)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline_rounded,
-                          color: Color(0xFFDC2626), size: 16),
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Color(0xFFDC2626),
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1150,18 +1414,16 @@ class _PartnerDialogState extends State<_PartnerDialog> {
       ),
       actions: [
         TextButton(
-          onPressed:
-              _saving ? null : () => Navigator.pop(context, null),
-          child: const Text('Cancel',
-              style: TextStyle(color: _kTextMid)),
+          onPressed: _saving ? null : () => Navigator.pop(context, null),
+          child: const Text('Cancel', style: TextStyle(color: _kTextMid)),
         ),
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: _kOrange,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 20, vertical: 12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
           onPressed: _saving ? null : _save,
           icon: _saving
@@ -1169,18 +1431,16 @@ class _PartnerDialogState extends State<_PartnerDialog> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : Icon(
-                  _isEdit
-                      ? Icons.save_rounded
-                      : Icons.person_add_rounded,
+                  _isEdit ? Icons.save_rounded : Icons.person_add_rounded,
                   size: 18,
                 ),
           label: Text(
-            _saving
-                ? 'Saving…'
-                : (_isEdit ? 'Save changes' : 'Add partner'),
+            _saving ? 'Saving…' : (_isEdit ? 'Save changes' : 'Add partner'),
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
@@ -1218,9 +1478,10 @@ class _AvatarSection extends StatelessWidget {
           const Text(
             'Profile photo (optional)',
             style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: _kTextDark),
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: _kTextDark,
+            ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -1233,29 +1494,35 @@ class _AvatarSection extends StatelessWidget {
             ),
             child: uploading
                 ? const Center(
-                    child: CircularProgressIndicator(color: _kOrange))
+                    child: CircularProgressIndicator(color: _kOrange),
+                  )
                 : bytes != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(17),
-                        child: Image.memory(bytes!, fit: BoxFit.cover,
-                            gaplessPlayback: true),
-                      )
-                    : hasExisting
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(17),
-                            child: Image.network(existingUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const _AvatarPlaceholder()),
-                          )
-                        : const _AvatarPlaceholder(),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(17),
+                    child: Image.memory(
+                      bytes!,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                    ),
+                  )
+                : hasExisting
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(17),
+                    child: Image.network(
+                      existingUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const _AvatarPlaceholder(),
+                    ),
+                  )
+                : const _AvatarPlaceholder(),
           ),
           if (uploadError != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(uploadError!,
-                  style: const TextStyle(
-                      color: Color(0xFFDC2626), fontSize: 12)),
+              child: Text(
+                uploadError!,
+                style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12),
+              ),
             )
           else
             Padding(
@@ -1287,15 +1554,17 @@ class _AvatarPlaceholder extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cloud_upload_outlined,
-              size: 32, color: _kOrange),
+          Icon(Icons.cloud_upload_outlined, size: 32, color: _kOrange),
           SizedBox(height: 6),
-          Text('Tap to upload',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: _kTextMid,
-                  fontSize: 13)),
-          Text('PNG or JPG',
-              style: TextStyle(fontSize: 11, color: _kTextMid)),
+          Text(
+            'Tap to upload',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: _kTextMid,
+              fontSize: 13,
+            ),
+          ),
+          Text('PNG or JPG', style: TextStyle(fontSize: 11, color: _kTextMid)),
         ],
       ),
     );
@@ -1332,18 +1601,164 @@ class _DialogField extends StatelessWidget {
           filled: true,
           fillColor: Colors.white,
           labelStyle: const TextStyle(color: _kTextMid),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: _kBorder),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide:
-                const BorderSide(color: _kOrange, width: 1.5),
+            borderSide: const BorderSide(color: _kOrange, width: 1.5),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DocumentUploadCard extends StatelessWidget {
+  const _DocumentUploadCard({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.uploading,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  final String title;
+  final String subtitle;
+  final String value;
+  final bool uploading;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value.trim().isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: hasValue ? const Color(0xFFFFF0EB) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasValue ? const Color(0xFFF3C3AF) : _kBorder,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: hasValue
+                  ? const Color(0xFFFCE7DF)
+                  : const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              hasValue ? Icons.verified_rounded : Icons.upload_file_rounded,
+              color: hasValue ? _kOrange : const Color(0xFFC63A0E),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    color: _kTextDark,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: _kTextMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  uploading
+                      ? 'Uploading...'
+                      : (hasValue ? value : 'Tap to upload'),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: hasValue ? _kOrange : _kTextMid,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (uploading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                valueColor: AlwaysStoppedAnimation<Color>(_kOrange),
+              ),
+            )
+          else if (onClear != null && hasValue) ...[
+            TextButton(
+              onPressed: onClear,
+              style: TextButton.styleFrom(foregroundColor: _kOrange),
+              child: const Text(
+                'Clear',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ] else
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFB4B4C4)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: _kTextDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12,
+              color: _kTextMid,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1352,8 +1767,7 @@ class _DialogField extends StatelessWidget {
 // ─── Admin Drawer ─────────────────────────────────────────────────────────────
 
 class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer(
-      {required this.onNavigate, required this.onLogout});
+  const _AdminDrawer({required this.onNavigate, required this.onLogout});
   final void Function(String) onNavigate;
   final Future<void> Function() onLogout;
 
@@ -1363,31 +1777,32 @@ class _AdminDrawer extends StatelessWidget {
         context.read<AppState>().user?.role == UserRoles.superAdmin;
 
     final items = [
-      ('Overview', Icons.dashboard_rounded,
-          AdminDashboardScreen.routeName),
-      ('Orders', Icons.receipt_long_rounded,
-          AdminOrdersScreen.routeName),
-      if (isSuperAdmin)
-        ('Notifications', Icons.notifications_active_rounded,
-            AdminNotificationsScreen.routeName),
-      ('Products', Icons.inventory_2_rounded,
-          ManageProductsScreen.routeName),
-      if (isSuperAdmin)
-        ('Categories', Icons.category_rounded,
-            ManageCategoriesScreen.routeName),
+      ('Overview', Icons.dashboard_rounded, AdminDashboardScreen.routeName),
+      ('Orders', Icons.receipt_long_rounded, AdminOrdersScreen.routeName),
       if (isSuperAdmin)
         (
-          'Banners',
-          Icons.slideshow_rounded,
-          ManageBannersScreen.routeName,
+          'Notifications',
+          Icons.notifications_active_rounded,
+          AdminNotificationsScreen.routeName,
         ),
+      ('Products', Icons.inventory_2_rounded, ManageProductsScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Categories',
+          Icons.category_rounded,
+          ManageCategoriesScreen.routeName,
+        ),
+      if (isSuperAdmin)
+        ('Banners', Icons.slideshow_rounded, ManageBannersScreen.routeName),
       if (isSuperAdmin)
         ('Users', Icons.groups_rounded, ManageUsersScreen.routeName),
       if (isSuperAdmin)
-        ('Delivery partners', Icons.delivery_dining_rounded,
-            ManageDeliveryScreen.routeName),
-      ('Stock alerts', Icons.warning_amber_rounded,
-          StockScreen.routeName),
+        (
+          'Delivery partners',
+          Icons.delivery_dining_rounded,
+          ManageDeliveryScreen.routeName,
+        ),
+      ('Stock alerts', Icons.warning_amber_rounded, StockScreen.routeName),
     ];
 
     return Drawer(
@@ -1401,22 +1816,28 @@ class _AdminDrawer extends StatelessWidget {
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: _kOrangeLight,
-                    child: Icon(Icons.admin_panel_settings_rounded,
-                        color: _kOrange),
+                    child: Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: _kOrange,
+                    ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Admin menu',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: _kTextDark)),
+                        Text(
+                          'Admin menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: _kTextDark,
+                          ),
+                        ),
                         SizedBox(height: 2),
-                        Text('Navigate the control centre',
-                            style: TextStyle(
-                                color: _kTextMid, fontSize: 12)),
+                        Text(
+                          'Navigate the control centre',
+                          style: TextStyle(color: _kTextMid, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -1431,11 +1852,9 @@ class _AdminDrawer extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (_, i) {
                   final item = items[i];
-                  final sel =
-                      item.$3 == ManageDeliveryScreen.routeName;
+                  final sel = item.$3 == ManageDeliveryScreen.routeName;
                   return Material(
-                    color:
-                        sel ? _kOrangeLight : Colors.white,
+                    color: sel ? _kOrangeLight : Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
@@ -1449,31 +1868,31 @@ class _AdminDrawer extends StatelessWidget {
                               height: 40,
                               decoration: BoxDecoration(
                                 color: _kOrange.withValues(
-                                    alpha: sel ? 0.18 : 0.08),
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                  alpha: sel ? 0.18 : 0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(item.$2,
-                                  color: sel
-                                      ? _kOrange
-                                      : const Color(0xFF555555),
-                                  size: 20),
+                              child: Icon(
+                                item.$2,
+                                color: sel ? _kOrange : const Color(0xFF555555),
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(item.$1,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: sel
-                                        ? _kOrange
-                                        : _kTextDark,
-                                  )),
+                              child: Text(
+                                item.$1,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: sel ? _kOrange : _kTextDark,
+                                ),
+                              ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                color: sel
-                                    ? _kOrange
-                                    : const Color(0xFFCCCCCC),
-                                size: 18),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: sel ? _kOrange : const Color(0xFFCCCCCC),
+                              size: 18,
+                            ),
                           ],
                         ),
                       ),
@@ -1491,16 +1910,17 @@ class _AdminDrawer extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _kOrange,
                     side: const BorderSide(color: _kOrange),
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     backgroundColor: _kOrangeLight,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   icon: const Icon(Icons.logout_rounded),
-                  label: const Text('Logout',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800)),
+                  label: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -1517,10 +1937,12 @@ class _DeliveryPartnerRow {
   const _DeliveryPartnerRow({
     required this.user,
     required this.isOnline,
+    this.deliveryDoc,
   });
 
   final UserModel user;
   final bool isOnline;
+  final Map<String, dynamic>? deliveryDoc;
 }
 
 bool _isOnlineFromBackend({
@@ -1531,7 +1953,9 @@ bool _isOnlineFromBackend({
   if (isOnline is bool) return isOnline;
   final deliveryUser = deliveryDoc?['user'];
   if (deliveryUser is Map<String, dynamic>) {
-    final deliveryStatus = (deliveryUser['status'] ?? '').toString().toLowerCase();
+    final deliveryStatus = (deliveryUser['status'] ?? '')
+        .toString()
+        .toLowerCase();
     if (deliveryStatus == 'online') return true;
     if (deliveryStatus == 'offline') return false;
   }

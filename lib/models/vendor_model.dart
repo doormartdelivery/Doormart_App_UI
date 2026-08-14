@@ -16,6 +16,8 @@ class VendorModel {
     this.city = '',
     this.state = '',
     this.pincode = '',
+    this.pickupLatitude,
+    this.pickupLongitude,
     this.logoUrl = '',
     this.gstCertificateUrl = '',
     this.panCardUrl = '',
@@ -50,6 +52,8 @@ class VendorModel {
   final String city;
   final String state;
   final String pincode;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
   final String logoUrl;
   final String gstCertificateUrl;
   final String panCardUrl;
@@ -85,6 +89,8 @@ class VendorModel {
       city: json['city'] as String? ?? '',
       state: json['state'] as String? ?? '',
       pincode: json['pincode'] as String? ?? '',
+      pickupLatitude: _asDouble(json['pickupLatitude'] ?? json['latitude']),
+      pickupLongitude: _asDouble(json['pickupLongitude'] ?? json['longitude']),
       logoUrl: json['logoUrl'] as String? ?? '',
       gstCertificateUrl: json['gstCertificateUrl'] as String? ?? '',
       panCardUrl: json['panCardUrl'] as String? ?? '',
@@ -120,6 +126,8 @@ class VendorModel {
     'city': city,
     'state': state,
     'pincode': pincode,
+    'pickupLatitude': pickupLatitude,
+    'pickupLongitude': pickupLongitude,
     'logoUrl': logoUrl,
     'gstCertificateUrl': gstCertificateUrl,
     'panCardUrl': panCardUrl,
@@ -142,4 +150,10 @@ class VendorModel {
   }
 
   String get status => isActive ? 'active' : 'inactive';
+}
+
+double? _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

@@ -70,7 +70,8 @@ class _PaymentScreenState extends State<PaymentScreen>
 
   Future<void> _prepareCheckout() async {
     final state = context.read<AppState>();
-    final address = state.selectedAddress?.fullAddress ?? '';
+    final address = state.selectedAddress;
+    final addressText = address?.fullAddress ?? '';
 
     if (state.token == null) {
       if (mounted) showToast(context, 'Please login first');
@@ -95,7 +96,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         receipt: 'dm_${DateTime.now().millisecondsSinceEpoch}',
         email: state.user?.email,
         contact: state.user?.phone,
-        address: address,
+        address: addressText,
       );
 
       _orderId = _readString(data, const ['orderId', 'order_id']);
@@ -223,6 +224,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 
     final state = context.read<AppState>();
     final token = state.token;
+    final address = state.selectedAddress;
     if (token == null || token.isEmpty) {
       if (mounted) {
         setState(() => _processingPayment = false);
@@ -247,8 +249,11 @@ class _PaymentScreenState extends State<PaymentScreen>
       ]).toUpperCase();
 
       if (status == 'PAID') {
+        if (address == null) {
+          throw StateError('Please select a delivery address');
+        }
         await state.checkout(
-          address: state.selectedAddress?.fullAddress ?? '',
+          address: address,
           paymentMethod: 'cashfree',
           paymentId: orderId,
         );

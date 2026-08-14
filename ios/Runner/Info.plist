@@ -71,6 +71,8 @@
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone for voice product search.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses your location to save exact delivery and pickup pins.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app uses your photo library to upload category images.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
