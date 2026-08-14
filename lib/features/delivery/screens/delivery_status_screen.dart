@@ -32,7 +32,8 @@ class DeliveryStatusScreen extends StatelessWidget {
                   child: Consumer<AppState>(
                     builder: (context, state, _) {
                       final user = state.user;
-                      final status = (user?.approvalStatus ?? 'pending').toLowerCase();
+                      final status = (user?.approvalStatus ?? 'pending')
+                          .toLowerCase();
                       final rejectionReason = user?.rejectionReason ?? '';
                       final title = switch (status) {
                         'approved' => 'Delivery Account Approved',
@@ -111,22 +112,25 @@ class DeliveryStatusScreen extends StatelessWidget {
                               _ActionButton(
                                 label: 'Go to Dashboard',
                                 filled: true,
-                                onPressed: () => Navigator.of(
-                                  context,
-                                ).pushNamedAndRemoveUntil(
-                                  DeliveryHomeScreen.routeName,
-                                  (route) => false,
-                                ),
+                                onPressed: () => Navigator.of(context)
+                                    .pushNamedAndRemoveUntil(
+                                      DeliveryHomeScreen.routeName,
+                                      (route) => false,
+                                    ),
                               )
                             else if (status == 'rejected') ...[
                               _ActionButton(
                                 label: 'Refresh Status',
                                 filled: true,
                                 onPressed: () async {
-                                  await context.read<AppState>().refreshProfile();
+                                  await context
+                                      .read<AppState>()
+                                      .refreshProfile();
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Status refreshed')),
+                                    const SnackBar(
+                                      content: Text('Status refreshed'),
+                                    ),
                                   );
                                 },
                               ),
@@ -134,9 +138,9 @@ class DeliveryStatusScreen extends StatelessWidget {
                               _ActionButton(
                                 label: 'Update Registration',
                                 filled: false,
-                                onPressed: () => Navigator.of(context).pushNamed(
-                                  DeliveryRegisterScreen.routeName,
-                                ),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                ).pushNamed(DeliveryRegisterScreen.routeName),
                               ),
                               const SizedBox(height: 12),
                               _ActionButton(
@@ -149,10 +153,14 @@ class DeliveryStatusScreen extends StatelessWidget {
                                 label: 'Refresh Status',
                                 filled: true,
                                 onPressed: () async {
-                                  await context.read<AppState>().refreshProfile();
+                                  await context
+                                      .read<AppState>()
+                                      .refreshProfile();
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Status refreshed')),
+                                    const SnackBar(
+                                      content: Text('Status refreshed'),
+                                    ),
                                   );
                                 },
                               ),
@@ -164,7 +172,7 @@ class DeliveryStatusScreen extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Contact support at support@doormart.com',
+                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
                                         ),
                                       ),
                                     ),
@@ -201,10 +209,9 @@ Future<void> _logout(BuildContext context) async {
     debugPrint('Delivery logout cleanup skipped: $e');
   }
   if (!context.mounted) return;
-  Navigator.of(context).pushNamedAndRemoveUntil(
-    DeliveryLoginScreen.routeName,
-    (route) => false,
-  );
+  Navigator.of(
+    context,
+  ).pushNamedAndRemoveUntil(DeliveryLoginScreen.routeName, (route) => false);
 }
 
 IconData _statusIcon(String status) {

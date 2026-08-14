@@ -10,6 +10,19 @@ import '../../services/api_service.dart';
 import '../../features/operations/services/location_service.dart';
 import '../admin/admin_sidebar_drawer.dart';
 
+String _formatVendorDisplayId(String? vendorId, String? id) {
+  final normalized = (vendorId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-VENDOR-')) return upper;
+
+  final source = (id ?? normalized).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-VENDOR-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-VENDOR-${suffix.toUpperCase()}';
+}
+
 class SuperAdminVendorsScreen extends StatefulWidget {
   const SuperAdminVendorsScreen({super.key});
 
@@ -71,8 +84,10 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
 
     if (query.isNotEmpty) {
       filtered = filtered.where((vendor) {
+        final displayId = _formatVendorDisplayId(vendor.vendorId, vendor.id);
         return vendor.name.toLowerCase().contains(query) ||
             vendor.vendorId.toLowerCase().contains(query) ||
+            displayId.toLowerCase().contains(query) ||
             vendor.ownerName.toLowerCase().contains(query) ||
             vendor.phone.toLowerCase().contains(query) ||
             (vendor.email ?? '').toLowerCase().contains(query) ||
@@ -1117,7 +1132,7 @@ class _VendorIdentity extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'ID: ${vendor.vendorId}',
+                      'ID: ${_formatVendorDisplayId(vendor.vendorId, vendor.id)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: const Color(0xFFE8541A),
                         fontSize: 11,
@@ -2833,7 +2848,7 @@ class _VendorDetailsDialog extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Vendor ID: ${vendor.vendorId}',
+                              'Vendor ID: ${_formatVendorDisplayId(vendor.vendorId, vendor.id)}',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 fontWeight: FontWeight.w600,

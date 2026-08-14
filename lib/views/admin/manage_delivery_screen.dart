@@ -147,6 +147,50 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     _showSnack('${updated.name} updated');
   }
 
+  Future<void> _approvePartner(UserModel user) async {
+    setState(() => _loading = true);
+    try {
+      await context.read<AppState>().updateAdminUser(
+        userId: user.id,
+        approvalStatus: 'approved',
+        status: 'active',
+      );
+      if (!mounted) return;
+      _showSnack('${user.name} approved');
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Approve failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _rejectPartner(UserModel user) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => _RejectPartnerDialog(user: user),
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await context.read<AppState>().updateAdminUser(
+        userId: user.id,
+        approvalStatus: 'rejected',
+        rejectionReason: reason,
+      );
+      if (!mounted) return;
+      _showSnack('${user.name} rejected', error: true);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Reject failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   // ── Delete partner ────────────────────────────────────────────────────────
   Future<void> _deletePartner(UserModel user) async {
     final confirmed = await showDialog<bool>(
@@ -341,6 +385,12 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               child: _PartnerCard(
                 user: u.user,
                 isOnline: u.isOnline,
+                onApprove: u.user.approvalStatus.toLowerCase() == 'pending'
+                    ? () => _approvePartner(u.user)
+                    : null,
+                onReject: u.user.approvalStatus.toLowerCase() == 'pending'
+                    ? () => _rejectPartner(u.user)
+                    : null,
                 onEdit: () => _editPartner(u),
                 onDelete: () => _deletePartner(u.user),
               ),
@@ -542,11 +592,15 @@ class _PartnerCard extends StatelessWidget {
   const _PartnerCard({
     required this.user,
     required this.isOnline,
+    this.onApprove,
+    this.onReject,
     required this.onEdit,
     required this.onDelete,
   });
   final UserModel user;
   final bool isOnline;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -674,6 +728,25 @@ class _PartnerCard extends StatelessWidget {
                 // Actions
                 Column(
                   children: [
+                    if (user.approvalStatus.toLowerCase() == 'pending' &&
+                        onApprove != null) ...[
+                      _ActionBtn(
+                        icon: Icons.verified_rounded,
+                        color: const Color(0xFF15803D),
+                        bg: const Color(0xFFEAF7ED),
+                        tooltip: 'Approve registration',
+                        onTap: onApprove!,
+                      ),
+                      const SizedBox(height: 6),
+                      _ActionBtn(
+                        icon: Icons.cancel_outlined,
+                        color: const Color(0xFFBE123C),
+                        bg: const Color(0xFFFFF1F2),
+                        tooltip: 'Reject registration',
+                        onTap: onReject!,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                     _ActionBtn(
                       icon: Icons.edit_rounded,
                       color: _kOrange,
@@ -820,6 +893,120 @@ class _DeleteDialog extends StatelessWidget {
           ),
           onPressed: () => Navigator.pop(context, true),
           child: const Text('Delete'),
+        ),
+      ],
+    );
+  }
+}
+
+class _RejectPartnerDialog extends StatefulWidget {
+  const _RejectPartnerDialog({required this.user});
+  final UserModel user;
+
+  @override
+  State<_RejectPartnerDialog> createState() => _RejectPartnerDialogState();
+}
+
+class _RejectPartnerDialogState extends State<_RejectPartnerDialog> {
+  final TextEditingController _reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a rejection reason')),
+      );
+      return;
+    }
+    Navigator.pop(context, reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1F2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.cancel_outlined,
+              color: Color(0xFFBE123C),
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Reject Delivery Partner',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Add a short reason for rejecting ${widget.user.name}.',
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _reasonController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText:
+                    'Example: PAN card is unclear or licence is missing...',
+                filled: true,
+                fillColor: const Color(0xFFFDF8F4),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFF1D4C8)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFF1D4C8)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFE8541A)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFBE123C),
+          ),
+          onPressed: _submit,
+          child: const Text('Reject'),
         ),
       ],
     );
@@ -1636,93 +1823,103 @@ class _DocumentUploadCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasValue = value.trim().isNotEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: hasValue ? const Color(0xFFFFF0EB) : Colors.white,
+    return Material(
+      color: hasValue ? const Color(0xFFFFF0EB) : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: uploading ? null : onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hasValue ? const Color(0xFFF3C3AF) : _kBorder,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasValue ? const Color(0xFFF3C3AF) : _kBorder,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: hasValue
+                      ? const Color(0xFFFCE7DF)
+                      : const Color(0xFFFFF0EB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  hasValue ? Icons.verified_rounded : Icons.upload_file_rounded,
+                  color: hasValue ? _kOrange : const Color(0xFFC63A0E),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        color: _kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: _kTextMid,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      uploading
+                          ? 'Uploading...'
+                          : (hasValue ? value : 'Tap to upload'),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: hasValue ? _kOrange : _kTextMid,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (uploading)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    valueColor: AlwaysStoppedAnimation<Color>(_kOrange),
+                  ),
+                )
+              else if (onClear != null && hasValue) ...[
+                TextButton(
+                  onPressed: onClear,
+                  style: TextButton.styleFrom(foregroundColor: _kOrange),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ] else
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB4B4C4),
+                ),
+            ],
+          ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: hasValue
-                  ? const Color(0xFFFCE7DF)
-                  : const Color(0xFFFFF0EB),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              hasValue ? Icons.verified_rounded : Icons.upload_file_rounded,
-              color: hasValue ? _kOrange : const Color(0xFFC63A0E),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                    color: _kTextDark,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: _kTextMid,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  uploading
-                      ? 'Uploading...'
-                      : (hasValue ? value : 'Tap to upload'),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: hasValue ? _kOrange : _kTextMid,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          if (uploading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(_kOrange),
-              ),
-            )
-          else if (onClear != null && hasValue) ...[
-            TextButton(
-              onPressed: onClear,
-              style: TextButton.styleFrom(foregroundColor: _kOrange),
-              child: const Text(
-                'Clear',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ] else
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFB4B4C4)),
-        ],
       ),
     );
   }

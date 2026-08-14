@@ -84,10 +84,9 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
       debugPrint('Delivery logout cleanup skipped: $e');
     }
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DeliveryLoginScreen.routeName,
-      (_) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(DeliveryLoginScreen.routeName, (_) => false);
   }
 
   @override
@@ -116,10 +115,7 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
         child: Column(
           children: [
             // ── App Bar ──────────────────────────────────────────────────
-            _AppBar(
-              person: person,
-              approvalStatus: approvalStatus,
-            ),
+            _AppBar(person: person, approvalStatus: approvalStatus),
 
             // ── Scrollable body ──────────────────────────────────────────
             Expanded(
@@ -169,7 +165,6 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
           ],
         ),
       ),
-
     );
   }
 }
@@ -301,10 +296,7 @@ class _AppBar extends StatelessWidget {
 // ─── Profile Header ───────────────────────────────────────────────────────────
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({
-    required this.person,
-    required this.approvalStatus,
-  });
+  const _ProfileHeader({required this.person, required this.approvalStatus});
   final dynamic person;
   final String approvalStatus;
 
@@ -818,7 +810,7 @@ class _AccountSettingsCard extends StatelessWidget {
           context,
           title: 'Help & Support',
           body:
-              'For delivery issues, order assignment problems, or account help, contact support at support@doormart.com or call +91 90000 00000.',
+              'For delivery issues, order assignment problems, or account help, contact support at doormartdelivery@gmail.com or call +91 82481 18563.',
         ),
         isLast: false,
       ),

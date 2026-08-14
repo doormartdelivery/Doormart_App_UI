@@ -85,8 +85,10 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final sorted = [...products];
     final categoryIndex = showVendorColumn ? 2 : 1;
     final stockIndex = showVendorColumn ? 3 : 2;
-    final costIndex = showVendorColumn ? 4 : 3;
+    final mrpIndex = showVendorColumn ? 4 : 3;
     final priceIndex = showVendorColumn ? 5 : 4;
+    double mrpValue(ProductModel product) =>
+        product.mrp > 0 ? product.mrp : product.cost;
     int compare(ProductModel a, ProductModel b) {
       if (_sortColumnIndex == 0) {
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
@@ -97,8 +99,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       if (_sortColumnIndex == stockIndex) {
         return a.stock.compareTo(b.stock);
       }
-      if (_sortColumnIndex == costIndex) {
-        return a.cost.compareTo(b.cost);
+      if (_sortColumnIndex == mrpIndex) {
+        return mrpValue(a).compareTo(mrpValue(b));
       }
       if (_sortColumnIndex == priceIndex) {
         return a.price.compareTo(b.price);
@@ -562,7 +564,7 @@ class _HeroCard extends StatelessWidget {
     final categories = products.map((p) => p.category).toSet().length;
     final inventoryValue = products.fold<double>(
       0,
-      (s, p) => s + p.cost * p.stock,
+      (s, p) => s + p.price * p.stock,
     );
 
     return Container(
@@ -857,12 +859,12 @@ class _ProductsTable extends StatelessWidget {
                     onSort: (_, __) => onSort(showVendorColumn ? 3 : 2),
                   ),
                   DataColumn(
-                    label: const Text('Cost'),
+                    label: const Text('MRP'),
                     numeric: true,
                     onSort: (_, __) => onSort(showVendorColumn ? 4 : 3),
                   ),
                   DataColumn(
-                    label: const Text('Price'),
+                    label: const Text('Original Price'),
                     numeric: true,
                     onSort: (_, __) => onSort(showVendorColumn ? 5 : 4),
                   ),
@@ -889,7 +891,11 @@ class _ProductsTable extends StatelessWidget {
                         ),
                       DataCell(_CategoryBadge(category: p.category)),
                       DataCell(_StockBadge(stock: p.stock)),
-                      DataCell(Text('Rs ${p.cost.toStringAsFixed(0)}')),
+                      DataCell(
+                        Text(
+                          'Rs ${(p.mrp > 0 ? p.mrp : p.cost).toStringAsFixed(0)}',
+                        ),
+                      ),
                       DataCell(
                         Text(
                           'Rs ${p.price.toStringAsFixed(0)}',
@@ -1142,14 +1148,26 @@ class _ProductDetailsDialog extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _InfoPill(label: 'Product ID', value: product.id),
+                  _InfoPill(
+                    label: 'Product ID',
+                    value: _formatProductDisplayId(product.id),
+                  ),
                   _InfoPill(label: 'Vendor', value: vendorName),
-                  _InfoPill(label: 'Vendor ID', value: product.vendorId),
+                  _InfoPill(
+                    label: 'Vendor ID',
+                    value: _formatVendorDisplayId(product.vendorId, null),
+                  ),
                   _InfoPill(label: 'Category', value: product.category),
                   _InfoPill(label: 'Stock', value: '${product.stock}'),
-                  _InfoPill(label: 'Cost', value: 'Rs ${product.cost}'),
-                  _InfoPill(label: 'Price', value: 'Rs ${product.price}'),
-                  _InfoPill(label: 'MRP', value: 'Rs ${product.mrp}'),
+                  _InfoPill(
+                    label: 'MRP',
+                    value:
+                        'Rs ${(product.mrp > 0 ? product.mrp : product.cost)}',
+                  ),
+                  _InfoPill(
+                    label: 'Original Price',
+                    value: 'Rs ${product.price}',
+                  ),
                   _InfoPill(label: 'Unit', value: product.unit),
                   _InfoPill(label: 'Rating', value: product.rating.toString()),
                   _InfoPill(
@@ -1274,6 +1292,32 @@ String _sectionLabel(String section) {
   }
 }
 
+String _formatProductDisplayId(String? productId) {
+  final normalized = (productId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-PROD-')) return upper;
+
+  final source = normalized.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-PROD-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-PROD-${suffix.toUpperCase()}';
+}
+
+String _formatVendorDisplayId(String? vendorId, String? id) {
+  final normalized = (vendorId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-VENDOR-')) return upper;
+
+  final source = (id ?? normalized).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-VENDOR-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-VENDOR-${suffix.toUpperCase()}';
+}
+
 // ─── Product Dialog ───────────────────────────────────────────────────────────
 // KEY FIX: imageUrl is now optional — product can be saved without an image.
 // Upload errors are shown inline but do NOT block save.
@@ -1289,7 +1333,7 @@ class _ProductDialog extends StatefulWidget {
 class _ProductDialogState extends State<_ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _costCtrl = TextEditingController();
+  final _mrpCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _stockCtrl = TextEditingController();
   final _ratingCtrl = TextEditingController();
@@ -1312,7 +1356,7 @@ class _ProductDialogState extends State<_ProductDialog> {
     final p = widget.product;
     if (p == null) return;
     _nameCtrl.text = p.name;
-    _costCtrl.text = p.cost.toStringAsFixed(0);
+    _mrpCtrl.text = (p.mrp > 0 ? p.mrp : p.cost).toStringAsFixed(0);
     _priceCtrl.text = p.price.toStringAsFixed(0);
     _stockCtrl.text = p.stock.toString();
     _ratingCtrl.text = p.rating.toStringAsFixed(1);
@@ -1326,7 +1370,7 @@ class _ProductDialogState extends State<_ProductDialog> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _costCtrl.dispose();
+    _mrpCtrl.dispose();
     _priceCtrl.dispose();
     _stockCtrl.dispose();
     _ratingCtrl.dispose();
@@ -1407,7 +1451,8 @@ class _ProductDialogState extends State<_ProductDialog> {
           name: _nameCtrl.text.trim(),
           category: _selectedCategory ?? '',
           price: double.parse(_priceCtrl.text.trim()),
-          cost: double.parse(_costCtrl.text.trim()),
+          cost: double.parse(_mrpCtrl.text.trim()),
+          mrp: double.parse(_mrpCtrl.text.trim()),
           stock: int.parse(_stockCtrl.text.trim()),
           unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
           rating: double.parse(_ratingCtrl.text.trim()),
@@ -1420,7 +1465,8 @@ class _ProductDialogState extends State<_ProductDialog> {
           name: _nameCtrl.text.trim(),
           category: _selectedCategory ?? '',
           price: double.parse(_priceCtrl.text.trim()),
-          cost: double.parse(_costCtrl.text.trim()),
+          cost: double.parse(_mrpCtrl.text.trim()),
+          mrp: double.parse(_mrpCtrl.text.trim()),
           stock: int.parse(_stockCtrl.text.trim()),
           unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
           rating: double.parse(_ratingCtrl.text.trim()),
@@ -1562,13 +1608,13 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                     ),
 
-                    // ── Cost + Price ────────────────────────────────────
+                    // ── MRP + Original Price ─────────────────────────────
                     Row(
                       children: [
                         Expanded(
                           child: _Field(
-                            controller: _costCtrl,
-                            label: 'Cost price *',
+                            controller: _mrpCtrl,
+                            label: 'MRP *',
                             icon: Icons.price_change_rounded,
                             keyboardType: TextInputType.number,
                             validator: (v) {
@@ -1586,7 +1632,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                         Expanded(
                           child: _Field(
                             controller: _priceCtrl,
-                            label: 'Selling price *',
+                            label: 'Original price *',
                             icon: Icons.sell_rounded,
                             keyboardType: TextInputType.number,
                             validator: (v) {

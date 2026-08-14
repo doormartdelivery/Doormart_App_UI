@@ -35,7 +35,9 @@ class VendorStatusScreen extends StatelessWidget {
                           vendor?.approvalStatus ??
                           'pending';
                       final rejectionReason =
-                          user?.rejectionReason ?? vendor?.rejectionReason ?? '';
+                          user?.rejectionReason ??
+                          vendor?.rejectionReason ??
+                          '';
                       final title = switch (status) {
                         'approved' => 'Vendor Account Approved',
                         'rejected' => 'Vendor Registration Rejected',
@@ -118,12 +120,11 @@ class VendorStatusScreen extends StatelessWidget {
                               _ActionButton(
                                 label: 'Go to Dashboard',
                                 filled: true,
-                                onPressed: () => Navigator.of(
-                                  context,
-                                ).pushNamedAndRemoveUntil(
-                                  '/vendor/dashboard',
-                                  (route) => false,
-                                ),
+                                onPressed: () => Navigator.of(context)
+                                    .pushNamedAndRemoveUntil(
+                                      '/vendor/dashboard',
+                                      (route) => false,
+                                    ),
                               )
                             else if (status == 'pending') ...[
                               _ActionButton(
@@ -149,7 +150,7 @@ class VendorStatusScreen extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Contact support at support@doormart.com',
+                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
                                         ),
                                       ),
                                     ),
@@ -208,7 +209,7 @@ class VendorStatusScreen extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Contact support at support@doormart.com',
+                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
                                         ),
                                       ),
                                     ),
@@ -234,7 +235,7 @@ class VendorStatusScreen extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Contact support at support@doormart.com',
+                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
                                         ),
                                       ),
                                     ),
@@ -344,10 +345,7 @@ class _ReasonBox extends StatelessWidget {
       ),
       child: Text(
         reason,
-        style: const TextStyle(
-          color: _kOrange,
-          fontWeight: FontWeight.w700,
-        ),
+        style: const TextStyle(color: _kOrange, fontWeight: FontWeight.w700),
       ),
     );
   }

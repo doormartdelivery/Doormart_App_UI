@@ -15,6 +15,20 @@ const _border = Color(0xFFE6E8EF);
 const _accent = Color(0xFFFF6A00);
 const _accentSoft = Color(0xFFFFEFE4);
 
+String _formatSupportOrderId(String? rawOrderId) {
+  final source = (rawOrderId ?? '')
+      .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+      .toUpperCase();
+  if (source.isEmpty) return 'DMD-000-000';
+
+  final tail = source.length >= 6
+      ? source.substring(source.length - 6)
+      : source.padLeft(6, '0');
+  final first = tail.substring(0, 3);
+  final second = tail.substring(3, 6);
+  return 'DMD-$first-$second';
+}
+
 class HelpSupportManagementScreen extends StatefulWidget {
   const HelpSupportManagementScreen({super.key});
 
@@ -98,9 +112,10 @@ class _HelpSupportManagementScreenState
       final user = ticket['user'] is Map
           ? Map<String, dynamic>.from(ticket['user'] as Map)
           : null;
+      final orderId = _formatSupportOrderId(ticket['orderId']?.toString());
       final matchesSearch =
           q.isEmpty ||
-          '${ticket['ticketNumber']} ${user?['name'] ?? ticket['userName'] ?? ''} ${user?['phone'] ?? ticket['phone'] ?? ''} ${ticket['orderId'] ?? ''} ${ticket['subject'] ?? ''}'
+          '${ticket['ticketNumber']} ${user?['name'] ?? ticket['userName'] ?? ''} ${user?['phone'] ?? ticket['phone'] ?? ''} $orderId ${ticket['subject'] ?? ''}'
               .toLowerCase()
               .contains(q);
       final matchesStatus =
@@ -180,17 +195,58 @@ class _HelpSupportManagementScreenState
         replyCtrl: _replyCtrl,
         noteCtrl: _noteCtrl,
         currentStatus: (ticket['status'] ?? 'open').toString(),
-        onReply: () async {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reply sent successfully')),
-          );
-        },
+        onSendReply: () => _submitTicketMessage(
+          ticket,
+          message: _replyCtrl.text,
+          visibility: 'customer',
+          successText: 'Reply sent successfully',
+        ),
+        onSaveNote: () => _submitTicketMessage(
+          ticket,
+          message: _noteCtrl.text,
+          visibility: 'internal',
+          successText: 'Internal note saved successfully',
+        ),
         onStatusChanged: (status) async {
           await _updateStatus(ticket, status);
         },
       ),
     );
+  }
+
+  Future<void> _submitTicketMessage(
+    Map<String, dynamic> ticket, {
+    required String message,
+    required String visibility,
+    required String successText,
+  }) async {
+    final trimmedMessage = message.trim();
+    if (trimmedMessage.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a message first')),
+      );
+      return;
+    }
+    try {
+      await _api.post(
+        '/admin/support/tickets/${ticket['_id'] ?? ticket['id']}/reply',
+        token: context.read<AppState>().token,
+        body: {'message': trimmedMessage, 'visibility': visibility},
+      );
+      if (!mounted) return;
+      _replyCtrl.clear();
+      _noteCtrl.clear();
+      await _loadTickets();
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successText)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   Future<void> _updateStatus(Map<String, dynamic> ticket, String status) async {
@@ -443,7 +499,11 @@ class _HelpSupportManagementScreenState
                                   ),
                                 ),
                                 DataCell(
-                                  Text(ticket['orderId']?.toString() ?? ''),
+                                  Text(
+                                    _formatSupportOrderId(
+                                      ticket['orderId']?.toString(),
+                                    ),
+                                  ),
                                 ),
                                 DataCell(
                                   Text(ticket['issueType']?.toString() ?? ''),
@@ -1026,7 +1086,8 @@ class _TicketDetailsSheet extends StatelessWidget {
     required this.replyCtrl,
     required this.noteCtrl,
     required this.currentStatus,
-    required this.onReply,
+    required this.onSendReply,
+    required this.onSaveNote,
     required this.onStatusChanged,
   });
 
@@ -1034,7 +1095,8 @@ class _TicketDetailsSheet extends StatelessWidget {
   final TextEditingController replyCtrl;
   final TextEditingController noteCtrl;
   final String currentStatus;
-  final VoidCallback onReply;
+  final Future<void> Function() onSendReply;
+  final Future<void> Function() onSaveNote;
   final ValueChanged<String> onStatusChanged;
 
   @override
@@ -1083,7 +1145,10 @@ class _TicketDetailsSheet extends StatelessWidget {
               _detailRow('User', user?['name'] ?? ticket['userName'] ?? ''),
               _detailRow('Phone', user?['phone'] ?? ticket['phone'] ?? ''),
               _detailRow('Email', user?['email'] ?? ticket['email'] ?? ''),
-              _detailRow('Order ID', ticket['orderId'] ?? ''),
+              _detailRow(
+                'Order ID',
+                _formatSupportOrderId(ticket['orderId']?.toString()),
+              ),
               _detailRow('Issue Type', ticket['issueType'] ?? ''),
               _detailRow('Priority', ticket['priority'] ?? ''),
               _detailRow('Status', ticket['status'] ?? ''),
@@ -1116,6 +1181,15 @@ class _TicketDetailsSheet extends StatelessWidget {
               const SizedBox(height: 6),
               Text((ticket['description'] ?? '').toString()),
               const SizedBox(height: 16),
+              if ((ticket['imageUrl'] ?? '').toString().trim().isNotEmpty) ...[
+                const Text(
+                  'Attached Image',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                _AttachedImagePreview(imageUrl: ticket['imageUrl'].toString()),
+                const SizedBox(height: 16),
+              ],
               TextField(
                 controller: replyCtrl,
                 maxLines: 4,
@@ -1138,7 +1212,9 @@ class _TicketDetailsSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: onReply,
+                      onPressed: () async {
+                        await onSaveNote();
+                      },
                       child: const Text('Save as Internal Note'),
                     ),
                   ),
@@ -1146,7 +1222,9 @@ class _TicketDetailsSheet extends StatelessWidget {
                   Expanded(
                     child: FilledButton(
                       style: FilledButton.styleFrom(backgroundColor: _accent),
-                      onPressed: onReply,
+                      onPressed: () async {
+                        await onSendReply();
+                      },
                       child: const Text('Send Reply'),
                     ),
                   ),
@@ -1174,6 +1252,84 @@ class _TicketDetailsSheet extends StatelessWidget {
           ),
           Expanded(child: Text((value ?? '').toString())),
         ],
+      ),
+    );
+  }
+}
+
+class _AttachedImagePreview extends StatelessWidget {
+  const _AttachedImagePreview({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  padding: const EdgeInsets.all(24),
+                  color: Colors.white,
+                  child: const Text('Unable to load image'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      child: Container(
+        width: double.infinity,
+        height: 220,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7FAF4),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE3E8DF)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Center(child: Text('Unable to load image')),
+            ),
+            Positioned(
+              left: 12,
+              top: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Tap to preview',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

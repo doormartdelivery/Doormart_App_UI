@@ -426,22 +426,82 @@ class AppState extends ChangeNotifier {
       user = UserModel.fromJson(currentUser);
       await _sessionService.saveSession(token: token!, user: user!);
       if (user?.role == UserRoles.vendor) {
-        vendor = VendorModel(
-          id: user?.vendorId ?? 'main',
-          name: user?.name ?? 'Vendor',
-          vendorId: user?.vendorId ?? 'main',
-          ownerName: user?.name ?? 'Vendor',
-          phone: user?.phone ?? '',
-          email: user?.email,
-          approvalStatus: user?.approvalStatus ?? 'pending',
-          isActive: user?.isActive ?? true,
-          rejectionReason: user?.rejectionReason ?? '',
-          approvedBy: user?.approvedBy,
-          approvedAt: user?.approvedAt,
-        );
+        try {
+          final vendorData =
+              await apiService.get('/auth/vendor/profile', token: token)
+                  as Map<String, dynamic>;
+          final vendorJson = vendorData['vendor'];
+          if (vendorJson is Map<String, dynamic>) {
+            vendor = VendorModel.fromJson(vendorJson);
+          } else {
+            vendor = VendorModel(
+              id: user?.vendorId ?? 'main',
+              name: user?.name ?? 'Vendor',
+              vendorId: user?.vendorId ?? 'main',
+              ownerName: user?.name ?? 'Vendor',
+              phone: user?.phone ?? '',
+              email: user?.email,
+              approvalStatus: user?.approvalStatus ?? 'pending',
+              isActive: user?.isActive ?? true,
+              rejectionReason: user?.rejectionReason ?? '',
+              approvedBy: user?.approvedBy,
+              approvedAt: user?.approvedAt,
+            );
+          }
+        } catch (e) {
+          debugPrint('Vendor profile refresh skipped: $e');
+          vendor = VendorModel(
+            id: user?.vendorId ?? 'main',
+            name: user?.name ?? 'Vendor',
+            vendorId: user?.vendorId ?? 'main',
+            ownerName: user?.name ?? 'Vendor',
+            phone: user?.phone ?? '',
+            email: user?.email,
+            approvalStatus: user?.approvalStatus ?? 'pending',
+            isActive: user?.isActive ?? true,
+            rejectionReason: user?.rejectionReason ?? '',
+            approvedBy: user?.approvedBy,
+            approvedAt: user?.approvedAt,
+          );
+        }
       }
       notifyListeners();
     }
+  }
+
+  Future<VendorModel> updateVendorPickupAddress({
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
+  }) async {
+    if (token == null || user?.role != UserRoles.vendor) {
+      throw StateError('Vendor login required');
+    }
+    final data =
+        await apiService.put(
+              '/auth/vendor/pickup-address',
+              token: token,
+              body: {
+                'pickupAddress': pickupAddress,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
+              },
+            )
+            as Map<String, dynamic>;
+    final vendorJson = data['vendor'];
+    if (vendorJson is Map<String, dynamic>) {
+      vendor = VendorModel.fromJson(vendorJson);
+      notifyListeners();
+      return vendor!;
+    }
+    await refreshProfile();
+    if (vendor == null) {
+      throw StateError('Unable to refresh vendor profile');
+    }
+    return vendor!;
   }
 
   Future<void> _refreshCurrentProfileSafely() async {
@@ -693,7 +753,18 @@ class AppState extends ChangeNotifier {
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
       final path = '/products${query.isEmpty ? '' : '?$query'}';
-      products = await _loadProductsWithRetry(path, token: token);
+      final loadedProducts = await _loadProductsWithRetry(path, token: token);
+      if (user?.role == UserRoles.vendor || user?.role == UserRoles.admin) {
+        final activeVendorId = (vendor?.vendorId ?? user?.vendorId ?? '')
+            .trim();
+        products = activeVendorId.isEmpty
+            ? loadedProducts
+            : loadedProducts
+                  .where((product) => product.vendorId.trim() == activeVendorId)
+                  .toList();
+      } else {
+        products = loadedProducts;
+      }
     });
   }
 
@@ -854,6 +925,7 @@ class AppState extends ChangeNotifier {
     required String category,
     required double price,
     required double cost,
+    required double mrp,
     required int stock,
     required String unit,
     required double rating,
@@ -877,6 +949,7 @@ class AppState extends ChangeNotifier {
                 'category': category,
                 'price': price,
                 'cost': cost,
+                'mrp': mrp,
                 'stock': stock,
                 'unit': unit,
                 'rating': rating,
@@ -900,6 +973,7 @@ class AppState extends ChangeNotifier {
     required String category,
     required double price,
     required double cost,
+    required double mrp,
     required int stock,
     required String unit,
     required double rating,
@@ -923,6 +997,7 @@ class AppState extends ChangeNotifier {
                 'category': category,
                 'price': price,
                 'cost': cost,
+                'mrp': mrp,
                 'stock': stock,
                 'unit': unit,
                 'rating': rating,
@@ -1170,14 +1245,26 @@ class AppState extends ChangeNotifier {
 
   Future<void> loadAdminOrders() async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.superAdmin &&
+            user?.role != UserRoles.vendor)) {
       return;
     }
     final data = await apiService.get('/orders', token: token) as List<dynamic>;
-    adminOrders = data
+    final orders = data
         .cast<Map<String, dynamic>>()
         .map(OrderModel.fromJson)
         .toList();
+    if (user?.role == UserRoles.vendor) {
+      final activeVendorId = (vendor?.vendorId ?? user?.vendorId ?? '').trim();
+      adminOrders = activeVendorId.isEmpty
+          ? orders
+          : orders
+                .where((order) => order.vendorId.trim() == activeVendorId)
+                .toList();
+    } else {
+      adminOrders = orders;
+    }
     notifyListeners();
   }
 
@@ -1266,6 +1353,8 @@ class AppState extends ChangeNotifier {
     String? aadhaarNumber,
     String? aadhaarCardUrl,
     String? vehicleNumber,
+    String? approvalStatus,
+    String? rejectionReason,
     double? latitude,
     double? longitude,
   }) async {
@@ -1289,6 +1378,8 @@ class AppState extends ChangeNotifier {
       if (aadhaarNumber != null) 'aadhaarNumber': aadhaarNumber,
       if (aadhaarCardUrl != null) 'aadhaarCardUrl': aadhaarCardUrl,
       if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
+      if (approvalStatus != null) 'approvalStatus': approvalStatus,
+      if (rejectionReason != null) 'rejectionReason': rejectionReason,
       if (latitude != null && longitude != null)
         'currentLocation': {'latitude': latitude, 'longitude': longitude},
     };
@@ -1881,6 +1972,7 @@ class AppState extends ChangeNotifier {
         dashboardRefreshTick++;
         await loadProducts();
         if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.vendor ||
             user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }

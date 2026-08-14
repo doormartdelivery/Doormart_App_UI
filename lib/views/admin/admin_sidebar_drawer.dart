@@ -15,6 +15,7 @@ import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
+import '../vendor/vendor_profile_screen.dart';
 
 const _kBg = Color(0xFFF6F6F6);
 const _kCard = Colors.white;
@@ -54,6 +55,13 @@ class AdminSidebarDrawer extends StatelessWidget {
         AdminOrdersScreen.routeName,
         const Color(0xFF0F766E),
       ),
+      if (!isSuperAdmin)
+        (
+          'Profile',
+          Icons.badge_outlined,
+          VendorProfileScreen.routeName,
+          const Color(0xFF7C3AED),
+        ),
       if (isSuperAdmin)
         (
           'Notifications',
@@ -211,6 +219,8 @@ class AdminSidebarDrawer extends StatelessWidget {
                                           ? 'Manage user tickets'
                                           : item.$1 == 'My Products'
                                           ? 'Manage your catalog'
+                                          : item.$1 == 'Profile'
+                                          ? 'Business identity and documents'
                                           : 'Open section',
                                       style: const TextStyle(
                                         color: _kTextMid,

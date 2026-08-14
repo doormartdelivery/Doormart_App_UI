@@ -8,6 +8,6 @@ class AddEditProductScreen extends StatelessWidget {
   Widget build(BuildContext context) => const FeaturePlaceholderScreen(
     title: 'Add Edit Product',
     icon: Icons.add_box,
-    description: 'Product form with image, stock, cost, and selling price.',
+    description: 'Product form with image, stock, MRP, and original price.',
   );
 }
