@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../app.dart';
@@ -16,7 +17,6 @@ import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/session_service.dart';
-import '../widgets/toast_widget.dart';
 
 class CartLine {
   CartLine({required this.product, this.quantity = 1});
@@ -417,6 +417,7 @@ class AppState extends ChangeNotifier {
     final currentUser = data['user'];
     if (currentUser is Map<String, dynamic>) {
       user = UserModel.fromJson(currentUser);
+      await _sessionService.saveSession(token: token!, user: user!);
       if (user?.role == UserRoles.vendor) {
         vendor = VendorModel(
           id: user?.vendorId ?? 'main',
@@ -656,9 +657,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  String get defaultDashboardRoute => RoleAccess.dashboardForRole(user?.role);
+  String get defaultDashboardRoute {
+    if (user?.role == UserRoles.deliveryPerson &&
+        (user?.approvalStatus ?? 'approved').toLowerCase() != 'approved') {
+      return '/delivery/status';
+    }
+    return RoleAccess.dashboardForRole(user?.role);
+  }
 
   bool canAccessRoute(String routeName) {
+    final approvalStatus = (user?.approvalStatus ?? 'approved').toLowerCase();
+    if (routeName == '/delivery') {
+      return user?.role == UserRoles.deliveryPerson &&
+          approvalStatus == 'approved';
+    }
+    if (routeName == '/delivery/login' ||
+        routeName == '/delivery/register' ||
+        routeName == '/delivery/status') {
+      return true;
+    }
     return RoleAccess.canAccessRoute(user?.role, routeName);
   }
 
@@ -1769,11 +1786,21 @@ class AppState extends ChangeNotifier {
       onOrderDelivered: (_) async {
         debugPrint('Socket order delivered event received; reloading orders.');
         dashboardRefreshTick++;
+        final messenger =
+            DoormartDeliveryApp.scaffoldMessengerKey.currentState;
         await loadOrders();
         await loadAdminOrders();
-        final navContext = DoormartDeliveryApp.navigatorKey.currentContext;
-        if (navContext != null)
-          showToast(navContext, 'Order delivered successfully');
+        if (messenger != null) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(
+                content: Text('Order delivered successfully'),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(16),
+              ),
+            );
+        }
       },
       onStockUpdated: (_) async {
         debugPrint('Socket stock updated event received; reloading products.');

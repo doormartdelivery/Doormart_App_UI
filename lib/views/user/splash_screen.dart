@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../providers/app_state.dart';
 import 'login_screen.dart';
 import '../../features/delivery/screens/delivery_home_screen.dart';
+import '../../features/delivery/screens/delivery_status_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../super_admin/super_admin_dashboard_screen.dart';
 import '../vendor/vendor_dashboard_screen.dart';
@@ -48,8 +49,12 @@ class _SplashScreenState extends State<SplashScreen> {
     _navigated = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
       final target = switch (state.user?.role) {
-        'delivery_person' => const DeliveryHomeScreen(),
+        'delivery_person' =>
+          approvalStatus == 'approved'
+              ? const DeliveryHomeScreen()
+              : const DeliveryStatusScreen(),
         'admin' => const AdminDashboardScreen(),
         'vendor' => const VendorDashboardScreen(),
         'super_admin' => const SuperAdminDashboardScreen(),

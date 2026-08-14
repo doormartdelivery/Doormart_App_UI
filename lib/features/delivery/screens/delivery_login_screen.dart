@@ -9,6 +9,8 @@ import '../../../../services/session_service.dart';
 import '../../../../views/user/forgot_password_screen.dart';
 import '../providers/delivery_provider.dart';
 import 'delivery_home_screen.dart';
+import 'delivery_register_screen.dart';
+import 'delivery_status_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -169,6 +171,14 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen>
 
                           const SizedBox(height: 24),
 
+                          _SignupPrompt(
+                            onTap: () => Navigator.of(context).pushNamed(
+                              DeliveryRegisterScreen.routeName,
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
                           // Info strip
                           const _InfoStrip(),
 
@@ -245,8 +255,14 @@ class _DeliveryLoginScreenState extends State<DeliveryLoginScreen>
       }
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      Navigator.of(context)
-          .pushReplacementNamed(DeliveryHomeScreen.routeName);
+      final approvalStatus =
+          (context.read<AppState>().user?.approvalStatus ?? 'pending')
+              .toLowerCase();
+      Navigator.of(context).pushReplacementNamed(
+        approvalStatus == 'approved'
+            ? DeliveryHomeScreen.routeName
+            : DeliveryStatusScreen.routeName,
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 401 || e.statusCode == 403) {
@@ -761,6 +777,42 @@ class _InfoStrip extends StatelessWidget {
             ],
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+// ─── Signup prompt ───────────────────────────────────────────────────────────
+
+class _SignupPrompt extends StatelessWidget {
+  const _SignupPrompt({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: GestureDetector(
+        onTap: onTap,
+        child: RichText(
+          text: const TextSpan(
+            style: TextStyle(
+              color: _kTextMid,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            children: [
+              TextSpan(text: 'New partner? '),
+              TextSpan(
+                text: 'Create account',
+                style: TextStyle(
+                  color: _kOrangeDeep,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

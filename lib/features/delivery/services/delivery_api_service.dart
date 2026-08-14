@@ -13,14 +13,13 @@ class DeliveryApiService {
     String? phone,
     required String password,
   }) async {
+    final body = <String, dynamic>{'password': password};
+    if (email != null) body['email'] = email;
+    if (phone != null) body['phone'] = phone;
     final response =
         await _apiService.post(
               '/delivery/login',
-              body: {
-                if (email != null) 'email': email,
-                if (phone != null) 'phone': phone,
-                'password': password,
-              },
+              body: body,
             )
             as Map<String, dynamic>;
     final user = response['user'] as Map<String, dynamic>?;
@@ -31,6 +30,62 @@ class DeliveryApiService {
     return {
       'user': user,
       'deliveryPerson': deliveryPerson,
+      'token': response['token'],
+    };
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String name,
+    required String phone,
+    String? email,
+    required String password,
+    String? avatarUrl,
+    String? vehicleNumber,
+    String? panNumber,
+    String? panCardUrl,
+    String? aadhaarNumber,
+    String? aadhaarCardUrl,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'phone': phone,
+      'password': password,
+      'role': 'delivery_person',
+    };
+    if (email != null && email.trim().isNotEmpty) {
+      body['email'] = email;
+    }
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      body['avatarUrl'] = avatarUrl.trim();
+    }
+    if (vehicleNumber != null && vehicleNumber.trim().isNotEmpty) {
+      body['vehicleNumber'] = vehicleNumber.trim();
+    }
+    if (panNumber != null && panNumber.trim().isNotEmpty) {
+      body['panNumber'] = panNumber.trim();
+    }
+    if (panCardUrl != null && panCardUrl.trim().isNotEmpty) {
+      body['panCardUrl'] = panCardUrl.trim();
+    }
+    if (aadhaarNumber != null && aadhaarNumber.trim().isNotEmpty) {
+      body['aadhaarNumber'] = aadhaarNumber.trim();
+    }
+    if (aadhaarCardUrl != null && aadhaarCardUrl.trim().isNotEmpty) {
+      body['aadhaarCardUrl'] = aadhaarCardUrl.trim();
+    }
+    final response =
+        await _apiService.post(
+              '/auth/register',
+              body: body,
+            )
+            as Map<String, dynamic>;
+    final user = response['user'] as Map<String, dynamic>?;
+    if (user == null) {
+      throw StateError('Invalid registration response');
+    }
+    return {
+      'user': user,
+      'deliveryPerson': response['deliveryPerson'],
       'token': response['token'],
     };
   }
@@ -82,13 +137,13 @@ class DeliveryApiService {
     String? phone,
     String? vehicleNumber,
   }) async {
+    final body = <String, dynamic>{};
+    if (phone != null) body['phone'] = phone;
+    if (vehicleNumber != null) body['vehicleNumber'] = vehicleNumber;
     final response = await _apiService.put(
       '/delivery/profile',
       token: token,
-      body: {
-        if (phone != null) 'phone': phone,
-        if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
-      },
+      body: body,
     );
     return response as Map<String, dynamic>;
   }

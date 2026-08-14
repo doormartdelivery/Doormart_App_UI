@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../features/delivery/screens/delivery_home_screen.dart';
+import '../../features/delivery/screens/delivery_status_screen.dart';
 import '../../views/user/user_home_screen.dart';
 import '../../views/user/login_screen.dart';
 import '../../views/admin/admin_dashboard_screen.dart';
@@ -64,8 +65,11 @@ class _AuthGateState extends State<AuthGate> {
         _target = const LoginScreen();
         return;
       }
+      final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
       _target = switch (role) {
-        UserRoles.deliveryPerson => const DeliveryHomeScreen(),
+        UserRoles.deliveryPerson => approvalStatus == 'approved'
+            ? const DeliveryHomeScreen()
+            : const DeliveryStatusScreen(),
         UserRoles.admin => const AdminDashboardScreen(),
         UserRoles.vendor => const VendorDashboardScreen(),
         UserRoles.superAdmin => const SuperAdminDashboardScreen(),
@@ -74,17 +78,16 @@ class _AuthGateState extends State<AuthGate> {
       };
     } catch (_) {
       _target = null;
-    } finally {
-      if (!mounted) return;
-      setState(() => _checking = false);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => _target ?? const LoginScreen()),
-          (route) => false,
-        );
-      });
     }
+    if (!mounted) return;
+    setState(() => _checking = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => _target ?? const LoginScreen()),
+        (route) => false,
+      );
+    });
   }
 
   @override

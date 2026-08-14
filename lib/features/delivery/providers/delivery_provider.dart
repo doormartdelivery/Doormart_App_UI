@@ -4,8 +4,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../services/api_service.dart';
 import '../../../core/constants.dart';
+import '../../../services/api_service.dart';
 import '../../../notifications/firebase_messaging_service.dart';
 import '../../../models/user_model.dart';
 import '../../../services/session_service.dart';
@@ -136,7 +136,7 @@ class DeliveryProvider extends ChangeNotifier {
           '',
       status: status,
       isOnline: false,
-      active: true,
+      active: (delivery?['active'] as bool?) ?? true,
       completedOrders: (user['completedOrders'] as num? ?? 0).toInt(),
       todayEarnings: (user['todayEarnings'] as num? ?? 0).toDouble(),
       avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
@@ -214,6 +214,83 @@ class DeliveryProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> register({
+    required String name,
+    required String phone,
+    String? email,
+    String? avatarUrl,
+    required String password,
+    String? vehicleNumber,
+    String? panNumber,
+    String? panCardUrl,
+    String? aadhaarNumber,
+    String? aadhaarCardUrl,
+  }) async {
+    try {
+      loading = true;
+      error = null;
+      notifyListeners();
+
+      final response = await _run(() {
+        return apiService.register(
+          name: name,
+          phone: phone,
+          email: email,
+          avatarUrl: avatarUrl,
+          password: password,
+          vehicleNumber: vehicleNumber,
+          panNumber: panNumber,
+          panCardUrl: panCardUrl,
+          aadhaarNumber: aadhaarNumber,
+          aadhaarCardUrl: aadhaarCardUrl,
+        );
+      });
+
+      final user = response['user'] as Map<String, dynamic>;
+      final delivery = response['deliveryPerson'] as Map<String, dynamic>?;
+      authToken = response['token'] as String?;
+      authUser = user;
+      deliveryPerson = DeliveryPersonModel(
+        id: user['_id'] as String? ?? user['id'] as String? ?? '',
+        name: _resolveDisplayName(user: user, delivery: delivery),
+        phone: user['phone'] as String? ?? phone,
+        vehicleNumber:
+            delivery?['vehicleNumber'] as String? ??
+            vehicleNumber?.trim() ??
+            '',
+        status: (user['status'] as String? ?? 'active').toLowerCase(),
+        isOnline: false,
+        active: (delivery?['active'] as bool?) ?? false,
+        completedOrders:
+            (delivery?['completedOrders'] as num? ?? 0).toInt(),
+        todayEarnings: (delivery?['todayEarnings'] as num? ?? 0).toDouble(),
+        avatarUrl: _resolveAvatarUrl(user: user, delivery: delivery),
+        panNumber: delivery?['panNumber'] as String? ?? panNumber?.trim() ?? '',
+        panCardUrl: delivery?['panCardUrl'] as String? ?? panCardUrl,
+        aadhaarNumber:
+            delivery?['aadhaarNumber'] as String? ?? aadhaarNumber?.trim() ?? '',
+        aadhaarCardUrl: delivery?['aadhaarCardUrl'] as String? ??
+            aadhaarCardUrl,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      if (authToken != null && authToken!.isNotEmpty) {
+        await prefs.setString(_deliveryTokenKey, authToken!);
+      }
+      await prefs.setString(_deliveryUserKey, jsonEncode(user));
+      if (authToken != null && authToken!.isNotEmpty) {
+        unawaited(_messagingService.registerTokenSync(authToken: authToken!));
+      }
+      return null;
+    } catch (e) {
+      error = e.toString();
+      return e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> refreshProfile() async {
     if (authToken == null) return;
     final response = await apiService.fetchProfile(token: authToken);
@@ -274,7 +351,6 @@ class DeliveryProvider extends ChangeNotifier {
         todayEarnings: deliveryPerson!.todayEarnings,
         avatarUrl: deliveryPerson!.avatarUrl,
       );
-      final prefs = await SharedPreferences.getInstance();
       notifyListeners();
       return null;
     } catch (e) {
@@ -451,18 +527,24 @@ class DeliveryProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await goOffline();
-    final currentToken = await _messagingService.getToken();
-    if (authToken != null && currentToken != null && currentToken.isNotEmpty) {
-      try {
+    try {
+      await goOffline();
+    } catch (e) {
+      debugPrint('Delivery goOffline skipped during logout: $e');
+    }
+
+    try {
+      final currentToken = await _messagingService.getToken();
+      if (authToken != null && currentToken != null && currentToken.isNotEmpty) {
         await _messagingService.removeToken(
           token: currentToken,
           authToken: authToken!,
         );
-      } catch (e) {
-        debugPrint('Delivery FCM token removal skipped during logout: $e');
       }
+    } catch (e) {
+      debugPrint('Delivery FCM token removal skipped during logout: $e');
     }
+
     deliveryPerson = null;
     activeOrder = null;
     history.clear();
@@ -470,11 +552,23 @@ class DeliveryProvider extends ChangeNotifier {
     earningsStats = const {};
     authToken = null;
     authUser = null;
+    online = false;
     _stopRequestRefresh();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_deliveryTokenKey);
-    await prefs.remove(_deliveryUserKey);
-    await SessionService().clearSession();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_deliveryTokenKey);
+      await prefs.remove(_deliveryUserKey);
+    } catch (e) {
+      debugPrint('Delivery shared prefs cleanup skipped during logout: $e');
+    }
+
+    try {
+      await SessionService().clearSession();
+    } catch (e) {
+      debugPrint('Delivery session clear skipped during logout: $e');
+    }
+
     notifyListeners();
   }
 
@@ -589,8 +683,9 @@ class DeliveryProvider extends ChangeNotifier {
 
   Map<String, dynamic>? _normalize(dynamic data) {
     if (data is Map<String, dynamic>) {
-      if (data['order'] is Map<String, dynamic>)
+      if (data['order'] is Map<String, dynamic>) {
         return data['order'] as Map<String, dynamic>;
+      }
       return data;
     }
     return null;

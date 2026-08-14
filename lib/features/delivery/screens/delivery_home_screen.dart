@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../providers/app_state.dart';
 import '../../../models/user_model.dart';
 import '../providers/delivery_provider.dart';
 import 'active_order_screen.dart';
@@ -51,8 +52,11 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final appState = context.watch<AppState>();
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
+    final approvalStatus = (appState.user?.approvalStatus ?? 'approved')
+        .toLowerCase();
     final canSeeRequests = person?.active ?? false;
     final stats = provider.earningsStats;
     final completed = _completedOrdersForRange(stats, _range);
@@ -100,6 +104,24 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           ),
         ),
         actions: [
+          if (approvalStatus != 'approved') ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0EB),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'PENDING APPROVAL',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: _kOrange,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           // Online badge
           if (provider.online)
             Container(

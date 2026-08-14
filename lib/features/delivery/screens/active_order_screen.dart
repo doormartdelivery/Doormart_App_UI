@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -259,6 +260,23 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                 ? order.vendorPhone!.trim()
                                 : '—',
                           ),
+                          const SizedBox(height: 4),
+                          _MapActionButton(
+                            label: 'Get Vendor Directions',
+                            subtitle: 'Open turn-by-turn pickup navigation',
+                            icon: Icons.store_mall_directory_rounded,
+                            onPressed: _hasAddress(
+                                  order.vendorPickupAddress ?? order.vendorAddress,
+                                )
+                                ? () => _openDirections(
+                                      address: order.vendorPickupAddress ??
+                                          order.vendorAddress ??
+                                          '',
+                                      latitude: order.vendorLatitude,
+                                      longitude: order.vendorLongitude,
+                                    )
+                                : null,
+                          ),
                         ],
                       ),
                     ),
@@ -297,6 +315,19 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             ),
                           _infoRow('Total amount', '₹${order.totalAmount.toStringAsFixed(2)}'),
                           _infoRow('Created at', _formatDate(order.createdAt)),
+                          const SizedBox(height: 4),
+                          _MapActionButton(
+                            label: 'Get Customer Directions',
+                            subtitle: 'Open turn-by-turn delivery navigation',
+                            icon: Icons.map_outlined,
+                            onPressed: _hasAddress(order.customerAddress)
+                                ? () => _openDirections(
+                                      address: order.customerAddress,
+                                      latitude: order.customerLatitude,
+                                      longitude: order.customerLongitude,
+                                    )
+                                : null,
+                          ),
                         ],
                       ),
                     ),
@@ -485,10 +516,16 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             const SizedBox(height: 16),
                             _ActionTile(
                               icon: Icons.map_outlined,
-                              title: 'Open Google Maps',
-                              subtitle: 'Navigate to customer address',
+                              title: 'Get Customer Directions',
+                              subtitle: 'Open turn-by-turn delivery navigation',
                               accent: const Color(0xFFFF8A3D),
-                              onTap: () => _openMap(order.customerAddress),
+                              onTap: _hasAddress(order.customerAddress)
+                                  ? () => _openDirections(
+                                      address: order.customerAddress,
+                                      latitude: order.customerLatitude,
+                                      longitude: order.customerLongitude,
+                                    )
+                                  : null,
                             ),
                             const SizedBox(height: 10),
                             _ActionTile(
@@ -651,16 +688,47 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     return '$day/$month/$year, $hour:$minute';
   }
 
-  Future<void> _openMap(String address) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}',
+  Future<void> _openDirections({
+    required String address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final hasCoordinates = latitude != null && longitude != null;
+    final destination = hasCoordinates
+        ? '$latitude,$longitude'
+        : Uri.encodeComponent(address.trim());
+    final webUri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
     );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (kIsWeb) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    final appUri = switch (defaultTargetPlatform) {
+      TargetPlatform.android => Uri.parse('google.navigation:q=$destination&mode=d'),
+      TargetPlatform.iOS => Uri.parse(
+          'comgooglemaps://?daddr=$destination&directionsmode=driving',
+        ),
+      _ => webUri,
+    };
+
+    if (appUri != webUri && await canLaunchUrl(appUri)) {
+      await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _call(String phone) async {
     final uri = Uri.parse('tel:$phone');
     await launchUrl(uri);
+  }
+
+  bool _hasAddress(String? address) {
+    return (address ?? '').trim().isNotEmpty;
   }
 }
 
@@ -747,6 +815,91 @@ class _DashboardCard extends StatelessWidget {
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _MapActionButton extends StatelessWidget {
+  const _MapActionButton({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            foregroundColor: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+            side: BorderSide(
+              color: enabled ? const Color(0xFFE8541A) : const Color(0xFFD1D5DB),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: enabled
+                      ? const Color(0xFFFFF0EB)
+                      : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon,
+                  color: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: enabled ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: enabled ? const Color(0xFFE8541A) : const Color(0xFF9CA3AF),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
