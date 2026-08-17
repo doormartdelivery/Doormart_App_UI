@@ -29,8 +29,11 @@ class AuthService {
     await _apiService.post('/auth/send-otp', body: {'email': email});
   }
 
-  Future<void> sendPasswordResetOtp(String email) async {
-    await _apiService.post('/auth/forgot-password', body: {'email': email});
+  Future<void> sendPasswordResetOtp(String identifier) async {
+    await _apiService.post(
+      '/auth/forgot-password',
+      body: {'identifier': identifier},
+    );
   }
 
   Future<Map<String, dynamic>> verifyOtp({
@@ -47,17 +50,13 @@ class AuthService {
   }
 
   Future<void> resetPasswordWithOtp({
-    required String email,
+    required String identifier,
     required String otp,
     required String password,
   }) async {
     await _apiService.post(
       '/auth/reset-password',
-      body: {
-        'email': email,
-        'otp': otp,
-        'password': password,
-      },
+      body: {'identifier': identifier, 'otp': otp, 'password': password},
     );
   }
 

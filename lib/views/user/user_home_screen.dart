@@ -792,6 +792,7 @@ class _OfferBannersState extends State<_OfferBanners> {
                       b.imageUrl,
                       _accentForTitle(b.title),
                       _accentForTitle(b.title).withValues(alpha: 0.85),
+                      b.logoUrl,
                     ),
                   )
                   .toList();
@@ -862,7 +863,7 @@ class _OfferBannersState extends State<_OfferBanners> {
 class _BannerCard extends StatelessWidget {
   const _BannerCard({required this.banner, required this.onTap});
 
-  final (String, String, String, Color, Color) banner;
+  final (String, String, String, Color, Color, String) banner;
   final VoidCallback onTap;
 
   @override
@@ -909,12 +910,21 @@ class _BannerCard extends StatelessWidget {
                   ),
                 ),
               ),
+              Positioned(
+                top: 18,
+                right: 18,
+                child: _StoreLogoBadge(
+                  logoUrl: banner.$6,
+                  title: banner.$1,
+                  tint: banner.$4,
+                ),
+              ),
               // Text content
               Positioned(
                 left: 20,
                 top: 20,
                 bottom: 20,
-                right: 130,
+                right: 110,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -994,6 +1004,62 @@ class _BannerCard extends StatelessWidget {
   }
 }
 
+class _StoreLogoBadge extends StatelessWidget {
+  const _StoreLogoBadge({
+    required this.logoUrl,
+    required this.title,
+    required this.tint,
+  });
+
+  final String logoUrl;
+  final String title;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(logoUrl);
+    return Container(
+      width: 54,
+      height: 54,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: normalized.isNotEmpty && normalized != 'null'
+            ? (normalized.startsWith('http')
+                  ? Image.network(
+                      normalized,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(),
+                    )
+                  : Image.asset(
+                      normalized,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(),
+                    ))
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return ColoredBox(
+      color: Colors.white,
+      child: Center(child: Icon(_bannerIconFor(title), color: tint, size: 26)),
+    );
+  }
+}
+
 IconData _bannerIconFor(String title) {
   final l = title.toLowerCase();
   if (l.contains('fruit')) return Icons.apple_rounded;
@@ -1037,6 +1103,7 @@ const _defaultBanners = [
     'assets/images/banners/grocery_bag.png',
     Color(0xFF0F9D58),
     Color(0xFF34C77B),
+    '',
   ),
   (
     'Daily Dairy',
@@ -1044,6 +1111,7 @@ const _defaultBanners = [
     'assets/images/banners/coupon_basket.png',
     Color(0xFF1565C0),
     Color(0xFF42A5F5),
+    '',
   ),
 ];
 
@@ -1362,64 +1430,9 @@ class _ProductRail extends StatelessWidget {
       builder: (ctx, state, _) {
         final products = _freshPickProducts(state.products);
         if (products.isEmpty) {
-          return SizedBox(
+          return const _EmptyProductsCard(
             height: 352,
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _kBorder),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: _kGreenLight,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.local_fire_department_rounded,
-                        color: _kGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'No fresh picks yet',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: _kTextDark,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Vendors can mark products as fresh picks while adding them.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _kTextMid,
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            icon: Icons.local_fire_department_rounded,
           );
         }
         return SizedBox(
@@ -2096,6 +2109,15 @@ class _EssentialsGrid extends StatelessWidget {
           default:
             break;
         }
+        if (products.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _EmptyProductsCard(
+              height: 220,
+              icon: Icons.local_fire_department_rounded,
+            ),
+          );
+        }
         return GridView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shrinkWrap: true,
@@ -2358,6 +2380,73 @@ List<ProductModel> _freshPickProducts(List<ProductModel> products) {
   return products
       .where((product) => product.dashboardSection == 'fresh_picks')
       .toList();
+}
+
+class _EmptyProductsCard extends StatelessWidget {
+  const _EmptyProductsCard({required this.height, required this.icon});
+
+  final double height;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _kBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: _kGreenLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: _kGreen),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'No fresh picks yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: _kTextDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Vendors can mark products as fresh picks while adding them.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kTextMid,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _TopOffersFeed extends StatelessWidget {
@@ -3195,7 +3284,10 @@ class _PopularProductsGrid extends StatelessWidget {
         if (products.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('No popular products found'),
+            child: _EmptyProductsCard(
+              height: 220,
+              icon: Icons.local_fire_department_rounded,
+            ),
           );
         }
         return ListView.separated(

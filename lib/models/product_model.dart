@@ -12,6 +12,7 @@ class ProductModel {
     this.vendorId = 'main',
     this.supplierName = '',
     this.supplierCity = '',
+    this.supplierLogo = '',
     this.description = '',
     this.dashboardSection = 'daily_essentials',
     this.rating = 0,
@@ -29,6 +30,7 @@ class ProductModel {
   final String vendorId;
   final String supplierName;
   final String supplierCity;
+  final String supplierLogo;
   final String description;
   final String dashboardSection;
   final double rating;
@@ -52,6 +54,7 @@ class ProductModel {
       vendorId: json['vendorId'] as String? ?? 'main',
       supplierName: json['supplierName'] as String? ?? '',
       supplierCity: json['supplierCity'] as String? ?? '',
+      supplierLogo: NetworkImageUrl.normalize(json['supplierLogo'] as String?),
       description: json['description'] as String? ?? '',
       dashboardSection:
           json['dashboardSection'] as String? ?? 'daily_essentials',
@@ -73,6 +76,7 @@ class ProductModel {
     'vendorId': vendorId,
     'supplierName': supplierName,
     'supplierCity': supplierCity,
+    'supplierLogo': supplierLogo,
     'description': description,
     'dashboardSection': dashboardSection,
     'rating': rating,

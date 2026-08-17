@@ -473,6 +473,8 @@ class _AdminOverviewPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         const WalkingMascotWidget(),
+        const SizedBox(height: 16),
+        const _VersionFooter(),
       ],
     );
   }
@@ -617,6 +619,34 @@ class _HeroCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _VersionFooter extends StatelessWidget {
+  const _VersionFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          Text(
+            'Version 1',
+            style: TextStyle(
+              fontSize: 12,
+              color: _kTextMid,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '© 2026 Doormart',
+            style: TextStyle(fontSize: 11, color: _kTextMid),
+          ),
+        ],
       ),
     );
   }

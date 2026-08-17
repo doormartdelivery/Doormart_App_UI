@@ -23,7 +23,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _identifierCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -35,7 +35,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _identifierCtrl.dispose();
     _otpCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
@@ -50,8 +50,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
     try {
       await context.read<AppState>().sendPasswordResetOtp(
-            email: _emailCtrl.text.trim(),
-          );
+        identifier: _identifierCtrl.text.trim(),
+      );
       if (!mounted) return;
       setState(() => _otpSent = true);
       HapticFeedback.mediumImpact();
@@ -71,10 +71,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
     try {
       await context.read<AppState>().resetPasswordWithOtp(
-            email: _emailCtrl.text.trim(),
-            otp: _otpCtrl.text.trim(),
-            password: _passCtrl.text,
-          );
+        identifier: _identifierCtrl.text.trim(),
+        otp: _otpCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +127,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'We will send a 6 digit OTP to your email and then you can create a new password.',
+                      'Enter your registered email address or phone number and we will send a 6 digit OTP to the contact email linked with your account.',
                       style: TextStyle(
                         fontSize: 13,
                         color: _kTextMid,
@@ -138,16 +138,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _FieldLabel('Email address'),
+              _FieldLabel('Email address or phone number'),
               const SizedBox(height: 8),
               _Field(
-                controller: _emailCtrl,
-                hint: 'you@example.com',
-                icon: Icons.email_rounded,
-                keyboardType: TextInputType.emailAddress,
+                controller: _identifierCtrl,
+                hint: 'you@example.com or 9876543210',
+                icon: Icons.alternate_email_rounded,
+                keyboardType: TextInputType.text,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Enter your email';
-                  if (!v.contains('@')) return 'Enter a valid email';
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Enter your email or phone number';
+                  }
+                  final value = v.trim();
+                  final isEmail = value.contains('@');
+                  final isPhone = RegExp(
+                    r'^\+?\d{7,15}$',
+                  ).hasMatch(value.replaceAll(RegExp(r'\s+'), ''));
+                  if (!isEmail && !isPhone) {
+                    return 'Enter a valid email or phone number';
+                  }
                   return null;
                 },
               ),
@@ -157,7 +166,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 8),
                 _Field(
                   controller: _otpCtrl,
-                  hint: 'Enter the OTP sent to your email',
+                  hint: 'Enter the OTP sent to your registered email',
                   icon: Icons.pin_rounded,
                   keyboardType: TextInputType.number,
                   validator: (v) {
@@ -182,11 +191,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           : Icons.visibility_rounded,
                       color: _kTextMid,
                     ),
-                    onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Enter a new password';
-                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    if (v.length < 6)
+                      return 'Password must be at least 6 characters';
                     return null;
                   },
                 ),
@@ -256,13 +267,13 @@ class _FieldLabel extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          fontWeight: FontWeight.w800,
-          color: _kTextDark,
-          fontSize: 14,
-        ),
-      );
+    text,
+    style: const TextStyle(
+      fontWeight: FontWeight.w800,
+      color: _kTextDark,
+      fontSize: 14,
+    ),
+  );
 }
 
 class _Field extends StatelessWidget {
@@ -284,16 +295,16 @@ class _Field extends StatelessWidget {
   final String? Function(String?)? validator;
   @override
   Widget build(BuildContext context) => TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        keyboardType: keyboardType,
-        validator: validator,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(icon, color: _kTextMid),
-          suffixIcon: suffix,
-        ),
-      );
+    controller: controller,
+    obscureText: obscure,
+    keyboardType: keyboardType,
+    validator: validator,
+    decoration: InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: _kTextMid),
+      suffixIcon: suffix,
+    ),
+  );
 }
 
 class _ErrorBanner extends StatelessWidget {
@@ -301,18 +312,18 @@ class _ErrorBanner extends StatelessWidget {
   final String message;
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _kRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kRed.withValues(alpha: 0.18)),
-        ),
-        child: Text(
-          message,
-          style: const TextStyle(color: _kRed, fontWeight: FontWeight.w700),
-        ),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: _kRed.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: _kRed.withValues(alpha: 0.18)),
+    ),
+    child: Text(
+      message,
+      style: const TextStyle(color: _kRed, fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 class _PrimaryBtn extends StatelessWidget {
@@ -328,25 +339,23 @@ class _PrimaryBtn extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 54,
-        child: ElevatedButton.icon(
-          onPressed: loading ? null : onTap,
-          icon: loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(icon),
-          label: Text(label),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _kOrange,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),
-      );
+    width: double.infinity,
+    height: 54,
+    child: ElevatedButton.icon(
+      onPressed: loading ? null : onTap,
+      icon: loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _kOrange,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+  );
 }

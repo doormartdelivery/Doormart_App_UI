@@ -346,18 +346,21 @@ class AppState extends ChangeNotifier {
     }, silent: silent);
   }
 
-  Future<void> sendPasswordResetOtp({required String email}) async {
-    await apiService.post('/auth/forgot-password', body: {'email': email});
+  Future<void> sendPasswordResetOtp({required String identifier}) async {
+    await apiService.post(
+      '/auth/forgot-password',
+      body: {'identifier': identifier},
+    );
   }
 
   Future<void> resetPasswordWithOtp({
-    required String email,
+    required String identifier,
     required String otp,
     required String password,
   }) async {
     await apiService.post(
       '/auth/reset-password',
-      body: {'email': email, 'otp': otp, 'password': password},
+      body: {'identifier': identifier, 'otp': otp, 'password': password},
     );
   }
 

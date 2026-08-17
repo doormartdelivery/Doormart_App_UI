@@ -1264,7 +1264,7 @@ class _Footer extends StatelessWidget {
     return const Column(
       children: [
         Text(
-          'App Version 4.2.1-stable',
+          'Version 1',
           style: TextStyle(
             fontSize: 12,
             color: _kTextMid,

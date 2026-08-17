@@ -343,8 +343,9 @@ class _HeroCard extends StatelessWidget {
                                           backgroundColor: _kOrange,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
                                         ),
                                         onPressed: () =>
@@ -862,7 +863,7 @@ class _Footer extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Version 1.0.0 • Delivery in 10 minutes',
+          'Version 1',
           style: TextStyle(fontSize: 11, color: _kTextMid),
         ),
         const SizedBox(height: 4),

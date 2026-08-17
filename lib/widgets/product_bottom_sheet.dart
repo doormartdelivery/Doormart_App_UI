@@ -670,19 +670,7 @@ class _VendorSourceCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8541A).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.storefront_rounded,
-                  color: _kOrange,
-                  size: 20,
-                ),
-              ),
+              _VendorLogoBadge(product: product),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -717,6 +705,51 @@ class _VendorSourceCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _VendorLogoBadge extends StatelessWidget {
+  const _VendorLogoBadge({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = NetworkImageUrl.normalize(product.supplierLogo);
+    final hasLogo = logo.isNotEmpty && logo != 'null';
+
+    return Container(
+      width: 36,
+      height: 36,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: hasLogo
+            ? (logo.startsWith('http')
+                  ? Image.network(
+                      logo,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(),
+                    )
+                  : Image.asset(
+                      logo,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(),
+                    ))
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return const ColoredBox(
+      color: Colors.transparent,
+      child: Icon(Icons.storefront_rounded, color: _kOrange, size: 20),
     );
   }
 }
