@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
+import '../providers/app_state.dart';
+import '../widgets/toast_widget.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -366,7 +369,11 @@ class _ImageHero extends StatelessWidget {
           Positioned(top: 12, right: 12, child: _CloseButton()),
 
           // Wishlist button
-          Positioned(top: 12, left: 12, child: _WishlistButton()),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: _WishlistButton(product: product),
+          ),
 
           // Fresh badge
           Positioned(
@@ -463,60 +470,58 @@ class _CloseButtonState extends State<_CloseButton>
 
 // ─── Wishlist Button ──────────────────────────────────────────────────────────
 
-class _WishlistButton extends StatefulWidget {
-  @override
-  State<_WishlistButton> createState() => _WishlistButtonState();
-}
+class _WishlistButton extends StatelessWidget {
+  const _WishlistButton({required this.product});
 
-class _WishlistButtonState extends State<_WishlistButton>
-    with SingleTickerProviderStateMixin {
-  bool _liked = false;
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 300),
-  );
-  late final Animation<double> _scale = TweenSequence<double>([
-    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.4), weight: 50),
-    TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 50),
-  ]).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  final ProductModel product;
 
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
+  Future<void> _toggleFavorite(BuildContext context, AppState state) async {
+    if (state.token == null || state.user == null) {
+      Navigator.of(context).pushNamed('/login');
+      return;
+    }
+    HapticFeedback.lightImpact();
+    try {
+      await state.toggleFavorite(product);
+    } catch (e) {
+      if (!context.mounted) return;
+      showToast(context, e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() => _liked = !_liked);
-        _c.forward(from: 0);
-      },
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: _liked ? _kOrangeLight : Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final liked = state.isFavorite(product);
+        return GestureDetector(
+          onTap: () => _toggleFavorite(context, state),
+          child: AnimatedScale(
+            scale: liked ? 1.04 : 1.0,
+            duration: const Duration(milliseconds: 180),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: liked ? _kOrangeLight : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
+              child: Icon(
+                liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                size: 18,
+                color: liked ? _kOrange : const Color(0xFF888888),
+              ),
+            ),
           ),
-          child: Icon(
-            _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            size: 18,
-            color: _liked ? _kOrange : const Color(0xFF888888),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

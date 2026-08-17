@@ -701,6 +701,7 @@ class AppState extends ChangeNotifier {
           body: {'productId': product.id},
         );
       }
+      await loadFavorites();
       debugPrint(
         '[perf][wishlist:${wasFavorite ? "remove" : "add"}][api] ${sw.elapsedMilliseconds}ms',
       );
