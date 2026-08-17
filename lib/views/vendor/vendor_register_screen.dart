@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/app_state.dart';
+import '../../features/operations/services/location_service.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/toast_widget.dart';
 import 'vendor_registration_success_screen.dart';
@@ -73,6 +74,9 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
   String? _panCardName;
   String? _cancelledChequeName;
   String? _uploadingField;
+  bool _capturingPickupLocation = false;
+  double? _pickupLatitude;
+  double? _pickupLongitude;
 
   @override
   void initState() {
@@ -88,6 +92,8 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
       _panCtrl.text = vendor.panNumber;
       _storeAddressCtrl.text = vendor.address;
       _pickupAddressCtrl.text = vendor.pickupAddress;
+      _pickupLatitude = vendor.pickupLatitude;
+      _pickupLongitude = vendor.pickupLongitude;
       _cityCtrl.text = vendor.city;
       _stateCtrl.text = vendor.state;
       _pincodeCtrl.text = vendor.pincode;
@@ -210,6 +216,8 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
         gstCertificate: _gstCertificate ?? '',
         panCard: _panCard ?? '',
         cancelledCheque: _cancelledCheque ?? '',
+        pickupLatitude: _pickupLatitude,
+        pickupLongitude: _pickupLongitude,
       );
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil(
@@ -392,6 +400,19 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                         icon: Icons.local_shipping_rounded,
                       ),
                       const SizedBox(height: 12),
+                      _PickupLocationCard(
+                        latitude: _pickupLatitude,
+                        longitude: _pickupLongitude,
+                        loading: _capturingPickupLocation,
+                        onUseCurrentLocation: _capturePickupLocation,
+                        onClear: _pickupLatitude != null || _pickupLongitude != null
+                            ? () => setState(() {
+                                _pickupLatitude = null;
+                                _pickupLongitude = null;
+                              })
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -561,6 +582,23 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _capturePickupLocation() async {
+    setState(() => _capturingPickupLocation = true);
+    try {
+      final location = await LocationService().currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _pickupLatitude = location.latitude;
+        _pickupLongitude = location.longitude;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _capturingPickupLocation = false);
+    }
   }
 }
 
@@ -823,6 +861,100 @@ class _SectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _PickupLocationCard extends StatelessWidget {
+  const _PickupLocationCard({
+    required this.latitude,
+    required this.longitude,
+    required this.loading,
+    required this.onUseCurrentLocation,
+    required this.onClear,
+  });
+
+  final double? latitude;
+  final double? longitude;
+  final bool loading;
+  final VoidCallback onUseCurrentLocation;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = latitude != null && longitude != null;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'PICKUP PIN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+              color: _kTextMid,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasLocation
+                ? 'Saved pin: ${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}'
+                : 'Use the exact store pin so delivery partners reach the right pickup point.',
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: _kTextDark,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: loading ? null : onUseCurrentLocation,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kOrange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Use current location'),
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: onClear,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kTextDark,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Clear'),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );

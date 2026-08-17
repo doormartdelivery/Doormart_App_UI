@@ -107,15 +107,23 @@ class ProductCard extends StatelessWidget {
                             ),
                       ),
                       if (_storeLabel(product).isNotEmpty)
-                        Text(
-                          _storeLabel(product),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFE8541A),
-                          ),
+                        Row(
+                          children: [
+                            _StoreLogoBadge(product: product),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _storeLabel(product),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFE8541A),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       Text(
                         product.unit.trim().isEmpty
@@ -221,6 +229,50 @@ String _storeLabel(ProductModel product) {
   if (name.isEmpty) return '';
   if (city.isEmpty) return name;
   return '$name · $city';
+}
+
+class _StoreLogoBadge extends StatelessWidget {
+  const _StoreLogoBadge({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = NetworkImageUrl.normalize(product.supplierLogo);
+    final hasLogo = logo.isNotEmpty && logo != 'null';
+    final tint = const Color(0xFFE8541A);
+
+    return Container(
+      width: 18,
+      height: 18,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      child: ClipOval(
+        child: hasLogo
+            ? (logo.startsWith('http')
+                  ? Image.network(
+                      logo,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(tint),
+                    )
+                  : Image.asset(
+                      logo,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _fallback(tint),
+                    ))
+            : _fallback(tint),
+      ),
+    );
+  }
+
+  Widget _fallback(Color tint) {
+    return ColoredBox(
+      color: Colors.white,
+      child: Center(
+        child: Icon(Icons.storefront_rounded, size: 10, color: tint),
+      ),
+    );
+  }
 }
 
 class _ProductImage extends StatelessWidget {

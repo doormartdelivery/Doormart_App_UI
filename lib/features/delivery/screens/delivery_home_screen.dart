@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../providers/app_state.dart';
 import '../../../models/user_model.dart';
 import '../providers/delivery_provider.dart';
 import 'active_order_screen.dart';
@@ -27,7 +28,6 @@ class DeliveryHomeScreen extends StatefulWidget {
 }
 
 class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
-  int _navIndex = 0;
   _MetricRange _range = _MetricRange.today;
 
   @override
@@ -52,8 +52,11 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final appState = context.watch<AppState>();
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
+    final approvalStatus = (appState.user?.approvalStatus ?? 'approved')
+        .toLowerCase();
     final canSeeRequests = person?.active ?? false;
     final stats = provider.earningsStats;
     final completed = _completedOrdersForRange(stats, _range);
@@ -62,14 +65,22 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
 
     return Scaffold(
       backgroundColor: _kBg,
+      drawer: _DeliverySidebarDrawer(
+        currentRoute: DeliveryHomeScreen.routeName,
+      ),
       // ── Top App Bar ────────────────────────────────────────────────────
       appBar: AppBar(
         backgroundColor: _kCard,
         elevation: 0,
         scrolledUnderElevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        leadingWidth: 16,
-        leading: const SizedBox.shrink(),
+        leading: Builder(
+          builder: (context) => IconButton(
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.menu_rounded, color: _kTextDark),
+            tooltip: 'Open menu',
+          ),
+        ),
         title: RichText(
           text: const TextSpan(
             children: [
@@ -93,6 +104,24 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           ),
         ),
         actions: [
+          if (approvalStatus != 'approved') ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0EB),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'PENDING APPROVAL',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: _kOrange,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           // Online badge
           if (provider.online)
             Container(
@@ -235,7 +264,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
               )
             else
               SizedBox(
-                height: 350,
+                height: 430,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: provider.pendingRequests.length,
@@ -296,24 +325,6 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
         ],
       ),
 
-      // ── Bottom Nav ────────────────────────────────────────────────────
-      bottomNavigationBar: _BottomNav(
-        index: _navIndex,
-        onTap: (i) {
-          setState(() => _navIndex = i);
-          if (i == 1) {
-            Navigator.of(context).pushNamed(DeliveryHistoryScreen.routeName);
-          }
-          if (i == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
-            );
-          }
-          if (i == 3) {
-            Navigator.of(context).pushNamed(DeliveryProfileScreen.routeName);
-          }
-        },
-      ),
     );
   }
 }
@@ -407,11 +418,11 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-          'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
-          style: const TextStyle(
-            fontSize: 13,
-            color: _kTextMid,
-            fontWeight: FontWeight.w500,
+            'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: _kTextMid,
+              fontWeight: FontWeight.w500,
             ),
           ),
 
@@ -723,7 +734,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(22),
@@ -742,16 +753,16 @@ class _NewRequestCardState extends State<_NewRequestCard> {
           Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: _kOrangeLight,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.storefront_rounded,
                   color: _kOrange,
-                  size: 24,
+                  size: 26,
                 ),
               ),
               const SizedBox(width: 12),
@@ -803,7 +814,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
           _detailLine('Placed', _formatDate(_orderCreatedAt(widget.order))),
           _detailLine(
@@ -824,7 +835,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
           ),
 
           // ── Pickup ────────────────────────────────────────────────────
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           Row(
             children: [
@@ -910,6 +921,51 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  const Text(
+                    'Vendor Details',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _detailLine(
+                    'Store',
+                    _text(widget.order.vendorStoreName, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Address',
+                    _text(widget.order.vendorAddress, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Pickup address',
+                    _text(widget.order.vendorPickupAddress, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'City',
+                    _text(widget.order.vendorCity, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Pincode',
+                    _text(widget.order.vendorPincode, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Phone',
+                    _text(widget.order.vendorPhone, fallback: '—'),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 24),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Customer Details',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _detailLine(
                     'Customer',
                     _text(widget.order.customerName, fallback: '—'),
@@ -921,6 +977,18 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   _detailLine(
                     'Address',
                     _text(widget.order.customerAddress, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Street',
+                    _text(widget.order.customerLine1, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'City',
+                    _text(widget.order.customerCity, fallback: '—'),
+                  ),
+                  _detailLine(
+                    'Pincode',
+                    _text(widget.order.customerPincode, fallback: '—'),
                   ),
                   _detailLine(
                     'Area',
@@ -1413,78 +1481,237 @@ class _MapGridPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// ─── Bottom Nav ───────────────────────────────────────────────────────────────
+// ─── Delivery Sidebar ─────────────────────────────────────────────────────────
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.index, required this.onTap});
-  final int index;
-  final ValueChanged<int> onTap;
+class _DeliverySidebarDrawer extends StatelessWidget {
+  const _DeliverySidebarDrawer({required this.currentRoute});
+
+  final String currentRoute;
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      (Icons.grid_view_rounded, 'Home'),
-      (Icons.history_rounded, 'History'),
-      (Icons.account_balance_wallet_rounded, 'Earnings'),
-      (Icons.person_rounded, 'Profile'),
-    ];
+    final provider = context.watch<DeliveryProvider>();
+    final person = provider.deliveryPerson;
+    final initialsSource = (person?.name ?? '').trim();
+    final avatarLetter = initialsSource.isNotEmpty ? initialsSource[0].toUpperCase() : 'D';
+    final currentLabel = switch (currentRoute) {
+      DeliveryHomeScreen.routeName => 'Home',
+      DeliveryHistoryScreen.routeName => 'History',
+      DeliveryEarningsScreen.routeName => 'Earnings',
+      DeliveryProfileScreen.routeName => 'Profile',
+      _ => 'Home',
+    };
 
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: Container(
-          height: 76,
-          decoration: BoxDecoration(
-            color: _kCard,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
+    return Drawer(
+      backgroundColor: const Color(0xFF0F172A),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFE8541A), Color(0xFFFF7A2F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ],
-          ),
-          child: Row(
-            children: items.asMap().entries.map((e) {
-              final i = e.key;
-              final item = e.value;
-              final selected = i == index;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onTap(i),
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(8),
+                      Container(
+                        width: 54,
+                        height: 54,
                         decoration: BoxDecoration(
-                          color: selected ? _kOrange : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+                          color: Colors.white.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
                         ),
-                        child: Icon(
-                          item.$1,
-                          size: 22,
-                          color: selected ? Colors.white : _kTextMid,
+                        child: Center(
+                          child: Text(
+                            avatarLetter,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          provider.online ? 'ONLINE' : 'OFFLINE',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    person?.name ?? 'Delivery Partner',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    person?.phone ?? 'No phone linked',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Quick access • $currentLabel',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                children: [
+                  _DrawerItem(
+                    icon: Icons.grid_view_rounded,
+                    label: 'Home',
+                    selected: currentRoute == DeliveryHomeScreen.routeName,
+                    onTap: () => _go(context, DeliveryHomeScreen.routeName),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.history_rounded,
+                    label: 'History',
+                    selected: currentRoute == DeliveryHistoryScreen.routeName,
+                    onTap: () => _go(context, DeliveryHistoryScreen.routeName),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.account_balance_wallet_rounded,
+                    label: 'Earnings',
+                    selected: currentRoute == DeliveryEarningsScreen.routeName,
+                    onTap: () => _go(context, DeliveryEarningsScreen.routeName),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.person_rounded,
+                    label: 'Profile',
+                    selected: currentRoute == DeliveryProfileScreen.routeName,
+                    onTap: () => _go(context, DeliveryProfileScreen.routeName),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _go(BuildContext context, String route) {
+    Navigator.pop(context);
+    if (route == currentRoute) return;
+    if (route == DeliveryHomeScreen.routeName) {
+      Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => r.isFirst);
+    } else if (route == DeliveryHistoryScreen.routeName) {
+      Navigator.of(context).pushNamed(route);
+    } else if (route == DeliveryEarningsScreen.routeName) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()));
+    } else if (route == DeliveryProfileScreen.routeName) {
+      Navigator.of(context).pushNamed(route);
+    }
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: selected ? const Color(0x1AE8541A) : Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: selected ? const Color(0x33E8541A) : const Color(0x1AFFFFFF),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFE8541A) : const Color(0xFF111827),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        item.$2,
+                        label,
                         style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selected ? 'Current section' : 'Open $label',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? _kOrange : _kTextMid,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            }).toList(),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ],
+            ),
           ),
         ),
       ),

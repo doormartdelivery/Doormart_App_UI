@@ -40,11 +40,10 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 
   final List<String> _filterOptions = [
     'All',
-    'Active',
-    'Blocked',
-    'Vendor',
-    'Delivery',
     'Customer',
+    'Delivery',
+    'Vendor',
+    'Superadmin',
   ];
 
   @override
@@ -72,13 +71,14 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 
     if (_selectedFilter != 'All') {
       filtered = filtered.where((user) {
-        if (_selectedFilter == 'Active') {
-          return user.status.toLowerCase() == 'active';
-        } else if (_selectedFilter == 'Blocked') {
-          return user.status.toLowerCase() == 'blocked';
-        } else {
-          return user.role == _selectedFilter.toLowerCase();
-        }
+        final filter = _selectedFilter.toLowerCase();
+        return switch (filter) {
+          'customer' => user.role == UserRoles.user,
+          'delivery' => user.role == UserRoles.deliveryPerson,
+          'vendor' => user.role == UserRoles.vendor,
+          'superadmin' => user.role == UserRoles.superAdmin,
+          _ => true,
+        };
       }).toList();
     }
 
@@ -1456,6 +1456,7 @@ class _VendorBadge extends StatelessWidget {
     final isMain = vendorId.toLowerCase() == 'main';
     final color = isMain ? const Color(0xFF0F766E) : const Color(0xFF7C3AED);
     final bgColor = isMain ? const Color(0xFFCCFBF1) : const Color(0xFFEDE9FE);
+    final displayId = isMain ? 'Main' : _formatVendorDisplayId(vendorId, null);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1471,7 +1472,7 @@ class _VendorBadge extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 160),
             child: Text(
-              vendorId,
+              displayId,
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w800,
@@ -1485,6 +1486,19 @@ class _VendorBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatVendorDisplayId(String? vendorId, String? id) {
+  final normalized = (vendorId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-VENDOR-')) return upper;
+
+  final source = (id ?? normalized).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-VENDOR-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-VENDOR-${suffix.toUpperCase()}';
 }
 
 class _RoleBadge extends StatelessWidget {

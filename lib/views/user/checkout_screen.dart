@@ -67,7 +67,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _processingCod = true);
     try {
       await state.checkout(
-        address: selectedAddress.fullAddress,
+        address: selectedAddress,
         paymentMethod: 'cod',
       );
       if (!mounted) return;
@@ -103,6 +103,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             final selectedAddress = _resolveAddress(state);
             final canOrder =
                 addresses.isNotEmpty && state.cart.isNotEmpty && selectedAddress != null;
+            final vendorEntries = <String, String>{};
+            for (final line in state.cart) {
+              final vendorId = line.product.vendorId.trim().isEmpty
+                  ? 'main'
+                  : line.product.vendorId.trim();
+              final storeName = line.product.supplierName.trim().isNotEmpty
+                  ? line.product.supplierName.trim()
+                  : (vendorId == 'main' ? 'Main Store' : vendorId);
+              final city = line.product.supplierCity.trim();
+              vendorEntries.putIfAbsent(
+                vendorId,
+                () => city.isNotEmpty ? '$storeName, $city' : storeName,
+              );
+            }
+            final vendorLabels = vendorEntries.values.toList(growable: false);
+            final hasMultiVendorCart = vendorEntries.length > 1;
 
             return Column(
               children: [
@@ -141,6 +157,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         // ── Addresses ─────────────────────────────────────
                         const _SectionLabel('📍  Delivery address'),
                         const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final appState = context.read<AppState>();
+                              final result = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AddEditAddressScreen(),
+                                ),
+                              );
+                              if (result == true && mounted) {
+                                await appState.loadAddresses();
+                                if (!mounted) return;
+                                setState(() {
+                                  _selectedAddressId = state.selectedAddress?.id;
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Add New Address'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kOrange,
+                              side: const BorderSide(color: _kOrange),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         if (addresses.isEmpty)
                           _InfoCard(
                             icon: Icons.location_off_rounded,
@@ -163,11 +214,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           )
                         else
                           SizedBox(
-                            height: 172,
+                            height: 198,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: addresses.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(width: 12),
                               itemBuilder: (_, i) {
                                 final addr = addresses[i];
@@ -208,6 +259,89 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             );
                           },
                         ),
+
+                        if (hasMultiVendorCart) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: _kOrangeLight,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.storefront_rounded,
+                                        color: _kOrange,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Text(
+                                        'Stores in your cart',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: _kTextDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'This cart will be split into separate orders by store.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF666666),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: vendorLabels
+                                      .map(
+                                        (label) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _kOrangeLight,
+                                            borderRadius: BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: _kOrange.withValues(alpha: 0.12),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            label,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: _kOrange,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
 
                         const SizedBox(height: 24),
 
@@ -348,7 +482,8 @@ class _AddressCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         width: 210,
-        padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(minHeight: 166),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -373,14 +508,14 @@ class _AddressCard extends StatelessWidget {
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: selected ? _kOrange : _kOrangeLight,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.location_on_rounded,
-                    size: 16,
+                    size: 15,
                     color: selected ? Colors.white : _kOrange,
                   ),
                 ),
@@ -388,16 +523,19 @@ class _AddressCard extends StatelessWidget {
                 AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: selected ? 1 : 0,
-                  child: const Icon(Icons.check_circle_rounded,
-                      color: _kOrange, size: 20),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: _kOrange,
+                    size: 18,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               data.label,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: _kTextDark,
               ),
@@ -408,16 +546,16 @@ class _AddressCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11.5,
                 color: Color(0xFF666666),
-                height: 1.4,
+                height: 1.25,
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 8),
             Text(
               data.shortAddress,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 color: _kTextMid,
               ),

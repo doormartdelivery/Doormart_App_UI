@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
+import '../../features/operations/services/location_service.dart';
 
 const _accent = Color(0xFFFF6A13);
 const _bg = Color(0xFFF7F8FC);
@@ -29,6 +30,9 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   final _landmark = TextEditingController();
   bool _defaultAddress = false;
   bool _saving = false;
+  bool _capturingLocation = false;
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -39,6 +43,8 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       _house.text = address.line1;
       _apartment.text = address.city;
       _landmark.text = address.pincode;
+      _latitude = address.latitude;
+      _longitude = address.longitude;
     }
   }
 
@@ -167,6 +173,19 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
                     maxLines: 1,
                   ),
                   const SizedBox(height: 14),
+                  _LocationCard(
+                    latitude: _latitude,
+                    longitude: _longitude,
+                    loading: _capturingLocation,
+                    onUseCurrentLocation: _captureLocation,
+                    onClear: _latitude != null || _longitude != null
+                        ? () => setState(() {
+                            _latitude = null;
+                            _longitude = null;
+                          })
+                        : null,
+                  ),
+                  const SizedBox(height: 14),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: _defaultAddress,
@@ -225,7 +244,14 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       final pincode = _landmark.text.trim().isEmpty ? 'N/A' : _landmark.text.trim();
 
       if (widget.address == null) {
-        await state.createAddress(label: label, line1: line1, city: city, pincode: pincode);
+        await state.createAddress(
+          label: label,
+          line1: line1,
+          city: city,
+          pincode: pincode,
+          latitude: _latitude,
+          longitude: _longitude,
+        );
       } else {
         await state.updateAddress(
           addressId: widget.address!.id,
@@ -233,6 +259,8 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
           line1: line1,
           city: city,
           pincode: pincode,
+          latitude: _latitude,
+          longitude: _longitude,
         );
       }
       if (!mounted) return;
@@ -244,6 +272,25 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _captureLocation() async {
+    setState(() => _capturingLocation = true);
+    try {
+      final location = await LocationService().currentLocation();
+      if (!mounted) return;
+      setState(() {
+        _latitude = location.latitude;
+        _longitude = location.longitude;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _capturingLocation = false);
     }
   }
 }
@@ -308,6 +355,93 @@ class _Field extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({
+    required this.latitude,
+    required this.longitude,
+    required this.loading,
+    required this.onUseCurrentLocation,
+    required this.onClear,
+  });
+
+  final double? latitude;
+  final double? longitude;
+  final bool loading;
+  final VoidCallback onUseCurrentLocation;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLocation = latitude != null && longitude != null;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'LOCATION PIN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+              color: _textMid,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasLocation
+                ? 'Saved pin: ${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}'
+                : 'No pin saved yet. Use your current location for exact delivery navigation.',
+            style: const TextStyle(fontSize: 12.5, color: _textDark, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: loading ? null : onUseCurrentLocation,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Use current location'),
+                ),
+              ),
+              if (onClear != null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton(
+                  onPressed: onClear,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _textDark,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Clear'),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

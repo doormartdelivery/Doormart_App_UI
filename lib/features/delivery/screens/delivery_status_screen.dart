@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/app_state.dart';
-import 'vendor_register_screen.dart';
+import '../../../../providers/app_state.dart';
+import '../providers/delivery_provider.dart';
+import 'delivery_home_screen.dart';
+import 'delivery_login_screen.dart';
+import 'delivery_register_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
 const _kBg = Color(0xFFFFF6F0);
 const _kTextDark = Color(0xFF1A1A1A);
 
-class VendorStatusScreen extends StatelessWidget {
-  const VendorStatusScreen({super.key});
+class DeliveryStatusScreen extends StatelessWidget {
+  const DeliveryStatusScreen({super.key});
 
-  static const routeName = '/vendor/status';
+  static const routeName = '/delivery/status';
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +24,7 @@ class VendorStatusScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const _StatusTopBar(),
+            const _TopBar(),
             Expanded(
               child: Center(
                 child: SingleChildScrollView(
@@ -29,34 +32,28 @@ class VendorStatusScreen extends StatelessWidget {
                   child: Consumer<AppState>(
                     builder: (context, state, _) {
                       final user = state.user;
-                      final vendor = state.vendor;
-                      final status =
-                          user?.approvalStatus ??
-                          vendor?.approvalStatus ??
-                          'pending';
-                      final rejectionReason =
-                          user?.rejectionReason ??
-                          vendor?.rejectionReason ??
-                          '';
+                      final status = (user?.approvalStatus ?? 'pending')
+                          .toLowerCase();
+                      final rejectionReason = user?.rejectionReason ?? '';
                       final title = switch (status) {
-                        'approved' => 'Vendor Account Approved',
-                        'rejected' => 'Vendor Registration Rejected',
-                        'suspended' => 'Vendor Account Suspended',
+                        'approved' => 'Delivery Account Approved',
+                        'rejected' => 'Delivery Registration Rejected',
+                        'suspended' => 'Delivery Account Suspended',
                         _ => 'Account Under Review',
                       };
                       final message = switch (status) {
                         'approved' =>
-                          'Congratulations! Your DoorMart vendor account has been approved. You can now access your Vendor Dashboard.',
+                          'Congratulations! Your delivery partner account has been approved. You can now access the delivery dashboard.',
                         'rejected' =>
                           rejectionReason.isEmpty
-                              ? 'Your vendor registration has been rejected. Please update your details and resubmit for approval.'
+                              ? 'Your delivery registration has been rejected. Please update your details and resubmit for approval.'
                               : rejectionReason,
                         'suspended' =>
                           rejectionReason.isEmpty
-                              ? 'Your vendor account is suspended. Please contact support for assistance.'
+                              ? 'Your delivery account is suspended. Please contact support for assistance.'
                               : rejectionReason,
                         _ =>
-                          'Your vendor registration is currently being reviewed by the DoorMart team. You will receive access after Super Admin approval.',
+                          'Your delivery registration is currently being reviewed by the Super Admin team. You will receive access after approval.',
                       };
 
                       return Container(
@@ -110,11 +107,6 @@ class VendorStatusScreen extends StatelessWidget {
                                 color: Color(0xFF4B5563),
                               ),
                             ),
-                            if (rejectionReason.isNotEmpty &&
-                                status == 'rejected') ...[
-                              const SizedBox(height: 16),
-                              _ReasonBox(reason: rejectionReason),
-                            ],
                             const SizedBox(height: 24),
                             if (status == 'approved')
                               _ActionButton(
@@ -122,18 +114,18 @@ class VendorStatusScreen extends StatelessWidget {
                                 filled: true,
                                 onPressed: () => Navigator.of(context)
                                     .pushNamedAndRemoveUntil(
-                                      '/vendor/dashboard',
+                                      DeliveryHomeScreen.routeName,
                                       (route) => false,
                                     ),
                               )
-                            else if (status == 'pending') ...[
+                            else if (status == 'rejected') ...[
                               _ActionButton(
                                 label: 'Refresh Status',
                                 filled: true,
                                 onPressed: () async {
                                   await context
                                       .read<AppState>()
-                                      .refreshVendorStatus();
+                                      .refreshProfile();
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -144,91 +136,36 @@ class VendorStatusScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               _ActionButton(
-                                label: 'Contact Support',
+                                label: 'Update Registration',
                                 filled: false,
-                                onPressed: () =>
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
-                                        ),
-                                      ),
-                                    ),
-                              ),
-                              const SizedBox(height: 12),
-                              _ActionButton(
-                                label: 'Logout',
-                                filled: false,
-                                onPressed: () async {
-                                  await context.read<AppState>().logout();
-                                  if (!context.mounted) return;
-                                  Navigator.of(context).pushNamedAndRemoveUntil(
-                                    '/vendor/login',
-                                    (route) => false,
-                                  );
-                                },
-                              ),
-                            ] else if (status == 'rejected') ...[
-                              _ActionButton(
-                                label: 'Refresh Status',
-                                filled: true,
-                                onPressed: () async {
-                                  await context
-                                      .read<AppState>()
-                                      .refreshVendorStatus();
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Status refreshed'),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              if (status == 'rejected')
-                                _ActionButton(
-                                  label: 'Update Vendor Details',
-                                  filled: false,
-                                  onPressed: () => Navigator.of(
-                                    context,
-                                  ).pushNamed(VendorRegisterScreen.routeName),
-                                ),
-                              const SizedBox(height: 12),
-                              _ActionButton(
-                                label: 'Resubmit for Approval',
-                                filled: true,
                                 onPressed: () => Navigator.of(
                                   context,
-                                ).pushNamed(VendorRegisterScreen.routeName),
-                              ),
-                              const SizedBox(height: 12),
-                              _ActionButton(
-                                label: 'Contact Support',
-                                filled: false,
-                                onPressed: () =>
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Contact support at doormartdelivery@gmail.com or call +91 82481 18563',
-                                        ),
-                                      ),
-                                    ),
+                                ).pushNamed(DeliveryRegisterScreen.routeName),
                               ),
                               const SizedBox(height: 12),
                               _ActionButton(
                                 label: 'Logout',
                                 filled: false,
-                                onPressed: () async {
-                                  await context.read<AppState>().logout();
-                                  if (!context.mounted) return;
-                                  Navigator.of(context).pushNamedAndRemoveUntil(
-                                    '/vendor/login',
-                                    (route) => false,
-                                  );
-                                },
+                                onPressed: () => _logout(context),
                               ),
                             ] else ...[
                               _ActionButton(
+                                label: 'Refresh Status',
+                                filled: true,
+                                onPressed: () async {
+                                  await context
+                                      .read<AppState>()
+                                      .refreshProfile();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Status refreshed'),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              _ActionButton(
                                 label: 'Contact Support',
                                 filled: false,
                                 onPressed: () =>
@@ -244,14 +181,7 @@ class VendorStatusScreen extends StatelessWidget {
                               _ActionButton(
                                 label: 'Logout',
                                 filled: false,
-                                onPressed: () async {
-                                  await context.read<AppState>().logout();
-                                  if (!context.mounted) return;
-                                  Navigator.of(context).pushNamedAndRemoveUntil(
-                                    '/vendor/login',
-                                    (route) => false,
-                                  );
-                                },
+                                onPressed: () => _logout(context),
                               ),
                             ],
                           ],
@@ -269,26 +199,45 @@ class VendorStatusScreen extends StatelessWidget {
   }
 }
 
-class _StatusTopBar extends StatelessWidget {
-  const _StatusTopBar();
+Future<void> _logout(BuildContext context) async {
+  final deliveryProvider = context.read<DeliveryProvider>();
+  final appState = context.read<AppState>();
+  try {
+    await deliveryProvider.logout();
+    await appState.logout();
+  } catch (e) {
+    debugPrint('Delivery logout cleanup skipped: $e');
+  }
+  if (!context.mounted) return;
+  Navigator.of(
+    context,
+  ).pushNamedAndRemoveUntil(DeliveryLoginScreen.routeName, (route) => false);
+}
+
+IconData _statusIcon(String status) {
+  switch (status) {
+    case 'approved':
+      return Icons.verified_rounded;
+    case 'rejected':
+      return Icons.cancel_rounded;
+    case 'suspended':
+      return Icons.block_rounded;
+    default:
+      return Icons.hourglass_top_rounded;
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
-    void goBack() {
-      final navigator = Navigator.of(context);
-      if (navigator.canPop()) {
-        navigator.pop();
-        return;
-      }
-      navigator.pushReplacementNamed('/vendor/login');
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Row(
         children: [
           GestureDetector(
-            onTap: goBack,
+            onTap: () => Navigator.maybePop(context),
             child: Container(
               width: 42,
               height: 42,
@@ -313,7 +262,7 @@ class _StatusTopBar extends StatelessWidget {
           const SizedBox(width: 14),
           const Expanded(
             child: Text(
-              'Account Status',
+              'Delivery Registration',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -323,29 +272,6 @@ class _StatusTopBar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ReasonBox extends StatelessWidget {
-  const _ReasonBox({required this.reason});
-
-  final String reason;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _kOrangeLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kOrange.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        reason,
-        style: const TextStyle(color: _kOrange, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -391,18 +317,5 @@ class _ActionButton extends StatelessWidget {
               child: Text(label),
             ),
     );
-  }
-}
-
-IconData _statusIcon(String status) {
-  switch (status) {
-    case 'approved':
-      return Icons.verified_rounded;
-    case 'rejected':
-      return Icons.cancel_rounded;
-    case 'suspended':
-      return Icons.pause_circle_rounded;
-    default:
-      return Icons.hourglass_top_rounded;
   }
 }

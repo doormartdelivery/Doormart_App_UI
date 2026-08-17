@@ -21,6 +21,8 @@ class HelpSupportScreen extends StatefulWidget {
 }
 
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
+  static const _supportPhone = '8248118563';
+  static const _supportPhoneUri = '+918248118563';
   final _picker = ImagePicker();
   final _searchCtrl = TextEditingController();
   final _subjectCtrl = TextEditingController();
@@ -56,11 +58,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     }
   }
 
-  Future<void> _callSupport() => _launch(Uri.parse('tel:+918825965775'));
+  Future<void> _callSupport() => _launch(Uri.parse('tel:$_supportPhoneUri'));
 
   Future<void> _whatsappSupport() => _launch(
     Uri.parse(
-      'https://wa.me/918825965775?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
+      'https://wa.me/$_supportPhoneUri?text=${Uri.encodeComponent('Hi Doormart, I need help with my order.')}',
     ),
   );
 
@@ -197,13 +199,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const SizedBox(height: 10),
             _ContactCard(
               title: 'Call Customer Support',
-              subtitle: 'Speak with a support agent',
+              subtitle: 'Speak with a support agent at $_supportPhone',
               icon: Icons.call_rounded,
               onTap: _callSupport,
             ),
             _ContactCard(
               title: 'WhatsApp Support',
-              subtitle: 'Quick help on WhatsApp',
+              subtitle: 'Quick help on WhatsApp at $_supportPhone',
               icon: Icons.chat_rounded,
               onTap: _whatsappSupport,
             ),
@@ -882,6 +884,9 @@ class _TicketTile extends StatelessWidget {
       'closed' => Colors.grey,
       _ => const Color(0xFFE8541A),
     };
+    final latestReply = _latestCustomerReply(ticket);
+    final replyMessage = latestReply?['message']?.toString().trim() ?? '';
+    final replyDate = _formatTicketDate(latestReply?['createdAt']?.toString());
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -913,6 +918,56 @@ class _TicketTile extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
+                if (replyMessage.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F7FF),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFBCD2F4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.support_agent,
+                              size: 16,
+                              color: Color(0xFF2563EB),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Support reply',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1D4ED8),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              replyDate,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          replyMessage,
+                          style: const TextStyle(
+                            height: 1.35,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1182,4 +1237,21 @@ String _formatTicketDate(String? raw) {
   final minute = dt.minute.toString().padLeft(2, '0');
   final period = dt.hour >= 12 ? 'PM' : 'AM';
   return '$day/$month/$year, $hour:$minute $period';
+}
+
+Map<String, dynamic>? _latestCustomerReply(Map<String, dynamic> ticket) {
+  final rawNotes = ticket['internalNotes'];
+  if (rawNotes is! List) return null;
+  final notes = rawNotes
+      .whereType<Map>()
+      .map((note) => Map<String, dynamic>.from(note))
+      .where(
+        (note) =>
+            (note['visibility']?.toString().trim().toLowerCase() ??
+                'customer') ==
+            'customer',
+      )
+      .toList();
+  if (notes.isEmpty) return null;
+  return notes.last;
 }

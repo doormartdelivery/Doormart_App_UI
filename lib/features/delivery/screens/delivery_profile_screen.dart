@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/app_state.dart';
 import '../providers/delivery_provider.dart';
+import '../widgets/delivery_sidebar_drawer.dart';
 import 'delivery_login_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_home_screen.dart';
@@ -76,17 +77,26 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
     );
 
     if (confirmed != true || !mounted) return;
-    await context.read<DeliveryProvider>().logout();
-    await context.read<AppState>().logout();
+    try {
+      await context.read<DeliveryProvider>().logout();
+      await context.read<AppState>().logout();
+    } catch (e) {
+      debugPrint('Delivery logout cleanup skipped: $e');
+    }
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(DeliveryLoginScreen.routeName, (_) => false);
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final appState = context.watch<AppState>();
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
+    final approvalStatus = (appState.user?.approvalStatus ?? 'approved')
+        .toLowerCase();
     final earnings = provider.earningsStats;
     final totalEarnings =
         (earnings['total'] as num?)?.toDouble() ?? person?.todayEarnings ?? 0;
@@ -98,11 +108,14 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
 
     return Scaffold(
       backgroundColor: _kBg,
+      drawer: const DeliverySidebarDrawer(
+        currentRoute: DeliveryProfileScreen.routeName,
+      ),
       body: SafeArea(
         child: Column(
           children: [
             // ── App Bar ──────────────────────────────────────────────────
-            _AppBar(person: person),
+            _AppBar(person: person, approvalStatus: approvalStatus),
 
             // ── Scrollable body ──────────────────────────────────────────
             Expanded(
@@ -110,7 +123,10 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 100 + bottomInset),
                 children: [
                   // ── Profile header ─────────────────────────────────────
-                  _ProfileHeader(person: person),
+                  _ProfileHeader(
+                    person: person,
+                    approvalStatus: approvalStatus,
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -149,29 +165,6 @@ class _DeliveryProfileScreenState extends State<DeliveryProfileScreen> {
           ],
         ),
       ),
-
-      // ── Bottom Nav ────────────────────────────────────────────────────
-      bottomNavigationBar: _BottomNav(
-        index: _navIndex,
-        onTap: (i) {
-          setState(() => _navIndex = i);
-          if (i == 0) {
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(DeliveryHomeScreen.routeName);
-          }
-          if (i == 1) {
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(DeliveryHistoryScreen.routeName);
-          }
-          if (i == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()),
-            );
-          }
-        },
-      ),
     );
   }
 }
@@ -206,8 +199,9 @@ String _activeSinceLabel(List<Map<String, dynamic>> logs) {
 // ─── App Bar ──────────────────────────────────────────────────────────────────
 
 class _AppBar extends StatelessWidget {
-  const _AppBar({required this.person});
+  const _AppBar({required this.person, required this.approvalStatus});
   final dynamic person;
+  final String approvalStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +210,13 @@ class _AppBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Row(
         children: [
-          const SizedBox(width: 4),
+          Builder(
+            builder: (context) => IconButton(
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.menu_rounded, color: _kTextDark),
+              tooltip: 'Open menu',
+            ),
+          ),
           RichText(
             text: const TextSpan(
               children: [
@@ -239,6 +239,10 @@ class _AppBar extends StatelessWidget {
               ],
             ),
           ),
+          if (approvalStatus != 'approved') ...[
+            const SizedBox(width: 10),
+            _StatusBadge(status: approvalStatus),
+          ],
           const Spacer(),
           // Bell
           Stack(
@@ -292,8 +296,9 @@ class _AppBar extends StatelessWidget {
 // ─── Profile Header ───────────────────────────────────────────────────────────
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.person});
+  const _ProfileHeader({required this.person, required this.approvalStatus});
   final dynamic person;
+  final String approvalStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -352,6 +357,10 @@ class _ProfileHeader extends StatelessWidget {
         ),
 
         const SizedBox(height: 14),
+
+        _StatusBadge(status: approvalStatus),
+
+        const SizedBox(height: 12),
 
         // Name
         Text(
@@ -425,6 +434,51 @@ class _Badge extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.toLowerCase();
+    final label = switch (normalized) {
+      'approved' => 'Approved',
+      'rejected' => 'Rejected',
+      'suspended' => 'Suspended',
+      _ => 'Pending Approval',
+    };
+    final bgColor = switch (normalized) {
+      'approved' => const Color(0xFFEAF7ED),
+      'rejected' => const Color(0xFFFDECEC),
+      'suspended' => const Color(0xFFFFF4DB),
+      _ => const Color(0xFFFFF0EB),
+    };
+    final textColor = switch (normalized) {
+      'approved' => const Color(0xFF15803D),
+      'rejected' => const Color(0xFFB91C1C),
+      'suspended' => const Color(0xFFB45309),
+      _ => _kOrange,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
           color: textColor,
         ),
       ),
@@ -756,7 +810,7 @@ class _AccountSettingsCard extends StatelessWidget {
           context,
           title: 'Help & Support',
           body:
-              'For delivery issues, order assignment problems, or account help, contact support at support@doormart.com or call +91 90000 00000.',
+              'For delivery issues, order assignment problems, or account help, contact support at doormartdelivery@gmail.com or call +91 82481 18563.',
         ),
         isLast: false,
       ),
@@ -1144,7 +1198,7 @@ class _LogoutButtonState extends State<_LogoutButton>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _c.forward(),
-      onTapUp: (_) {
+      onTap: () {
         _c.reverse();
         HapticFeedback.mediumImpact();
         widget.onTap();
@@ -1210,7 +1264,7 @@ class _Footer extends StatelessWidget {
     return const Column(
       children: [
         Text(
-          'App Version 4.2.1-stable',
+          'Version 1',
           style: TextStyle(
             fontSize: 12,
             color: _kTextMid,

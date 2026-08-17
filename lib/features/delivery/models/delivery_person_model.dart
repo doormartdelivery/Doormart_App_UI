@@ -11,6 +11,12 @@ class DeliveryPersonModel {
     required this.todayEarnings,
     this.vendorId = 'main',
     this.avatarUrl,
+    this.panNumber = '',
+    this.panCardUrl,
+    this.licenseNumber = '',
+    this.licenseCardUrl,
+    this.aadhaarNumber = '',
+    this.aadhaarCardUrl,
   });
 
   final String id;
@@ -24,6 +30,12 @@ class DeliveryPersonModel {
   final double todayEarnings;
   final String vendorId;
   final String? avatarUrl;
+  final String panNumber;
+  final String? panCardUrl;
+  final String licenseNumber;
+  final String? licenseCardUrl;
+  final String aadhaarNumber;
+  final String? aadhaarCardUrl;
 
   factory DeliveryPersonModel.fromJson(Map<String, dynamic> json) {
     final status = json['status'] as String? ?? 'offline';
@@ -46,6 +58,12 @@ class DeliveryPersonModel {
       todayEarnings: (json['todayEarnings'] as num? ?? 0).toDouble(),
       vendorId: json['vendorId'] as String? ?? 'main',
       avatarUrl: json['avatarUrl'] as String? ?? json['avatar'] as String?,
+      panNumber: json['panNumber'] as String? ?? '',
+      panCardUrl: json['panCardUrl'] as String?,
+      licenseNumber: json['licenseNumber'] as String? ?? '',
+      licenseCardUrl: json['licenseCardUrl'] as String?,
+      aadhaarNumber: json['aadhaarNumber'] as String? ?? '',
+      aadhaarCardUrl: json['aadhaarCardUrl'] as String?,
     );
   }
 }

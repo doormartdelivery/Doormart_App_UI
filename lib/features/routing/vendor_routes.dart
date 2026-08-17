@@ -4,6 +4,7 @@ import '../../views/vendor/vendor_dashboard_screen.dart';
 import '../../views/vendor/vendor_login_screen.dart';
 import '../../views/vendor/vendor_registration_success_screen.dart';
 import '../../views/vendor/vendor_register_screen.dart';
+import '../../views/vendor/vendor_profile_screen.dart';
 import '../../views/vendor/vendor_status_screen.dart';
 
 class VendorRoutes {
@@ -14,5 +15,6 @@ class VendorRoutes {
         const VendorRegistrationSuccessScreen(),
     VendorStatusScreen.routeName: (_) => const VendorStatusScreen(),
     VendorDashboardScreen.routeName: (_) => const VendorDashboardScreen(),
+    VendorProfileScreen.routeName: (_) => const VendorProfileScreen(),
   };
 }

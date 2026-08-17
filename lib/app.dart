@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import 'core/routes.dart';
@@ -10,6 +9,7 @@ import 'core/role_access.dart';
 import 'providers/app_state.dart';
 import 'features/delivery/providers/delivery_provider.dart';
 import 'features/delivery/screens/delivery_home_screen.dart';
+import 'features/delivery/screens/delivery_status_screen.dart';
 import 'views/vendor/vendor_dashboard_screen.dart';
 import 'views/user/user_home_screen.dart';
 import 'views/user/splash_screen.dart';
@@ -49,10 +49,16 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
       return;
     }
 
-    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    final state = context.read<AppState>();
+    final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
+    final targetRoute = state.user?.role == 'delivery_person' &&
+            approvalStatus != 'approved'
+        ? DeliveryStatusScreen.routeName
+        : RoleAccess.dashboardForRole(state.user?.role);
     navigator.pushNamedAndRemoveUntil(
       switch (targetRoute) {
         DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+        DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
         VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
         _ => UserHomeScreen.routeName,
       },
@@ -67,10 +73,16 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     final navigator = DoormartDeliveryApp.navigatorKey.currentState;
     if (navigator == null) return;
 
-    final targetRoute = RoleAccess.dashboardForRole(context.read<AppState>().user?.role);
+    final state = context.read<AppState>();
+    final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
+    final targetRoute = state.user?.role == 'delivery_person' &&
+            approvalStatus != 'approved'
+        ? DeliveryStatusScreen.routeName
+        : RoleAccess.dashboardForRole(state.user?.role);
     navigator.pushNamedAndRemoveUntil(
       switch (targetRoute) {
         DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+        DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
         VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
         _ => UserHomeScreen.routeName,
       },

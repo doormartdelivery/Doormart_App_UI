@@ -16,6 +16,7 @@ import 'manage_users_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
+import '../vendor/vendor_profile_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -23,6 +24,19 @@ const _kBg = Color(0xFFF6F6F6);
 const _kCard = Colors.white;
 const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF9E9E9E);
+
+String _formatVendorDisplayId(String? vendorId, String? userId) {
+  final normalized = (vendorId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-VENDOR-')) return upper;
+
+  final source = (userId ?? normalized).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-VENDOR-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-VENDOR-${suffix.toUpperCase()}';
+}
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -40,6 +54,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final destinations = _destinations(context);
+    final safeIndex = destinations.isEmpty
+        ? 0
+        : _selectedIndex.clamp(0, destinations.length - 1);
+    if (safeIndex != _selectedIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _selectedIndex = safeIndex);
+      });
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -55,10 +78,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           final logoutRoute = context.read<AppState>().logoutRouteName;
           await context.read<AppState>().logout();
           if (!context.mounted) return;
-          Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
-            logoutRoute,
-            (route) => false,
-          );
+          Navigator.of(
+            context,
+            rootNavigator: true,
+          ).pushNamedAndRemoveUntil(logoutRoute, (route) => false);
         },
       ),
       // appBar: AppBar(
@@ -85,7 +108,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: SafeArea(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
-            child: _selectedBody(destinations[_selectedIndex]),
+            child: _selectedBody(destinations[safeIndex]),
           ),
         ),
       ),
@@ -122,6 +145,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         accent: const Color(0xFF0F766E),
         builder: (_) => const AdminOrdersScreen(),
       ),
+      if (!isSuperAdmin)
+        _AdminSection(
+          title: 'Profile',
+          subtitle: 'Business identity and documents',
+          icon: Icons.badge_outlined,
+          accent: const Color(0xFF7C3AED),
+          builder: (_) => const VendorProfileScreen(),
+        ),
       if (isSuperAdmin)
         _AdminSection(
           title: 'Notifications',
@@ -211,6 +242,11 @@ class _AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profileIndex = destinations.indexWhere(
+      (section) => section.title == 'Profile',
+    );
+    final hasVendorProfile = profileIndex >= 0;
+
     return Drawer(
       child: Container(
         decoration: const BoxDecoration(color: _kBg),
@@ -249,6 +285,60 @@ class _AdminDrawer extends StatelessWidget {
                   ],
                 ),
               ),
+              if (hasVendorProfile)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Material(
+                    color: _kCard,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => onSelect(profileIndex),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF7C3AED,
+                                ).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.badge_outlined,
+                                color: Color(0xFF7C3AED),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Profile',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      color: _kTextDark,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Business identity and documents',
+                                    style: TextStyle(color: _kTextMid),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, color: _kTextMid),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               const Divider(height: 1, color: Color(0xFFE7E7E7)),
               Expanded(
                 child: ListView.separated(
@@ -383,6 +473,8 @@ class _AdminOverviewPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         const WalkingMascotWidget(),
+        const SizedBox(height: 16),
+        const _VersionFooter(),
       ],
     );
   }
@@ -397,11 +489,13 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final vendorId = state.user?.vendorId ?? 'main';
+    final displayVendorId = _formatVendorDisplayId(vendorId, state.user?.id);
     final isSuperAdmin = state.user?.role == UserRoles.superAdmin;
     final superAdminLabel = isSuperAdmin ? 'Super Admin main' : 'Vendor main';
     final roleLabel = isSuperAdmin ? 'Super Admin' : 'Vendor';
-    final dashboardTitle =
-        isSuperAdmin ? 'Super Admin dashboard' : 'Vendor dashboard';
+    final dashboardTitle = isSuperAdmin
+        ? 'Super Admin dashboard'
+        : 'Vendor dashboard';
     final dashboardSubtitle = isSuperAdmin
         ? 'Track orders, products, categories, users, and delivery operations from one place.'
         : 'Track your orders and manage your own products from one place.';
@@ -487,7 +581,7 @@ class _HeroCard extends StatelessWidget {
                     child: Text(
                       vendorId.toLowerCase() == 'main'
                           ? superAdminLabel
-                          : '$roleLabel $vendorId',
+                          : '$roleLabel $displayVendorId',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -496,11 +590,11 @@ class _HeroCard extends StatelessWidget {
                   ),
                 ],
               ),
-              ),
-              Positioned(
-                left: 18,
-                right: 18,
-                bottom: 18,
+            ),
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -525,6 +619,34 @@ class _HeroCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _VersionFooter extends StatelessWidget {
+  const _VersionFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          Text(
+            'Version 1',
+            style: TextStyle(
+              fontSize: 12,
+              color: _kTextMid,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '© 2026 Doormart',
+            style: TextStyle(fontSize: 11, color: _kTextMid),
+          ),
+        ],
       ),
     );
   }

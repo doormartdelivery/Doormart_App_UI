@@ -47,6 +47,19 @@ class DeliveryOrderModel {
     required this.paymentType,
     required this.status,
     required this.createdAt,
+    this.customerLine1,
+    this.customerCity,
+    this.customerPincode,
+    this.vendorStoreName,
+    this.vendorAddress,
+    this.vendorPickupAddress,
+    this.vendorCity,
+    this.vendorPincode,
+    this.vendorPhone,
+    this.customerLatitude,
+    this.customerLongitude,
+    this.vendorLatitude,
+    this.vendorLongitude,
     this.codAmount,
     this.orderId,
     this.deliveryEarning,
@@ -60,11 +73,24 @@ class DeliveryOrderModel {
   final String customerPhone;
   final String customerAddress;
   final String customerArea;
+  final String? customerLine1;
+  final String? customerCity;
+  final String? customerPincode;
   final List<DeliveryOrderItem> items;
   final double totalAmount;
   final String paymentType;
   final DeliveryOrderStatus status;
   final DateTime createdAt;
+  final String? vendorStoreName;
+  final String? vendorAddress;
+  final String? vendorPickupAddress;
+  final String? vendorCity;
+  final String? vendorPincode;
+  final String? vendorPhone;
+  final double? customerLatitude;
+  final double? customerLongitude;
+  final double? vendorLatitude;
+  final double? vendorLongitude;
   final DateTime? deliveredAt;
   final double? codAmount;
   final double? deliveryEarning;
@@ -104,6 +130,7 @@ class DeliveryOrderModel {
       addressMap?['city'],
       addressMap?['pincode'],
     ].where((part) => part != null && part.toString().trim().isNotEmpty).map((part) => part.toString().trim()).join(', ');
+    final addressLocation = _extractLocation(addressMap?['location']);
 
     return DeliveryOrderModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',
@@ -113,11 +140,27 @@ class DeliveryOrderModel {
       customerAddress: json['customerAddress'] as String? ??
           (addressText.isNotEmpty ? addressText : (json['address']?.toString() ?? '')),
       customerArea: json['customerArea'] as String? ?? addressMap?['area'] as String? ?? addressMap?['city'] as String? ?? json['area'] as String? ?? 'Unknown area',
+      customerLine1: json['customerLine1'] as String? ??
+          addressMap?['line1'] as String? ??
+          addressMap?['addressLine1'] as String? ??
+          addressMap?['street'] as String?,
+      customerCity: json['customerCity'] as String? ?? addressMap?['city'] as String?,
+      customerPincode: json['customerPincode'] as String? ?? addressMap?['pincode'] as String?,
       items: itemsJson.map(DeliveryOrderItem.fromJson).toList(),
       totalAmount: (json['totalAmount'] as num? ?? json['total'] as num? ?? 0).toDouble(),
       paymentType: json['paymentType'] as String? ?? json['paymentMethod'] as String? ?? json['payment_method'] as String? ?? 'Online',
       status: _statusFromJson(json['status'] as String?),
       createdAt: _parseDate(json['createdAt'] as String? ?? json['dateTime'] as String? ?? '') ?? DateTime.now(),
+      vendorStoreName: json['vendorStoreName'] as String?,
+      vendorAddress: json['vendorAddress'] as String?,
+      vendorPickupAddress: json['vendorPickupAddress'] as String?,
+      vendorCity: json['vendorCity'] as String?,
+      vendorPincode: json['vendorPincode'] as String?,
+      vendorPhone: json['vendorPhone'] as String?,
+      customerLatitude: _asDouble(json['customerLatitude']) ?? addressLocation?.latitude,
+      customerLongitude: _asDouble(json['customerLongitude']) ?? addressLocation?.longitude,
+      vendorLatitude: _asDouble(json['vendorLatitude']),
+      vendorLongitude: _asDouble(json['vendorLongitude']),
       deliveredAt: _parseDate(json['deliveredAt'] as String? ?? json['completedAt'] as String? ?? json['deliveryCompletedAt'] as String? ?? ''),
       codAmount: (json['codAmount'] as num?)?.toDouble(),
       deliveryEarning: (json['deliveryEarning'] as num?)?.toDouble(),
@@ -126,9 +169,30 @@ class DeliveryOrderModel {
   }
 }
 
+class _LocationPoint {
+  const _LocationPoint({required this.latitude, required this.longitude});
+
+  final double latitude;
+  final double longitude;
+}
+
 DateTime? _parseDate(String value) {
   if (value.trim().isEmpty) return null;
   return DateTime.tryParse(value)?.toLocal();
+}
+
+double? _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
+_LocationPoint? _extractLocation(dynamic value) {
+  if (value is! Map<String, dynamic>) return null;
+  final latitude = _asDouble(value['latitude'] ?? value['lat']);
+  final longitude = _asDouble(value['longitude'] ?? value['lng'] ?? value['lon']);
+  if (latitude == null || longitude == null) return null;
+  return _LocationPoint(latitude: latitude, longitude: longitude);
 }
 
 DeliveryOrderStatus _statusFromJson(String? value) {

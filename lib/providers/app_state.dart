@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../app.dart';
@@ -16,7 +17,6 @@ import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/session_service.dart';
-import '../widgets/toast_widget.dart';
 
 class CartLine {
   CartLine({required this.product, this.quantity = 1});
@@ -252,6 +252,8 @@ class AppState extends ChangeNotifier {
     String gstCertificate = '',
     String panCard = '',
     String cancelledCheque = '',
+    double? pickupLatitude,
+    double? pickupLongitude,
   }) async {
     final data =
         await apiService.post(
@@ -278,6 +280,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificate,
                 'panCardUrl': panCard,
                 'cancelledChequeUrl': cancelledCheque,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
               },
             )
             as Map<String, dynamic>;
@@ -339,18 +346,21 @@ class AppState extends ChangeNotifier {
     }, silent: silent);
   }
 
-  Future<void> sendPasswordResetOtp({required String email}) async {
-    await apiService.post('/auth/forgot-password', body: {'email': email});
+  Future<void> sendPasswordResetOtp({required String identifier}) async {
+    await apiService.post(
+      '/auth/forgot-password',
+      body: {'identifier': identifier},
+    );
   }
 
   Future<void> resetPasswordWithOtp({
-    required String email,
+    required String identifier,
     required String otp,
     required String password,
   }) async {
     await apiService.post(
       '/auth/reset-password',
-      body: {'email': email, 'otp': otp, 'password': password},
+      body: {'identifier': identifier, 'otp': otp, 'password': password},
     );
   }
 
@@ -417,23 +427,84 @@ class AppState extends ChangeNotifier {
     final currentUser = data['user'];
     if (currentUser is Map<String, dynamic>) {
       user = UserModel.fromJson(currentUser);
+      await _sessionService.saveSession(token: token!, user: user!);
       if (user?.role == UserRoles.vendor) {
-        vendor = VendorModel(
-          id: user?.vendorId ?? 'main',
-          name: user?.name ?? 'Vendor',
-          vendorId: user?.vendorId ?? 'main',
-          ownerName: user?.name ?? 'Vendor',
-          phone: user?.phone ?? '',
-          email: user?.email,
-          approvalStatus: user?.approvalStatus ?? 'pending',
-          isActive: user?.isActive ?? true,
-          rejectionReason: user?.rejectionReason ?? '',
-          approvedBy: user?.approvedBy,
-          approvedAt: user?.approvedAt,
-        );
+        try {
+          final vendorData =
+              await apiService.get('/auth/vendor/profile', token: token)
+                  as Map<String, dynamic>;
+          final vendorJson = vendorData['vendor'];
+          if (vendorJson is Map<String, dynamic>) {
+            vendor = VendorModel.fromJson(vendorJson);
+          } else {
+            vendor = VendorModel(
+              id: user?.vendorId ?? 'main',
+              name: user?.name ?? 'Vendor',
+              vendorId: user?.vendorId ?? 'main',
+              ownerName: user?.name ?? 'Vendor',
+              phone: user?.phone ?? '',
+              email: user?.email,
+              approvalStatus: user?.approvalStatus ?? 'pending',
+              isActive: user?.isActive ?? true,
+              rejectionReason: user?.rejectionReason ?? '',
+              approvedBy: user?.approvedBy,
+              approvedAt: user?.approvedAt,
+            );
+          }
+        } catch (e) {
+          debugPrint('Vendor profile refresh skipped: $e');
+          vendor = VendorModel(
+            id: user?.vendorId ?? 'main',
+            name: user?.name ?? 'Vendor',
+            vendorId: user?.vendorId ?? 'main',
+            ownerName: user?.name ?? 'Vendor',
+            phone: user?.phone ?? '',
+            email: user?.email,
+            approvalStatus: user?.approvalStatus ?? 'pending',
+            isActive: user?.isActive ?? true,
+            rejectionReason: user?.rejectionReason ?? '',
+            approvedBy: user?.approvedBy,
+            approvedAt: user?.approvedAt,
+          );
+        }
       }
       notifyListeners();
     }
+  }
+
+  Future<VendorModel> updateVendorPickupAddress({
+    required String pickupAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
+  }) async {
+    if (token == null || user?.role != UserRoles.vendor) {
+      throw StateError('Vendor login required');
+    }
+    final data =
+        await apiService.put(
+              '/auth/vendor/pickup-address',
+              token: token,
+              body: {
+                'pickupAddress': pickupAddress,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
+              },
+            )
+            as Map<String, dynamic>;
+    final vendorJson = data['vendor'];
+    if (vendorJson is Map<String, dynamic>) {
+      vendor = VendorModel.fromJson(vendorJson);
+      notifyListeners();
+      return vendor!;
+    }
+    await refreshProfile();
+    if (vendor == null) {
+      throw StateError('Unable to refresh vendor profile');
+    }
+    return vendor!;
   }
 
   Future<void> _refreshCurrentProfileSafely() async {
@@ -630,6 +701,7 @@ class AppState extends ChangeNotifier {
           body: {'productId': product.id},
         );
       }
+      await loadFavorites();
       debugPrint(
         '[perf][wishlist:${wasFavorite ? "remove" : "add"}][api] ${sw.elapsedMilliseconds}ms',
       );
@@ -656,9 +728,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  String get defaultDashboardRoute => RoleAccess.dashboardForRole(user?.role);
+  String get defaultDashboardRoute {
+    if (user?.role == UserRoles.deliveryPerson &&
+        (user?.approvalStatus ?? 'approved').toLowerCase() != 'approved') {
+      return '/delivery/status';
+    }
+    return RoleAccess.dashboardForRole(user?.role);
+  }
 
   bool canAccessRoute(String routeName) {
+    final approvalStatus = (user?.approvalStatus ?? 'approved').toLowerCase();
+    if (routeName == '/delivery') {
+      return user?.role == UserRoles.deliveryPerson &&
+          approvalStatus == 'approved';
+    }
+    if (routeName == '/delivery/login' ||
+        routeName == '/delivery/register' ||
+        routeName == '/delivery/status') {
+      return true;
+    }
     return RoleAccess.canAccessRoute(user?.role, routeName);
   }
 
@@ -669,7 +757,18 @@ class AppState extends ChangeNotifier {
         if (search != null && search.isNotEmpty) 'search=$search',
       ].join('&');
       final path = '/products${query.isEmpty ? '' : '?$query'}';
-      products = await _loadProductsWithRetry(path, token: token);
+      final loadedProducts = await _loadProductsWithRetry(path, token: token);
+      if (user?.role == UserRoles.vendor || user?.role == UserRoles.admin) {
+        final activeVendorId = (vendor?.vendorId ?? user?.vendorId ?? '')
+            .trim();
+        products = activeVendorId.isEmpty
+            ? loadedProducts
+            : loadedProducts
+                  .where((product) => product.vendorId.trim() == activeVendorId)
+                  .toList();
+      } else {
+        products = loadedProducts;
+      }
     });
   }
 
@@ -830,6 +929,7 @@ class AppState extends ChangeNotifier {
     required String category,
     required double price,
     required double cost,
+    required double mrp,
     required int stock,
     required String unit,
     required double rating,
@@ -853,6 +953,7 @@ class AppState extends ChangeNotifier {
                 'category': category,
                 'price': price,
                 'cost': cost,
+                'mrp': mrp,
                 'stock': stock,
                 'unit': unit,
                 'rating': rating,
@@ -876,6 +977,7 @@ class AppState extends ChangeNotifier {
     required String category,
     required double price,
     required double cost,
+    required double mrp,
     required int stock,
     required String unit,
     required double rating,
@@ -899,6 +1001,7 @@ class AppState extends ChangeNotifier {
                 'category': category,
                 'price': price,
                 'cost': cost,
+                'mrp': mrp,
                 'stock': stock,
                 'unit': unit,
                 'rating': rating,
@@ -977,7 +1080,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<OrderModel> checkout({
-    required String address,
+    required AddressModel address,
     String paymentMethod = 'razorpay',
     String? paymentId,
     DateTime? scheduledFor,
@@ -991,18 +1094,58 @@ class AppState extends ChangeNotifier {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
                 'gstPercent': gstPercent,
-                'address': address,
+                'address': {
+                  'line1': address.line1,
+                  'city': address.city,
+                  'pincode': address.pincode,
+                  'label': address.label,
+                  'fullAddress': address.fullAddress,
+                  ...address.toLocationJson(),
+                },
                 'paymentMethod': paymentMethod,
                 if (paymentId != null) 'paymentId': paymentId,
                 if (scheduledFor != null)
                   'scheduledFor': scheduledFor.toIso8601String(),
               },
             )
-            as Map<String, dynamic>;
-    final order = OrderModel.fromJson(data);
-    orders.insert(0, order);
-    clearCart();
-    return order;
+            as dynamic;
+    final createdOrders = _extractCreatedOrders(data);
+    if (createdOrders.isEmpty) {
+      throw StateError('Order creation failed');
+    }
+    orders.insertAll(0, createdOrders.reversed.toList());
+    await clearCart();
+    return createdOrders.first;
+  }
+
+  List<OrderModel> _extractCreatedOrders(dynamic data) {
+    if (data is List) {
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(OrderModel.fromJson)
+          .toList();
+    }
+
+    if (data is Map<String, dynamic>) {
+      final ordersJson = data['orders'];
+      if (ordersJson is List && ordersJson.isNotEmpty) {
+        return ordersJson
+            .whereType<Map<String, dynamic>>()
+            .map(OrderModel.fromJson)
+            .toList();
+      }
+
+      final orderJson = data['order'];
+      if (orderJson is Map<String, dynamic>) {
+        return [OrderModel.fromJson(orderJson)];
+      }
+
+      if (data.containsKey('_id') || data.containsKey('id')) {
+        return [OrderModel.fromJson(data)];
+      }
+    }
+
+    return const [];
   }
 
   Future<Map<String, dynamic>> loadCheckoutSummary() async {
@@ -1106,14 +1249,26 @@ class AppState extends ChangeNotifier {
 
   Future<void> loadAdminOrders() async {
     if (token == null ||
-        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+        (user?.role != UserRoles.admin &&
+            user?.role != UserRoles.superAdmin &&
+            user?.role != UserRoles.vendor)) {
       return;
     }
     final data = await apiService.get('/orders', token: token) as List<dynamic>;
-    adminOrders = data
+    final orders = data
         .cast<Map<String, dynamic>>()
         .map(OrderModel.fromJson)
         .toList();
+    if (user?.role == UserRoles.vendor) {
+      final activeVendorId = (vendor?.vendorId ?? user?.vendorId ?? '').trim();
+      adminOrders = activeVendorId.isEmpty
+          ? orders
+          : orders
+                .where((order) => order.vendorId.trim() == activeVendorId)
+                .toList();
+    } else {
+      adminOrders = orders;
+    }
     notifyListeners();
   }
 
@@ -1195,6 +1350,17 @@ class AppState extends ChangeNotifier {
     String? role,
     String? status,
     String? vendorId,
+    String? panNumber,
+    String? panCardUrl,
+    String? licenseNumber,
+    String? licenseCardUrl,
+    String? aadhaarNumber,
+    String? aadhaarCardUrl,
+    String? vehicleNumber,
+    String? approvalStatus,
+    String? rejectionReason,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1209,6 +1375,17 @@ class AppState extends ChangeNotifier {
       if (role != null) 'role': role,
       if (status != null) 'status': status,
       if (vendorId != null && vendorId.isNotEmpty) 'vendorId': vendorId,
+      if (panNumber != null) 'panNumber': panNumber,
+      if (panCardUrl != null) 'panCardUrl': panCardUrl,
+      if (licenseNumber != null) 'licenseNumber': licenseNumber,
+      if (licenseCardUrl != null) 'licenseCardUrl': licenseCardUrl,
+      if (aadhaarNumber != null) 'aadhaarNumber': aadhaarNumber,
+      if (aadhaarCardUrl != null) 'aadhaarCardUrl': aadhaarCardUrl,
+      if (vehicleNumber != null) 'vehicleNumber': vehicleNumber,
+      if (approvalStatus != null) 'approvalStatus': approvalStatus,
+      if (rejectionReason != null) 'rejectionReason': rejectionReason,
+      if (latitude != null && longitude != null)
+        'currentLocation': {'latitude': latitude, 'longitude': longitude},
     };
     final data =
         await apiService.put('/admin/users/$userId', token: token, body: body)
@@ -1225,6 +1402,15 @@ class AppState extends ChangeNotifier {
     String role = UserRoles.deliveryPerson,
     String status = 'active',
     String? vendorId,
+    String panNumber = '',
+    String panCardUrl = '',
+    String licenseNumber = '',
+    String licenseCardUrl = '',
+    String aadhaarNumber = '',
+    String aadhaarCardUrl = '',
+    String vehicleNumber = '',
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1244,6 +1430,18 @@ class AppState extends ChangeNotifier {
                 'status': status,
                 if (vendorId != null && vendorId.isNotEmpty)
                   'vendorId': vendorId,
+                if (panNumber.isNotEmpty) 'panNumber': panNumber,
+                if (panCardUrl.isNotEmpty) 'panCardUrl': panCardUrl,
+                if (licenseNumber.isNotEmpty) 'licenseNumber': licenseNumber,
+                if (licenseCardUrl.isNotEmpty) 'licenseCardUrl': licenseCardUrl,
+                if (aadhaarNumber.isNotEmpty) 'aadhaarNumber': aadhaarNumber,
+                if (aadhaarCardUrl.isNotEmpty) 'aadhaarCardUrl': aadhaarCardUrl,
+                if (vehicleNumber.isNotEmpty) 'vehicleNumber': vehicleNumber,
+                if (latitude != null && longitude != null)
+                  'currentLocation': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                  },
               },
             )
             as Map<String, dynamic>;
@@ -1297,6 +1495,8 @@ class AppState extends ChangeNotifier {
     String gstCertificateUrl = '',
     String panCardUrl = '',
     String cancelledChequeUrl = '',
+    double? pickupLatitude,
+    double? pickupLongitude,
     double commissionPercent = 0,
     String status = 'active',
   }) async {
@@ -1330,6 +1530,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificateUrl,
                 'panCardUrl': panCardUrl,
                 'cancelledChequeUrl': cancelledChequeUrl,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
                 'commissionPercent': commissionPercent,
                 'status': status,
               },
@@ -1359,6 +1564,8 @@ class AppState extends ChangeNotifier {
     String? gstCertificateUrl,
     String? panCardUrl,
     String? cancelledChequeUrl,
+    double? pickupLatitude,
+    double? pickupLongitude,
     double? commissionPercent,
     String? status,
     String? approvalStatus,
@@ -1395,6 +1602,11 @@ class AppState extends ChangeNotifier {
                 if (panCardUrl != null) 'panCardUrl': panCardUrl,
                 if (cancelledChequeUrl != null)
                   'cancelledChequeUrl': cancelledChequeUrl,
+                if (pickupLatitude != null && pickupLongitude != null)
+                  'pickupLocation': {
+                    'latitude': pickupLatitude,
+                    'longitude': pickupLongitude,
+                  },
                 if (commissionPercent != null)
                   'commissionPercent': commissionPercent,
                 if (status != null) 'status': status,
@@ -1565,6 +1777,8 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null) throw StateError('Please login first');
     final data =
@@ -1576,6 +1790,8 @@ class AppState extends ChangeNotifier {
                 'line1': line1,
                 'city': city,
                 'pincode': pincode,
+                if (latitude != null && longitude != null)
+                  'location': {'latitude': latitude, 'longitude': longitude},
               },
             )
             as Map<String, dynamic>;
@@ -1590,6 +1806,8 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    double? latitude,
+    double? longitude,
   }) async {
     if (token == null) throw StateError('Please login first');
     final data =
@@ -1601,6 +1819,8 @@ class AppState extends ChangeNotifier {
                 'line1': line1,
                 'city': city,
                 'pincode': pincode,
+                if (latitude != null && longitude != null)
+                  'location': {'latitude': latitude, 'longitude': longitude},
               },
             )
             as Map<String, dynamic>;
@@ -1736,17 +1956,27 @@ class AppState extends ChangeNotifier {
       onOrderDelivered: (_) async {
         debugPrint('Socket order delivered event received; reloading orders.');
         dashboardRefreshTick++;
+        final messenger = DoormartDeliveryApp.scaffoldMessengerKey.currentState;
         await loadOrders();
         await loadAdminOrders();
-        final navContext = DoormartDeliveryApp.navigatorKey.currentContext;
-        if (navContext != null)
-          showToast(navContext, 'Order delivered successfully');
+        if (messenger != null) {
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(
+                content: Text('Order delivered successfully'),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(16),
+              ),
+            );
+        }
       },
       onStockUpdated: (_) async {
         debugPrint('Socket stock updated event received; reloading products.');
         dashboardRefreshTick++;
         await loadProducts();
         if (user?.role == UserRoles.admin ||
+            user?.role == UserRoles.vendor ||
             user?.role == UserRoles.superAdmin) {
           await loadAdminOrders();
         }

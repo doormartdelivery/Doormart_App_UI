@@ -28,6 +28,7 @@ class OrderModel {
     this.customerPhone = '',
     this.deliveryPersonId,
     this.deliveryPersonName,
+    this.deliveryPersonPhone,
     this.deliveryAcceptedAt,
     this.acceptedAt,
     this.deliveredAt,
@@ -49,6 +50,7 @@ class OrderModel {
   final String customerPhone;
   final String? deliveryPersonId;
   final String? deliveryPersonName;
+  final String? deliveryPersonPhone;
   final DateTime? deliveryAcceptedAt;
   final DateTime? acceptedAt;
   final DateTime? deliveredAt;
@@ -141,6 +143,9 @@ class OrderModel {
           : deliveryPersonMap['_id']?.toString() ??
                 deliveryPersonMap['id']?.toString(),
       deliveryPersonName: deliveryPersonMap?['name']?.toString(),
+      deliveryPersonPhone:
+          deliveryPersonMap?['phone']?.toString() ??
+          json['deliveryPersonPhone']?.toString(),
       deliveryAcceptedAt: _parseDateTime(json['deliveryAcceptedAt']),
       acceptedAt: _parseDateTime(json['acceptedAt']),
       deliveredAt: _parseDateTime(json['deliveredAt']),

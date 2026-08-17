@@ -5,12 +5,16 @@ class AddressModel {
     required this.line1,
     required this.city,
     required this.pincode,
+    this.latitude,
+    this.longitude,
   });
   final String id;
   final String label;
   final String line1;
   final String city;
   final String pincode;
+  final double? latitude;
+  final double? longitude;
 
   String get shortAddress => '$city, $pincode';
 
@@ -23,6 +27,37 @@ class AddressModel {
       line1: json['line1'] as String? ?? '',
       city: json['city'] as String? ?? '',
       pincode: json['pincode'] as String? ?? '',
+      latitude: _asDouble(json['latitude'] ?? json['lat']) ??
+          _asDouble(_locationValue(json['location'], 'latitude', 'lat')),
+      longitude: _asDouble(json['longitude'] ?? json['lng']) ??
+          _asDouble(_locationValue(json['location'], 'longitude', 'lng')),
     );
   }
+
+  Map<String, dynamic> toLocationJson() {
+    return {
+      if (latitude != null && longitude != null)
+        'location': {
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+    };
+  }
+
+  static dynamic _locationValue(
+    dynamic location,
+    String primaryKey,
+    String fallbackKey,
+  ) {
+    if (location is Map<String, dynamic>) {
+      return location[primaryKey] ?? location[fallbackKey];
+    }
+    return null;
+  }
+}
+
+double? _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }
