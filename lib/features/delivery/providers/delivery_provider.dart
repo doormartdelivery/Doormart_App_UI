@@ -609,7 +609,9 @@ class DeliveryProvider extends ChangeNotifier {
   void _handleNewOrderRequest(dynamic data) {
     final map = _normalize(data);
     if (map == null) return;
+    if (_isMyOrder(map)) return;
     final order = DeliveryOrderModel.fromJson(map);
+    if (order.status != DeliveryOrderStatus.waitingForAccept) return;
     if (pendingRequests.every((item) => item.id != order.id)) {
       pendingRequests.insert(0, order);
       notifyListeners();
@@ -672,9 +674,33 @@ class DeliveryProvider extends ChangeNotifier {
     removePendingOrder(orderId);
   }
 
+  bool _isMyOrder(Map<String, dynamic> order) {
+    final myId = deliveryPerson?.id;
+    if (myId == null || myId.isEmpty) return false;
+    final assigned = order['assignedDeliveryPerson']?.toString() ?? '';
+    if (assigned == myId) return true;
+    final deliveryPersonId = order['deliveryPersonId']?.toString() ?? '';
+    if (deliveryPersonId == myId) return true;
+    final deliveryPersonField = order['deliveryPerson'];
+    if (deliveryPersonField is Map<String, dynamic>) {
+      final id =
+          deliveryPersonField['_id']?.toString() ??
+          deliveryPersonField['id']?.toString() ??
+          '';
+      if (id == myId) return true;
+    } else if (deliveryPersonField != null &&
+        deliveryPersonField.toString() == myId) {
+      return true;
+    }
+    return false;
+  }
+
   void _handleOrderAssigned(dynamic data) {
     final map = _normalize(data);
     if (map == null) return;
+    final rawOrderId = map['_id']?.toString() ?? map['id']?.toString() ?? '';
+    if (rawOrderId.isEmpty) return;
+    if (!_isMyOrder(map)) return;
     activeOrder = _forceAccepted(DeliveryOrderModel.fromJson(map));
     pendingRequests.removeWhere((item) => item.id == activeOrder!.id);
     history.removeWhere((item) => item.id == activeOrder!.id);
@@ -684,6 +710,7 @@ class DeliveryProvider extends ChangeNotifier {
   void _handleOrderPickedUp(dynamic data) {
     final map = _normalize(data);
     if (map == null) return;
+    if (!_isMyOrder(map)) return;
     activeOrder = DeliveryOrderModel.fromJson(map);
     notifyListeners();
   }
@@ -691,6 +718,7 @@ class DeliveryProvider extends ChangeNotifier {
   void _handleOrderDelivered(dynamic data) {
     final map = _normalize(data);
     if (map == null) return;
+    if (!_isMyOrder(map)) return;
     final deliveredOrder = DeliveryOrderModel.fromJson(map);
     history.insert(0, deliveredOrder);
     if (activeOrder?.id == deliveredOrder.id) {

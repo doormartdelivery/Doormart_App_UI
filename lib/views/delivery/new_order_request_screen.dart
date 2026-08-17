@@ -46,7 +46,7 @@ class _NewOrderRequestScreenState extends State<NewOrderRequestScreen> {
   Future<void> _accept(DeliveryOrderModel order) async {
     final provider = context.read<DeliveryProvider>();
     await provider.apiService.acceptOrder(
-      orderId: order.displayOrderId,
+      orderId: order.id,
       deliveryPersonId: provider.deliveryPerson?.id ?? '',
       token: provider.authToken,
     );
@@ -57,7 +57,7 @@ class _NewOrderRequestScreenState extends State<NewOrderRequestScreen> {
   Future<void> _reject(DeliveryOrderModel order) async {
     final provider = context.read<DeliveryProvider>();
     await provider.apiService.rejectOrder(
-      orderId: order.displayOrderId,
+      orderId: order.id,
       deliveryPersonId: provider.deliveryPerson?.id ?? '',
       token: provider.authToken,
     );
