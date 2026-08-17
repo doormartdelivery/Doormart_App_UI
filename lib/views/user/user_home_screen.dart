@@ -682,7 +682,7 @@ class _HomeHeader extends StatelessWidget {
               children: [
                 // Orange badge
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFFE8541A), Color(0xFFFF8A5C)],
@@ -701,8 +701,8 @@ class _HomeHeader extends StatelessWidget {
                   child: Center(
                     child: Image.asset(
                       'assets/images/doormartLogo.jpeg',
-                      width: 20,
-                      height: 20,
+                      width: 28,
+                      height: 28,
                       fit: BoxFit.contain,
                     ),
                   ),
