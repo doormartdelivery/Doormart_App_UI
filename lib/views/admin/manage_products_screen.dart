@@ -564,7 +564,7 @@ class _HeroCard extends StatelessWidget {
     final categories = products.map((p) => p.category).toSet().length;
     final inventoryValue = products.fold<double>(
       0,
-      (s, p) => s + p.price * p.stock,
+      (sum, product) => sum + _originalPriceValue(product) * product.stock,
     );
 
     return Container(
@@ -1291,6 +1291,8 @@ String _sectionLabel(String section) {
       return section;
   }
 }
+
+double _originalPriceValue(ProductModel product) => product.price;
 
 String _formatProductDisplayId(String? productId) {
   final normalized = (productId ?? '').trim();

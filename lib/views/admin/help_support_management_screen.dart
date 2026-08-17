@@ -313,45 +313,55 @@ class _HelpSupportManagementScreenState
                 currentRoleLabel: isSuperAdmin ? 'Super Admin' : 'Vendor',
               ),
               const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: MediaQuery.of(context).size.width > 900 ? 3 : 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 2.25,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _StatCard(
-                    title: 'Total Tickets',
-                    value: _stats['total'].toString(),
-                    icon: Icons.receipt_long_rounded,
-                  ),
-                  _StatCard(
-                    title: 'Open Tickets',
-                    value: _stats['open'].toString(),
-                    icon: Icons.mark_email_unread_rounded,
-                  ),
-                  _StatCard(
-                    title: 'In Progress',
-                    value: _stats['progress'].toString(),
-                    icon: Icons.timelapse_rounded,
-                  ),
-                  _StatCard(
-                    title: 'Resolved Tickets',
-                    value: _stats['resolved'].toString(),
-                    icon: Icons.verified_rounded,
-                  ),
-                  _StatCard(
-                    title: 'Closed Tickets',
-                    value: _stats['closed'].toString(),
-                    icon: Icons.lock_rounded,
-                  ),
-                  _StatCard(
-                    title: 'Avg Resolution',
-                    value: '4.2h',
-                    icon: Icons.query_stats_rounded,
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final crossAxisCount = width > 1100
+                      ? 3
+                      : width > 700
+                      ? 2
+                      : 1;
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: crossAxisCount == 1 ? 3.1 : 2.25,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _StatCard(
+                        title: 'Total Tickets',
+                        value: _stats['total'].toString(),
+                        icon: Icons.receipt_long_rounded,
+                      ),
+                      _StatCard(
+                        title: 'Open Tickets',
+                        value: _stats['open'].toString(),
+                        icon: Icons.mark_email_unread_rounded,
+                      ),
+                      _StatCard(
+                        title: 'In Progress',
+                        value: _stats['progress'].toString(),
+                        icon: Icons.timelapse_rounded,
+                      ),
+                      _StatCard(
+                        title: 'Resolved Tickets',
+                        value: _stats['resolved'].toString(),
+                        icon: Icons.verified_rounded,
+                      ),
+                      _StatCard(
+                        title: 'Closed Tickets',
+                        value: _stats['closed'].toString(),
+                        icon: Icons.lock_rounded,
+                      ),
+                      _StatCard(
+                        title: 'Avg Resolution',
+                        value: '4.2h',
+                        icon: Icons.query_stats_rounded,
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
               if (_error != null)
@@ -594,39 +604,85 @@ class _AdminTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          _TopActionButton(icon: Icons.menu_rounded, onTap: onOpenMenu),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: _textMid)),
-              ],
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 720;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _card,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _border),
           ),
-          _RolePill(label: currentRoleLabel),
-          const SizedBox(width: 10),
-          _TopActionButton(icon: Icons.refresh_rounded, onTap: onRefresh),
-        ],
-      ),
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _TopActionButton(
+                          icon: Icons.menu_rounded,
+                          onTap: onOpenMenu,
+                        ),
+                        const SizedBox(width: 12),
+                        _TopActionButton(
+                          icon: Icons.refresh_rounded,
+                          onTap: onRefresh,
+                        ),
+                        const Spacer(),
+                        _RolePill(label: currentRoleLabel),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: _textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: _textMid)),
+                  ],
+                )
+              : Row(
+                  children: [
+                    _TopActionButton(
+                      icon: Icons.menu_rounded,
+                      onTap: onOpenMenu,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: _textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(color: _textMid),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _RolePill(label: currentRoleLabel),
+                    const SizedBox(width: 10),
+                    _TopActionButton(
+                      icon: Icons.refresh_rounded,
+                      onTap: onRefresh,
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

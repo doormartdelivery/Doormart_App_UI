@@ -2211,11 +2211,20 @@ String _shortId(String id) {
 String _vendorLabel(String vendorId) {
   final raw = vendorId.trim();
   if (raw.isEmpty || raw == 'main') return 'Main';
-  final readable = raw.replaceFirst(
-    RegExp(r'^vendor[-_]', caseSensitive: false),
-    '',
-  );
-  return _titleCase(readable);
+  return _formatVendorDisplayId(raw, null);
+}
+
+String _formatVendorDisplayId(String? vendorId, String? id) {
+  final normalized = (vendorId ?? '').trim();
+  final upper = normalized.toUpperCase();
+  if (upper.startsWith('DMD-VENDOR-')) return upper;
+
+  final source = (id ?? normalized).replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+  if (source.isEmpty) return 'DMD-VENDOR-0000';
+  final suffix = source.length >= 4
+      ? source.substring(source.length - 4)
+      : source.padLeft(4, '0');
+  return 'DMD-VENDOR-${suffix.toUpperCase()}';
 }
 
 String _vendorLocationLabel(VendorModel? vendor) {
