@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../mascot/walking_mascot_widget.dart';
 import '../../core/utils/network_image_url.dart';
@@ -26,6 +27,7 @@ const _kBg = Color(0xFFF6F6F6);
 const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF9E9E9E);
 const _kBorder = Color(0xFFE8E8E8);
+const _supportPhoneUri = '+918248118563';
 
 void _logNextFrame(String label, Stopwatch sw) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,6 +82,13 @@ class _UserHomeScreenState extends State<UserHomeScreen>
       return;
     }
     await state.toggleFavorite(product);
+  }
+
+  Future<void> _openWhatsAppSupport() async {
+    final uri = Uri.parse(
+      'https://wa.me/$_supportPhoneUri?text=${Uri.encodeComponent('Hi Doormart, I need help with the app.')}',
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -198,6 +207,11 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                   right: 0,
                   bottom: 25 + bottomInset,
                   child: const IgnorePointer(child: WalkingMascotWidget()),
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 106 + bottomInset,
+                  child: _WhatsAppFab(onTap: _openWhatsAppSupport),
                 ),
               ],
             ),
@@ -516,6 +530,79 @@ class _UserHomeScreenState extends State<UserHomeScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WhatsAppFab extends StatefulWidget {
+  const _WhatsAppFab({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_WhatsAppFab> createState() => _WhatsAppFabState();
+}
+
+class _WhatsAppFabState extends State<_WhatsAppFab>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glowCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _glow = CurvedAnimation(
+    parent: _glowCtrl,
+    curve: Curves.easeInOut,
+  );
+
+  @override
+  void dispose() {
+    _glowCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, child) {
+        final t = _glow.value;
+        return Transform.scale(
+          scale: 1.0 + (t * 0.02),
+          child: Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(
+                    0xFF25D366,
+                  ).withValues(alpha: 0.45 + (t * 0.35)),
+                  blurRadius: 22 + (t * 14),
+                  spreadRadius: 2 + (t * 3),
+                  offset: const Offset(0, 0),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onTap,
+                customBorder: const CircleBorder(),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: Image.asset(
+        'assets/whatsapp_icon.png',
+        width: 62,
+        height: 62,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.chat_rounded, color: Colors.white, size: 34),
       ),
     );
   }
