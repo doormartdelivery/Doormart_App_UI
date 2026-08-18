@@ -101,6 +101,9 @@ class AppState extends ChangeNotifier {
       if (token != null && user?.role == UserRoles.user) {
         await _restoreSession();
       }
+      if (token != null && user?.role == UserRoles.vendor) {
+        await _refreshCurrentProfileSafely();
+      }
       if (token != null) {
         _connectSocket();
         try {
@@ -474,6 +477,9 @@ class AppState extends ChangeNotifier {
 
   Future<VendorModel> updateVendorPickupAddress({
     required String pickupAddress,
+    String? city,
+    String? state,
+    String? pincode,
     double? pickupLatitude,
     double? pickupLongitude,
   }) async {
@@ -486,11 +492,13 @@ class AppState extends ChangeNotifier {
               token: token,
               body: {
                 'pickupAddress': pickupAddress,
-                if (pickupLatitude != null && pickupLongitude != null)
-                  'pickupLocation': {
-                    'latitude': pickupLatitude,
-                    'longitude': pickupLongitude,
-                  },
+                if (city != null) 'city': city.trim(),
+                if (state != null) 'state': state.trim(),
+                if (pincode != null) 'pincode': pincode.trim(),
+                'pickupLocation':
+                    pickupLatitude != null && pickupLongitude != null
+                        ? {'latitude': pickupLatitude, 'longitude': pickupLongitude}
+                        : null,
               },
             )
             as Map<String, dynamic>;
@@ -1096,7 +1104,10 @@ class AppState extends ChangeNotifier {
                 'gstPercent': gstPercent,
                 'address': {
                   'line1': address.line1,
+                  'area': address.area,
+                  'landmark': address.landmark,
                   'city': address.city,
+                  'state': address.state,
                   'pincode': address.pincode,
                   'label': address.label,
                   'fullAddress': address.fullAddress,
@@ -1777,6 +1788,9 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    String area = '',
+    String landmark = '',
+    String state = '',
     double? latitude,
     double? longitude,
   }) async {
@@ -1788,10 +1802,15 @@ class AppState extends ChangeNotifier {
               body: {
                 'label': label,
                 'line1': line1,
+                'area': area,
+                'landmark': landmark,
                 'city': city,
+                'state': state,
                 'pincode': pincode,
-                if (latitude != null && longitude != null)
-                  'location': {'latitude': latitude, 'longitude': longitude},
+                'location':
+                    latitude != null && longitude != null
+                        ? {'latitude': latitude, 'longitude': longitude}
+                        : null,
               },
             )
             as Map<String, dynamic>;
@@ -1806,6 +1825,9 @@ class AppState extends ChangeNotifier {
     required String line1,
     required String city,
     required String pincode,
+    String area = '',
+    String landmark = '',
+    String state = '',
     double? latitude,
     double? longitude,
   }) async {
@@ -1817,10 +1839,15 @@ class AppState extends ChangeNotifier {
               body: {
                 'label': label,
                 'line1': line1,
+                'area': area,
+                'landmark': landmark,
                 'city': city,
+                'state': state,
                 'pincode': pincode,
-                if (latitude != null && longitude != null)
-                  'location': {'latitude': latitude, 'longitude': longitude},
+                'location':
+                    latitude != null && longitude != null
+                        ? {'latitude': latitude, 'longitude': longitude}
+                        : null,
               },
             )
             as Map<String, dynamic>;

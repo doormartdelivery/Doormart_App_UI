@@ -244,15 +244,13 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                 ? order.vendorStoreName!.trim()
                                 : '—',
                           ),
-                          _infoRow(
-                            'Pickup address',
-                            order.vendorPickupAddress?.trim().isNotEmpty == true
-                                ? order.vendorPickupAddress!.trim()
-                                : (order.vendorAddress?.trim().isNotEmpty ==
-                                          true
-                                      ? order.vendorAddress!.trim()
-                                      : '—'),
-                          ),
+                          _infoRow('Pickup address', _fullVendorAddress(order)),
+                          if (order.vendorLatitude != null &&
+                              order.vendorLongitude != null)
+                            _infoRow(
+                              'Coordinates',
+                              '${order.vendorLatitude!.toStringAsFixed(6)}, ${order.vendorLongitude!.toStringAsFixed(6)}',
+                            ),
                           _infoRow(
                             'Pickup city',
                             order.vendorCity?.trim().isNotEmpty == true
@@ -277,17 +275,17 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             subtitle: 'Open turn-by-turn pickup navigation',
                             icon: Icons.store_mall_directory_rounded,
                             onPressed:
-                                _hasAddress(
-                                  order.vendorPickupAddress ??
-                                      order.vendorAddress,
-                                )
+                                order.vendorLatitude != null &&
+                                    order.vendorLongitude != null ||
+                                    _hasAddress(_fullVendorAddress(order))
                                 ? () => _openDirections(
-                                    address:
-                                        order.vendorPickupAddress ??
-                                        order.vendorAddress ??
-                                        '',
+                                    address: _fullVendorAddress(order),
                                     latitude: order.vendorLatitude,
                                     longitude: order.vendorLongitude,
+                                    conflictLatitude:
+                                        order.customerLatitude,
+                                    conflictLongitude:
+                                        order.customerLongitude,
                                   )
                                 : null,
                           ),
@@ -301,7 +299,10 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                         children: [
                           _infoRow('Customer name', order.customerName),
                           _infoRow('Customer phone', order.customerPhone),
-                          _infoRow('Customer address', order.customerAddress),
+                          _infoRow(
+                            'Customer address',
+                            _fullCustomerAddress(order),
+                          ),
                           _infoRow(
                             'Customer street',
                             order.customerLine1?.trim().isNotEmpty == true
@@ -321,6 +322,12 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                 : '—',
                           ),
                           _infoRow('Customer area', order.customerArea),
+                          if (order.customerLatitude != null &&
+                              order.customerLongitude != null)
+                            _infoRow(
+                              'Coordinates',
+                              '${order.customerLatitude!.toStringAsFixed(6)}, ${order.customerLongitude!.toStringAsFixed(6)}',
+                            ),
                           _infoRow('Payment method', order.paymentType),
                           if (isCod)
                             _infoRow(
@@ -337,11 +344,16 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             label: 'Get Customer Directions',
                             subtitle: 'Open turn-by-turn delivery navigation',
                             icon: Icons.map_outlined,
-                            onPressed: _hasAddress(order.customerAddress)
+                            onPressed:
+                                order.customerLatitude != null &&
+                                    order.customerLongitude != null ||
+                                    _hasAddress(_fullCustomerAddress(order))
                                 ? () => _openDirections(
-                                    address: order.customerAddress,
+                                    address: _fullCustomerAddress(order),
                                     latitude: order.customerLatitude,
                                     longitude: order.customerLongitude,
+                                    conflictLatitude: order.vendorLatitude,
+                                    conflictLongitude: order.vendorLongitude,
                                   )
                                 : null,
                           ),
@@ -410,13 +422,17 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               title: 'Get Customer Directions',
                               subtitle: 'Open turn-by-turn delivery navigation',
                               accent: const Color(0xFFFF8A3D),
-                              onTap: _hasAddress(order.customerAddress)
-                                  ? () => _openDirections(
-                                      address: order.customerAddress,
-                                      latitude: order.customerLatitude,
-                                      longitude: order.customerLongitude,
-                                    )
-                                  : null,
+                              onTap: order.customerLatitude != null &&
+            order.customerLongitude != null ||
+            _hasAddress(_fullCustomerAddress(order))
+                ? () => _openDirections(
+                    address: _fullCustomerAddress(order),
+                    latitude: order.customerLatitude,
+                    longitude: order.customerLongitude,
+                    conflictLatitude: order.vendorLatitude,
+                    conflictLongitude: order.vendorLongitude,
+                  )
+                : null,
                               disabledLabel: 'Customer address not available',
                             ),
                             const SizedBox(height: 10),
@@ -620,11 +636,26 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     required String address,
     double? latitude,
     double? longitude,
+    double? conflictLatitude,
+    double? conflictLongitude,
   }) async {
+    final hasUsableAddress = _hasAddress(address);
     final hasCoordinates = latitude != null && longitude != null;
-    final destination = hasCoordinates
+    final coordinatesMatchOtherParty =
+        hasCoordinates &&
+        conflictLatitude != null &&
+        conflictLongitude != null &&
+        _coordinatesClose(
+          latitude,
+          longitude,
+          conflictLatitude,
+          conflictLongitude,
+        );
+    final useCoordinates =
+        hasCoordinates && (!coordinatesMatchOtherParty || !hasUsableAddress);
+    final destination = useCoordinates
         ? '$latitude,$longitude'
-        : Uri.encodeComponent(address.trim());
+        : Uri.encodeComponent(hasUsableAddress ? address.trim() : '');
     final webUri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
     );
@@ -658,7 +689,54 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   }
 
   bool _hasAddress(String? address) {
-    return (address ?? '').trim().isNotEmpty;
+    final trimmed = (address ?? '').trim();
+    return trimmed.isNotEmpty && trimmed != '—';
+  }
+
+  bool _coordinatesClose(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
+    return (lat1 - lat2).abs() < 0.0001 && (lng1 - lng2).abs() < 0.0001;
+  }
+
+  String _fullVendorAddress(DeliveryOrderModel order) {
+    final parts = <String>[
+      order.vendorPickupAddress ?? '',
+      order.vendorCity ?? '',
+      order.vendorState ?? '',
+      order.vendorPincode ?? '',
+    ]
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) {
+      return order.vendorAddress?.trim().isNotEmpty == true
+          ? order.vendorAddress!.trim()
+          : '—';
+    }
+    return parts.join(', ');
+  }
+
+  String _fullCustomerAddress(DeliveryOrderModel order) {
+    final parts = <String>[
+      order.customerLine1 ?? '',
+      order.customerArea ?? '',
+      order.customerLandmark ?? '',
+      order.customerCity ?? '',
+      order.customerState ?? '',
+      order.customerPincode ?? '',
+    ]
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final joined = parts.join(', ');
+    if (joined.isNotEmpty) return joined;
+    return order.customerAddress?.trim().isNotEmpty == true
+        ? order.customerAddress!.trim()
+        : '—';
   }
 }
 

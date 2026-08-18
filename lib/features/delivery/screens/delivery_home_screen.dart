@@ -936,7 +936,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   ),
                   _detailLine(
                     'Address',
-                    _text(widget.order.vendorAddress, fallback: '—'),
+                    _fullVendorAddress(widget.order),
                   ),
                   _detailLine(
                     'Pickup address',
@@ -950,6 +950,12 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     'Pincode',
                     _text(widget.order.vendorPincode, fallback: '—'),
                   ),
+                  if (widget.order.vendorLatitude != null &&
+                      widget.order.vendorLongitude != null)
+                    _detailLine(
+                      'Coordinates',
+                      '${widget.order.vendorLatitude!.toStringAsFixed(6)}, ${widget.order.vendorLongitude!.toStringAsFixed(6)}',
+                    ),
                   _detailLine(
                     'Phone',
                     _text(widget.order.vendorPhone, fallback: '—'),
@@ -976,7 +982,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   ),
                   _detailLine(
                     'Address',
-                    _text(widget.order.customerAddress, fallback: '—'),
+                    _fullCustomerAddress(widget.order),
                   ),
                   _detailLine(
                     'Street',
@@ -994,6 +1000,12 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     'Area',
                     _text(widget.order.customerArea, fallback: '—'),
                   ),
+                  if (widget.order.customerLatitude != null &&
+                      widget.order.customerLongitude != null)
+                    _detailLine(
+                      'Coordinates',
+                      '${widget.order.customerLatitude!.toStringAsFixed(6)}, ${widget.order.customerLongitude!.toStringAsFixed(6)}',
+                    ),
                   _detailLine(
                     'Placed',
                     _formatDate(_orderCreatedAt(widget.order)),
@@ -1211,6 +1223,36 @@ String _text(dynamic value, {String fallback = ''}) {
   if (value == null) return fallback;
   final text = value.toString().trim();
   return text.isEmpty ? fallback : text;
+}
+
+String _fullVendorAddress(dynamic order) {
+  final parts = <String>[
+    _text(order.vendorAddress, fallback: ''),
+    _text(order.vendorCity, fallback: ''),
+    _text(order.vendorState, fallback: ''),
+    _text(order.vendorPincode, fallback: ''),
+  ]
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList();
+  return parts.isEmpty ? '—' : parts.join(', ');
+}
+
+String _fullCustomerAddress(dynamic order) {
+  final parts = <String>[
+    _text(order.customerLine1, fallback: ''),
+    _text(order.customerArea, fallback: ''),
+    _text(order.customerLandmark, fallback: ''),
+    _text(order.customerCity, fallback: ''),
+    _text(order.customerState, fallback: ''),
+    _text(order.customerPincode, fallback: ''),
+  ]
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList();
+  final joined = parts.join(', ');
+  if (joined.isNotEmpty) return joined;
+  return _text(order.customerAddress, fallback: '—');
 }
 
 double _amount(dynamic order) {

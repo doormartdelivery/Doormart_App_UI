@@ -219,8 +219,11 @@ class VendorProfileScreen extends StatelessWidget {
                         'Keep the pickup location updated so orders and delivery routing stay accurate.',
                     children: [
                       Text(
-                        vendor.pickupAddress.isNotEmpty
-                            ? vendor.pickupAddress
+                        vendor.pickupAddress.isNotEmpty ||
+                                vendor.city.isNotEmpty ||
+                                vendor.state.isNotEmpty ||
+                                vendor.pincode.isNotEmpty
+                            ? _pickupSummary(vendor)
                             : 'No pickup address has been added yet.',
                         style: const TextStyle(
                           height: 1.4,
@@ -229,6 +232,18 @@ class VendorProfileScreen extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
+                      if (vendor.pickupLatitude != null &&
+                          vendor.pickupLongitude != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Coordinates: ${vendor.pickupLatitude!.toStringAsFixed(6)}, ${vendor.pickupLongitude!.toStringAsFixed(6)}',
+                          style: const TextStyle(
+                            color: _textMid,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -724,6 +739,16 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+String _pickupSummary(VendorModel vendor) {
+  final parts = <String>[
+    vendor.pickupAddress.trim(),
+    vendor.city.trim(),
+    vendor.state.trim(),
+    vendor.pincode.trim(),
+  ].where((part) => part.isNotEmpty).toList();
+  return parts.join(', ');
+}
+
 class _DetailRow extends StatelessWidget {
   const _DetailRow({required this.label, required this.value, this.valueColor});
 
@@ -992,228 +1017,380 @@ Future<void> _showPickupAddressEditor(
   BuildContext context,
   VendorModel vendor,
 ) async {
-  final controller = TextEditingController(text: vendor.pickupAddress);
-  double? pickupLatitude = vendor.pickupLatitude;
-  double? pickupLongitude = vendor.pickupLongitude;
-  bool saving = false;
-  bool capturingLocation = false;
-
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
-          Future<void> useCurrentLocation() async {
-            if (capturingLocation) return;
-            setSheetState(() => capturingLocation = true);
-            try {
-              final location = await LocationService().currentLocation();
-              pickupLatitude = location.latitude;
-              pickupLongitude = location.longitude;
-              if (!sheetContext.mounted) return;
-              setSheetState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Current location captured: '
-                    '${pickupLatitude!.toStringAsFixed(6)}, ${pickupLongitude!.toStringAsFixed(6)}',
-                  ),
-                ),
-              );
-            } catch (error) {
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    error.toString().replaceFirst('Exception: ', ''),
-                  ),
-                ),
-              );
-            } finally {
-              if (sheetContext.mounted) {
-                setSheetState(() => capturingLocation = false);
-              }
-            }
-          }
+    builder: (_) => _PickupAddressEditorSheet(
+      vendor: vendor,
+      messenger: ScaffoldMessenger.of(context),
+    ),
+  );
+}
 
-          Future<void> save() async {
-            final pickupAddress = controller.text.trim();
-            if (pickupAddress.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pickup address is required')),
-              );
-              return;
-            }
-            setSheetState(() => saving = true);
-            try {
-              await context.read<AppState>().updateVendorPickupAddress(
-                pickupAddress: pickupAddress,
-                pickupLatitude: pickupLatitude,
-                pickupLongitude: pickupLongitude,
-              );
-              if (!context.mounted) return;
-              Navigator.of(sheetContext).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pickup address updated')),
-              );
-            } catch (error) {
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    error.toString().replaceFirst('Exception: ', ''),
+class _PickupAddressEditorSheet extends StatefulWidget {
+  const _PickupAddressEditorSheet({
+    required this.vendor,
+    required this.messenger,
+  });
+
+  final VendorModel vendor;
+  final ScaffoldMessengerState messenger;
+
+  @override
+  State<_PickupAddressEditorSheet> createState() =>
+      _PickupAddressEditorSheetState();
+}
+
+class _PickupAddressEditorSheetState extends State<_PickupAddressEditorSheet> {
+  late final TextEditingController _addressController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _stateController;
+  late final TextEditingController _pincodeController;
+  late final TextEditingController _latController;
+  late final TextEditingController _lngController;
+  double? _pickupLatitude;
+  double? _pickupLongitude;
+  bool _saving = false;
+  bool _capturingLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController = TextEditingController(
+      text: widget.vendor.pickupAddress,
+    );
+    _cityController = TextEditingController(text: widget.vendor.city);
+    _stateController = TextEditingController(text: widget.vendor.state);
+    _pincodeController = TextEditingController(text: widget.vendor.pincode);
+    _latController = TextEditingController(
+      text: widget.vendor.pickupLatitude?.toStringAsFixed(6) ?? '',
+    );
+    _lngController = TextEditingController(
+      text: widget.vendor.pickupLongitude?.toStringAsFixed(6) ?? '',
+    );
+    _pickupLatitude = widget.vendor.pickupLatitude;
+    _pickupLongitude = widget.vendor.pickupLongitude;
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _pincodeController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
+    super.dispose();
+  }
+
+  void _showMessage(String message) {
+    widget.messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _syncCoordinatesFromText() {
+    final lat = double.tryParse(_latController.text.trim());
+    final lng = double.tryParse(_lngController.text.trim());
+    if (lat != null && lng != null) {
+      _pickupLatitude = lat;
+      _pickupLongitude = lng;
+    } else {
+      _pickupLatitude = null;
+      _pickupLongitude = null;
+    }
+  }
+
+  void _onCoordinateChanged(String _) {
+    _syncCoordinatesFromText();
+    setState(() {});
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_capturingLocation) return;
+    setState(() => _capturingLocation = true);
+    try {
+      final location = await LocationService().currentLocation();
+      if (!mounted) return;
+      _pickupLatitude = location.latitude;
+      _pickupLongitude = location.longitude;
+      _latController.text = _pickupLatitude!.toStringAsFixed(6);
+      _lngController.text = _pickupLongitude!.toStringAsFixed(6);
+      setState(() {});
+      _showMessage(
+        'Current location captured: '
+        '${_pickupLatitude!.toStringAsFixed(6)}, '
+        '${_pickupLongitude!.toStringAsFixed(6)}',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _capturingLocation = false);
+      }
+    }
+  }
+
+  Future<void> _save() async {
+    final pickupAddress = _addressController.text.trim();
+    if (pickupAddress.isEmpty) {
+      _showMessage('Pickup address is required');
+      return;
+    }
+    _syncCoordinatesFromText();
+    setState(() => _saving = true);
+    try {
+      await context.read<AppState>().updateVendorPickupAddress(
+        pickupAddress: pickupAddress,
+        city: _cityController.text.trim(),
+        state: _stateController.text.trim(),
+        pincode: _pincodeController.text.trim(),
+        pickupLatitude: _pickupLatitude,
+        pickupLongitude: _pickupLongitude,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.messenger.showSnackBar(
+        const SnackBar(content: Text('Pickup address updated')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Widget _field({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    TextInputType keyboardType = TextInputType.text,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Expanded(
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.next,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          hintStyle: const TextStyle(color: _textMid),
+          isDense: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          filled: true,
+          fillColor: const Color(0xFFFCFCFC),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 54,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              );
-            } finally {
-              if (sheetContext.mounted) {
-                setSheetState(() => saving = false);
-              }
-            }
-          }
-
-          return Container(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              16 + MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Edit Pickup Location',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: _textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Fill the full pickup details so the delivery partner sees '
+                'the complete store location, not empty dashes.',
+                style: TextStyle(color: _textMid, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextField(
+                  controller: _addressController,
+                  maxLines: 3,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Pickup Address *',
+                    hintText: 'Building, street, landmark',
+                    hintStyle: const TextStyle(color: _textMid),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFFCFCFC),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Center(
-                    child: Container(
-                      width: 54,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: _border,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
+                  _field(
+                    label: 'City',
+                    controller: _cityController,
+                    hint: 'e.g. Chennai',
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Edit Pickup Address',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: _textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'This address is used for pickup and delivery routing.',
-                    style: TextStyle(color: _textMid, height: 1.35),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      labelText: 'Pickup Address',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFFCFCFC),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: capturingLocation
-                              ? null
-                              : useCurrentLocation,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _accent,
-                            side: const BorderSide(color: Color(0xFFFFC9B4)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: capturingLocation
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.my_location_rounded),
-                          label: Text(
-                            capturingLocation
-                                ? 'Finding location...'
-                                : 'Use Current Location',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (pickupLatitude != null && pickupLongitude != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _border),
-                      ),
-                      child: Text(
-                        'Saved pin: ${pickupLatitude!.toStringAsFixed(6)}, ${pickupLongitude!.toStringAsFixed(6)}',
-                        style: const TextStyle(
-                          color: _textMid,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: saving ? null : save,
-                      child: saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text(
-                              'Save Pickup Address',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                    ),
+                  const SizedBox(width: 12),
+                  _field(
+                    label: 'State',
+                    controller: _stateController,
+                    hint: 'e.g. Tamil Nadu',
                   ),
                 ],
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-
-  controller.dispose();
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextField(
+                  controller: _pincodeController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Pincode',
+                    hintText: 'e.g. 600001',
+                    hintStyle: const TextStyle(color: _textMid),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFFCFCFC),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _field(
+                    label: 'Latitude',
+                    controller: _latController,
+                    hint: 'e.g. 13.0827',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    onChanged: _onCoordinateChanged,
+                  ),
+                  const SizedBox(width: 12),
+                  _field(
+                    label: 'Longitude',
+                    controller: _lngController,
+                    hint: 'e.g. 80.2707',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    onChanged: _onCoordinateChanged,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _capturingLocation ? null : _useCurrentLocation,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _accent,
+                    side: const BorderSide(color: Color(0xFFFFC9B4)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: _capturingLocation
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded),
+                  label: Text(
+                    _capturingLocation
+                        ? 'Finding location...'
+                        : 'Use Current Location',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              if (_pickupLatitude != null && _pickupLongitude != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _border),
+                  ),
+                  child: Text(
+                    'Saved pin: ${_pickupLatitude!.toStringAsFixed(6)}, ${_pickupLongitude!.toStringAsFixed(6)}',
+                    style: const TextStyle(
+                      color: _textMid,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Save Pickup Location',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

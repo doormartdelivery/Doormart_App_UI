@@ -48,12 +48,15 @@ class DeliveryOrderModel {
     required this.status,
     required this.createdAt,
     this.customerLine1,
+    this.customerLandmark,
     this.customerCity,
+    this.customerState,
     this.customerPincode,
     this.vendorStoreName,
     this.vendorAddress,
     this.vendorPickupAddress,
     this.vendorCity,
+    this.vendorState,
     this.vendorPincode,
     this.vendorPhone,
     this.customerLatitude,
@@ -74,7 +77,9 @@ class DeliveryOrderModel {
   final String customerAddress;
   final String customerArea;
   final String? customerLine1;
+  final String? customerLandmark;
   final String? customerCity;
+  final String? customerState;
   final String? customerPincode;
   final List<DeliveryOrderItem> items;
   final double totalAmount;
@@ -85,6 +90,7 @@ class DeliveryOrderModel {
   final String? vendorAddress;
   final String? vendorPickupAddress;
   final String? vendorCity;
+  final String? vendorState;
   final String? vendorPincode;
   final String? vendorPhone;
   final double? customerLatitude;
@@ -127,7 +133,10 @@ class DeliveryOrderModel {
     final addressMap = address is Map<String, dynamic> ? address : null;
     final addressText = [
       addressMap?['line1'] ?? addressMap?['addressLine1'] ?? addressMap?['street'],
+      addressMap?['area'],
+      addressMap?['landmark'],
       addressMap?['city'],
+      addressMap?['state'],
       addressMap?['pincode'],
     ].where((part) => part != null && part.toString().trim().isNotEmpty).map((part) => part.toString().trim()).join(', ');
     final addressLocation = _extractLocation(addressMap?['location']);
@@ -144,7 +153,10 @@ class DeliveryOrderModel {
           addressMap?['line1'] as String? ??
           addressMap?['addressLine1'] as String? ??
           addressMap?['street'] as String?,
+      customerLandmark: json['customerLandmark'] as String? ?? addressMap?['landmark'] as String?,
       customerCity: json['customerCity'] as String? ?? addressMap?['city'] as String?,
+      customerState:
+          json['customerState'] as String? ?? addressMap?['state'] as String?,
       customerPincode: json['customerPincode'] as String? ?? addressMap?['pincode'] as String?,
       items: itemsJson.map(DeliveryOrderItem.fromJson).toList(),
       totalAmount: (json['totalAmount'] as num? ?? json['total'] as num? ?? 0).toDouble(),
@@ -155,6 +167,7 @@ class DeliveryOrderModel {
       vendorAddress: json['vendorAddress'] as String?,
       vendorPickupAddress: json['vendorPickupAddress'] as String?,
       vendorCity: json['vendorCity'] as String?,
+      vendorState: json['vendorState'] as String?,
       vendorPincode: json['vendorPincode'] as String?,
       vendorPhone: json['vendorPhone'] as String?,
       customerLatitude: _asDouble(json['customerLatitude']) ?? addressLocation?.latitude,

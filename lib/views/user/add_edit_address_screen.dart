@@ -26,10 +26,16 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   final _formKey = GlobalKey<FormState>();
   final _label = TextEditingController(text: 'Home');
   final _house = TextEditingController();
-  final _apartment = TextEditingController();
+  final _area = TextEditingController();
   final _landmark = TextEditingController();
+  final _city = TextEditingController();
+  final _state = TextEditingController();
+  final _pincode = TextEditingController();
+  final _lat = TextEditingController();
+  final _lng = TextEditingController();
   bool _defaultAddress = false;
   bool _saving = false;
+  bool _clearingLocation = false;
   bool _capturingLocation = false;
   double? _latitude;
   double? _longitude;
@@ -41,10 +47,15 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     if (address != null) {
       _label.text = address.label;
       _house.text = address.line1;
-      _apartment.text = address.city;
-      _landmark.text = address.pincode;
+      _area.text = address.area;
+      _landmark.text = address.landmark;
+      _city.text = address.city;
+      _state.text = address.state;
+      _pincode.text = address.pincode;
       _latitude = address.latitude;
       _longitude = address.longitude;
+      _lat.text = address.latitude?.toStringAsFixed(6) ?? '';
+      _lng.text = address.longitude?.toStringAsFixed(6) ?? '';
     }
   }
 
@@ -52,8 +63,13 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   void dispose() {
     _label.dispose();
     _house.dispose();
-    _apartment.dispose();
+    _area.dispose();
     _landmark.dispose();
+    _city.dispose();
+    _state.dispose();
+    _pincode.dispose();
+    _lat.dispose();
+    _lng.dispose();
     super.dispose();
   }
 
@@ -159,9 +175,9 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
                   ),
                   const SizedBox(height: 14),
                   _Field(
-                    label: 'APARTMENT / ROAD / AREA',
+                    label: 'AREA / ROAD / STREET',
                     hint: 'e.g. Innovation Drive, Tech District',
-                    controller: _apartment,
+                    controller: _area,
                     maxLines: 1,
                   ),
                   const SizedBox(height: 14),
@@ -173,16 +189,77 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
                     maxLines: 1,
                   ),
                   const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          label: 'CITY',
+                          hint: 'e.g. Chennai',
+                          controller: _city,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Field(
+                          label: 'STATE',
+                          hint: 'e.g. Tamil Nadu',
+                          controller: _state,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _Field(
+                    label: 'PINCODE',
+                    hint: 'e.g. 600001',
+                    controller: _pincode,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          label: 'LATITUDE',
+                          hint: 'e.g. 13.0827',
+                          controller: _lat,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                          onChanged: _onCoordinateChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Field(
+                          label: 'LONGITUDE',
+                          hint: 'e.g. 80.2707',
+                          controller: _lng,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                          onChanged: _onCoordinateChanged,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   _LocationCard(
                     latitude: _latitude,
                     longitude: _longitude,
-                    loading: _capturingLocation,
+                    loading: _capturingLocation || _clearingLocation,
                     onUseCurrentLocation: _captureLocation,
-                    onClear: _latitude != null || _longitude != null
-                        ? () => setState(() {
-                            _latitude = null;
-                            _longitude = null;
-                          })
+                    onClear: _latitude != null ||
+                            _longitude != null ||
+                            _lat.text.trim().isNotEmpty ||
+                            _lng.text.trim().isNotEmpty
+                        ? () => _clearLocation()
                         : null,
                   ),
                   const SizedBox(height: 14),
@@ -234,33 +311,44 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
 
   Future<void> _save() async {
     if (_house.text.trim().isEmpty) return;
-    if (_apartment.text.trim().isEmpty) return;
+    if (_area.text.trim().isEmpty) return;
     setState(() => _saving = true);
     final state = context.read<AppState>();
     try {
       final label = _label.text.trim().isEmpty ? 'Home' : _label.text.trim();
       final line1 = _house.text.trim();
-      final city = _apartment.text.trim();
-      final pincode = _landmark.text.trim().isEmpty ? 'N/A' : _landmark.text.trim();
+      final area = _area.text.trim();
+      final landmark = _landmark.text.trim();
+      final city = _city.text.trim();
+      final stateText = _state.text.trim();
+      final pincode = _pincode.text.trim();
+      final lat = double.tryParse(_lat.text.trim());
+      final lng = double.tryParse(_lng.text.trim());
 
       if (widget.address == null) {
         await state.createAddress(
           label: label,
           line1: line1,
+          area: area,
+          landmark: landmark,
           city: city,
+          state: stateText,
           pincode: pincode,
-          latitude: _latitude,
-          longitude: _longitude,
+          latitude: lat,
+          longitude: lng,
         );
       } else {
         await state.updateAddress(
           addressId: widget.address!.id,
           label: label,
           line1: line1,
+          area: area,
+          landmark: landmark,
           city: city,
+          state: stateText,
           pincode: pincode,
-          latitude: _latitude,
-          longitude: _longitude,
+          latitude: lat,
+          longitude: lng,
         );
       }
       if (!mounted) return;
@@ -275,6 +363,53 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     }
   }
 
+    void _onCoordinateChanged(String _) {
+    final lat = double.tryParse(_lat.text.trim());
+    final lng = double.tryParse(_lng.text.trim());
+    setState(() {
+      _latitude = lat != null && lng != null ? lat : null;
+      _longitude = lat != null && lng != null ? lng : null;
+    });
+  }
+
+  Future<void> _clearLocation() async {
+    setState(() {
+      _latitude = null;
+      _longitude = null;
+      _lat.clear();
+      _lng.clear();
+    });
+    final existing = widget.address;
+    if (existing == null) return;
+    if (_clearingLocation) return;
+    setState(() => _clearingLocation = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AppState>().updateAddress(
+        addressId: existing.id,
+        label: _label.text.trim().isEmpty ? 'Home' : _label.text.trim(),
+        line1: _house.text.trim(),
+        area: _area.text.trim(),
+        landmark: _landmark.text.trim(),
+        city: _city.text.trim(),
+        state: _state.text.trim(),
+        pincode: _pincode.text.trim(),
+        latitude: null,
+        longitude: null,
+      );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Location pin cleared')),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _clearingLocation = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
   Future<void> _captureLocation() async {
     setState(() => _capturingLocation = true);
     try {
@@ -283,6 +418,8 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       setState(() {
         _latitude = location.latitude;
         _longitude = location.longitude;
+        _lat.text = location.latitude.toStringAsFixed(6);
+        _lng.text = location.longitude.toStringAsFixed(6);
       });
     } catch (e) {
       if (!mounted) return;
@@ -302,6 +439,8 @@ class _Field extends StatelessWidget {
     required this.controller,
     this.optional = false,
     this.maxLines = 1,
+    this.keyboardType,
+    this.onChanged,
   });
 
   final String label;
@@ -309,6 +448,8 @@ class _Field extends StatelessWidget {
   final TextEditingController controller;
   final bool optional;
   final int maxLines;
+  final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +476,9 @@ class _Field extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          onChanged: onChanged,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
