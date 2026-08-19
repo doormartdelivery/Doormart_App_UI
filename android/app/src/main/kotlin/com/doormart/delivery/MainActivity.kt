@@ -1,4 +1,4 @@
-package com.example.doormartdelivery
+package com.doormart.delivery
 
 import android.Manifest
 import android.content.Context
