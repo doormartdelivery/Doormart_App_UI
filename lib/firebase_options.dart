@@ -47,11 +47,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBZ6FRHADJ8E07oKURJnl2Yy7rVeckKa0g',
-    appId: '1:39851747839:android:cf99fbab5eb66001dadfca',
-    messagingSenderId: '39851747839',
-    projectId: 'doormart-delivery',
-    storageBucket: 'doormart-delivery.firebasestorage.app',
+    apiKey: 'AIzaSyAVjXcsgz-wdHa__F4sGkvSnuu_Qo5QTFI',
+    appId: '1:776044253883:android:71e636f24a12238bcbcf9e',
+    messagingSenderId: '776044253883',
+    projectId: 'doormartdelivery-d7adf',
+    storageBucket: 'doormartdelivery-d7adf.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCcvDJmDkJ0V03SdQ1tH7GY3soJTqlmJG8',

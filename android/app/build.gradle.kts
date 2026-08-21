@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
 
-    namespace = "com.doormart.delivery"
+    namespace = "com.leastaction.doormartdelivery"
     compileSdk = 36
 
     ndkVersion = flutter.ndkVersion
@@ -29,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.doormart.delivery"
+        applicationId = "com.leastaction.doormartdelivery"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

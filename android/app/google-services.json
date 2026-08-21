@@ -1,21 +1,40 @@
 {
   "project_info": {
-    "project_number": "39851747839",
-    "project_id": "doormart-delivery",
-    "storage_bucket": "doormart-delivery.firebasestorage.app"
+    "project_number": "776044253883",
+    "project_id": "doormartdelivery-d7adf",
+    "storage_bucket": "doormartdelivery-d7adf.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:39851747839:android:cf99fbab5eb66001dadfca",
+        "mobilesdk_app_id": "1:776044253883:android:71e636f24a12238bcbcf9e",
         "android_client_info": {
-          "package_name": "com.doormart.delivery"
+          "package_name": "com.leastaction.doormartdelivery"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBZ6FRHADJ8E07oKURJnl2Yy7rVeckKa0g"
+          "current_key": "AIzaSyAVjXcsgz-wdHa__F4sGkvSnuu_Qo5QTFI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776044253883:android:d9aab8cbc9d222a9cbcf9e",
+        "android_client_info": {
+          "package_name": "com.leastaction.doormartdelivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAVjXcsgz-wdHa__F4sGkvSnuu_Qo5QTFI"
         }
       ],
       "services": {

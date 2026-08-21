@@ -13,8 +13,10 @@ Future<void> main() async {
   } catch (_) {
     // App continues with fallback defaults when .env is missing.
   }
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   runApp(const DoormartDeliveryApp());
 }
