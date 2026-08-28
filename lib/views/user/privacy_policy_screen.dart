@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants.dart';
 import '../../widgets/bottom_nav_bar.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
@@ -83,7 +84,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
           _PolicySection(
             title: '11. Contact Us',
             body:
-                'If you have any questions about this Privacy Policy, please reach out through Help & Support in the user dashboard.',
+                'If you have any questions about this Privacy Policy or want to request account deletion, please reach out through Help & Support in the user dashboard or email ${AppConstants.supportEmail}.',
+          ),
+          _PolicySection(
+            title: '12. Account Deletion',
+            body:
+                'You can request account deletion by contacting ${AppConstants.supportEmail}. Please include the email address or phone number associated with your account. Once we verify the request, we will delete the account and associated user data unless we are required to retain limited information for legal, security, or fraud-prevention purposes.',
           ),
           SizedBox(height: 24),
         ],

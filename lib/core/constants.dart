@@ -2,6 +2,7 @@ import 'constants/api_constants.dart';
 
 class AppConstants {
   static const appName = 'Doormart Delivery';
+  static const supportEmail = 'doormartdelivery@gmail.com';
   static String get apiBaseUrl => ApiConstants.baseUrl;
   static String get socketUrl => ApiConstants.socketUrl;
   static const maxCarouselItems = 12;

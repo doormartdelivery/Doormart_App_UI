@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../models/order_model.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -23,6 +24,7 @@ class HelpSupportScreen extends StatefulWidget {
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
   static const _supportPhone = '8248118563';
   static const _supportPhoneUri = '+918248118563';
+  static const _accountDeletionSubject = 'Account deletion request';
   final _picker = ImagePicker();
   final _searchCtrl = TextEditingController();
   final _subjectCtrl = TextEditingController();
@@ -69,10 +71,22 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Future<void> _emailSupport() => _launch(
     Uri(
       scheme: 'mailto',
-      path: 'doormartdelivery@gmail.com',
+      path: AppConstants.supportEmail,
       queryParameters: {
         'subject': 'Doormart Support',
         'body': 'Hello Doormart support team,\n\nI need help with...',
+      },
+    ),
+  );
+
+  Future<void> _emailAccountDeletion() => _launch(
+    Uri(
+      scheme: 'mailto',
+      path: AppConstants.supportEmail,
+      queryParameters: {
+        'subject': _accountDeletionSubject,
+        'body':
+            'Hello Doormart support team,\n\nI want to request deletion of my Doormart account and all associated user data.\n\nAccount email or phone:\n\nThanks.',
       },
     ),
   );
@@ -118,6 +132,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(() {
       _uploadingImage = true;
       _imageName = picked.name;
@@ -214,6 +229,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               subtitle: 'Send us a detailed message',
               icon: Icons.email_rounded,
               onTap: _emailSupport,
+            ),
+            _ContactCard(
+              title: 'Delete My Account',
+              subtitle:
+                  'Request account deletion and removal of associated data',
+              icon: Icons.delete_forever_rounded,
+              onTap: _emailAccountDeletion,
             ),
             const SizedBox(height: 18),
             const _SectionTitle('Raise a Support Ticket'),

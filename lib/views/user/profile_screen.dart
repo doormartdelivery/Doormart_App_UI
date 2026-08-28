@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import 'login_screen.dart';
@@ -31,6 +32,24 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  Future<void> _emailAccountDeletion() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: AppConstants.supportEmail,
+      queryParameters: {
+        'subject': 'Account deletion request',
+        'body':
+            'Hello Doormart support team,\n\nI want to request deletion of my Doormart account and all associated user data.\n\nAccount email or phone:\n\nThanks.',
+      },
+    );
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open email app')));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +146,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Terms, policy and legal info',
               onTap: () =>
                   Navigator.pushNamed(context, PrivacyPolicyScreen.routeName),
+            ),
+
+            _MenuTile(
+              icon: Icons.delete_forever_rounded,
+              iconBg: const Color(0xFFFFE4E6),
+              iconColor: const Color(0xFFBE123C),
+              title: 'Delete Account Request',
+              subtitle: 'Email support to request account deletion',
+              onTap: _emailAccountDeletion,
               isLast: true,
             ),
 
