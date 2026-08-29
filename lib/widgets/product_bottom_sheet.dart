@@ -146,8 +146,6 @@ class _ProductSheetState extends State<_ProductSheet>
                         Row(
                           children: [
                             _CategoryPill(category: product.category),
-                            const Spacer(),
-                            _RatingPill(rating: product.rating),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -547,40 +545,6 @@ class _CategoryPill extends StatelessWidget {
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Rating Pill ──────────────────────────────────────────────────────────────
-
-class _RatingPill extends StatelessWidget {
-  const _RatingPill({required this.rating});
-  final double rating;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFFFE082)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
-          const SizedBox(width: 3),
-          Text(
-            rating > 0 ? rating.toStringAsFixed(1) : '4.5',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF92400E),
             ),
           ),
         ],

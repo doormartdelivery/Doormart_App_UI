@@ -1092,6 +1092,8 @@ Future<void> _openProductReviewDialog({
   required OrderModel order,
   required ProductModel product,
 }) async {
+  final appState = context.read<AppState>();
+  final messenger = ScaffoldMessenger.of(context);
   double rating = 0;
   bool submitting = false;
   final commentCtrl = TextEditingController();
@@ -1101,12 +1103,12 @@ Future<void> _openProductReviewDialog({
     barrierDismissible: false,
     builder: (dialogContext) {
       return StatefulBuilder(
-        builder: (context, setModalState) {
+        builder: (dialogContext, setModalState) {
           Future<void> submit() async {
-            if (rating <= 0) return;
+            if (rating <= 0 || submitting) return;
             setModalState(() => submitting = true);
             try {
-              await context.read<AppState>().submitProductReview(
+              await appState.submitProductReview(
                 orderId: order.id,
                 productId: product.id,
                 rating: rating,
@@ -1114,14 +1116,13 @@ Future<void> _openProductReviewDialog({
               );
               if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 const SnackBar(content: Text('Thanks for your rating')),
               );
             } catch (e) {
               if (!dialogContext.mounted) return;
               setModalState(() => submitting = false);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Text(e.toString().replaceFirst('Exception: ', '')),
                 ),
@@ -1129,110 +1130,385 @@ Future<void> _openProductReviewDialog({
             }
           }
 
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
+          final feedbackLabel = _ratingFeedbackLabel(rating);
+
+          return Dialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 24,
             ),
-            title: const Text(
-              'Rate this product',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Order ${order.displayOrderId}',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'How would you rate it?',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: List.generate(5, (index) {
-                        final starValue = index + 1;
-                        final filled = rating >= starValue;
-                        return IconButton(
-                          onPressed: submitting
-                              ? null
-                              : () => setModalState(
-                                  () => rating = starValue.toDouble(),
-                                ),
-                          icon: Icon(
-                            filled
-                                ? Icons.star_rounded
-                                : Icons.star_border_rounded,
-                            color: const Color(0xFFE8541A),
-                            size: 30,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: Material(
+                  color: Colors.white,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFE8541A), Color(0xFFFF8A3D)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: commentCtrl,
-                      maxLines: 3,
-                      enabled: !submitting,
-                      decoration: InputDecoration(
-                        labelText: 'Comment (optional)',
-                        hintText:
-                            'Tell us what you liked or what could improve',
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.star_rounded,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Rate your order',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.92,
+                                        ),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      product.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: submitting
+                                    ? null
+                                    : () => Navigator.pop(dialogContext),
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white,
+                                ),
+                                tooltip: 'Close',
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _ReviewInfoChip(
+                                    icon: Icons.receipt_long_rounded,
+                                    label: order.displayOrderId,
+                                  ),
+                                  _ReviewInfoChip(
+                                    icon: Icons.shopping_bag_rounded,
+                                    label: product.category,
+                                  ),
+                                  _ReviewInfoChip(
+                                    icon: Icons.verified_rounded,
+                                    label: 'Delivered order',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 18),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: const Color(0xFFE8EEF5),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Text(
+                                          'How was the product?',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF111827),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        AnimatedSwitcher(
+                                          duration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          child: Text(
+                                            feedbackLabel,
+                                            key: ValueKey(feedbackLabel),
+                                            style: TextStyle(
+                                              color: rating > 0
+                                                  ? const Color(0xFFE8541A)
+                                                  : const Color(0xFF6B7280),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: List.generate(5, (index) {
+                                        final starValue = index + 1;
+                                        final filled = rating >= starValue;
+                                        return Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 3,
+                                            ),
+                                            child: InkWell(
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                              onTap: submitting
+                                                  ? null
+                                                  : () => setModalState(
+                                                      () => rating =
+                                                          starValue.toDouble(),
+                                                    ),
+                                              child: AnimatedContainer(
+                                                duration: const Duration(
+                                                  milliseconds: 150,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical: 10,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: filled
+                                                      ? const Color(0xFFFFF0EB)
+                                                      : Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                  border: Border.all(
+                                                    color: filled
+                                                        ? const Color(0xFFFFC7AF)
+                                                        : const Color(
+                                                            0xFFE5E7EB,
+                                                          ),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    Icon(
+                                                      filled
+                                                          ? Icons.star_rounded
+                                                          : Icons
+                                                              .star_border_rounded,
+                                                      color: filled
+                                                          ? const Color(
+                                                              0xFFE8541A,
+                                                            )
+                                                          : const Color(
+                                                              0xFF9CA3AF,
+                                                            ),
+                                                      size: 28,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      starValue.toString(),
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: filled
+                                                            ? const Color(
+                                                                0xFFE8541A,
+                                                              )
+                                                            : const Color(
+                                                                0xFF6B7280,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      rating > 0
+                                          ? _ratingPromptLabel(rating)
+                                          : 'Tap a star to rate your experience',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF6B7280),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: commentCtrl,
+                                maxLines: 4,
+                                enabled: !submitting,
+                                textInputAction: TextInputAction.newline,
+                                decoration: InputDecoration(
+                                  labelText: 'Write a comment',
+                                  hintText:
+                                      'Share what you liked or what could improve',
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE5E7EB),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE5E7EB),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE8541A),
+                                      width: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: submitting
+                                          ? null
+                                          : () => Navigator.pop(dialogContext),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: const Color(0xFF374151),
+                                        side: const BorderSide(
+                                          color: Color(0xFFD1D5DB),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Cancel',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed:
+                                          submitting || rating <= 0
+                                              ? null
+                                              : submit,
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFE8541A),
+                                        disabledBackgroundColor:
+                                            const Color(0xFFF0B69E),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      child: AnimatedSwitcher(
+                                        duration:
+                                            const Duration(milliseconds: 180),
+                                        child: submitting
+                                            ? const SizedBox(
+                                                key: ValueKey('loading'),
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Text(
+                                                'Submit review',
+                                                key: ValueKey('label'),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: submitting
-                    ? null
-                    : () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: submitting || rating <= 0 ? null : submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE8541A),
-                ),
-                child: submitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Submit',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-              ),
-            ],
           );
         },
       );
@@ -1240,6 +1516,60 @@ Future<void> _openProductReviewDialog({
   );
 
   commentCtrl.dispose();
+}
+
+String _ratingFeedbackLabel(double rating) {
+  if (rating >= 5) return 'Excellent';
+  if (rating >= 4) return 'Very good';
+  if (rating >= 3) return 'Good';
+  if (rating >= 2) return 'Needs improvement';
+  if (rating > 0) return 'Poor';
+  return 'Select a rating';
+}
+
+String _ratingPromptLabel(double rating) {
+  if (rating >= 5) return 'Excellent choice. Tell us what stood out.';
+  if (rating >= 4) return 'Great. A short note helps other customers too.';
+  if (rating >= 3) return 'Thanks. Share what could be better.';
+  if (rating >= 2) return 'We appreciate the feedback. Tell us what failed.';
+  return 'Please choose a rating to continue.';
+}
+
+class _ReviewInfoChip extends StatelessWidget {
+  const _ReviewInfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7F2),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFD5C0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFFE8541A)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF7C2D12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StatusPill extends StatelessWidget {
