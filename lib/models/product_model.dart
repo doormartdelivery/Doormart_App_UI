@@ -1,5 +1,41 @@
 import '../core/utils/network_image_url.dart';
 
+class ProductUnitVariant {
+  const ProductUnitVariant({
+    required this.unit,
+    required this.price,
+    required this.discountCost,
+    required this.stock,
+  });
+
+  final String unit;
+  final double price;
+  final double discountCost;
+  final int stock;
+
+  factory ProductUnitVariant.fromJson(Map<String, dynamic> json) {
+    final discountCost =
+        (json['discountCost'] as num?)?.toDouble() ??
+        (json['discount_cost'] as num?)?.toDouble() ??
+        (json['mrp'] as num?)?.toDouble() ??
+        (json['cost'] as num?)?.toDouble() ??
+        0;
+    return ProductUnitVariant(
+      unit: json['unit'] as String? ?? 'item',
+      price: (json['price'] as num? ?? 0).toDouble(),
+      discountCost: discountCost,
+      stock: (json['stock'] as num? ?? 0).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'unit': unit,
+    'price': price,
+    'discountCost': discountCost,
+    'stock': stock,
+  };
+}
+
 class ProductModel {
   const ProductModel({
     required this.id,
@@ -18,6 +54,7 @@ class ProductModel {
     this.rating = 0,
     this.mrp = 0,
     this.unit = 'item',
+    this.unitVariants = const [],
   });
 
   final String id;
@@ -36,6 +73,7 @@ class ProductModel {
   final double rating;
   final double mrp;
   final String unit;
+  final List<ProductUnitVariant> unitVariants;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     final stockQuantity = (json['stockQuantity'] as num?)?.toInt();
@@ -61,6 +99,7 @@ class ProductModel {
       rating: (json['rating'] as num? ?? 0).toDouble(),
       mrp: (json['mrp'] as num? ?? 0).toDouble(),
       unit: json['unit'] as String? ?? 'item',
+      unitVariants: _parseUnitVariants(json),
     );
   }
 
@@ -82,5 +121,32 @@ class ProductModel {
     'rating': rating,
     'mrp': mrp,
     'unit': unit,
+    'unitVariants': unitVariants.map((variant) => variant.toJson()).toList(),
   };
+
+  static List<ProductUnitVariant> _parseUnitVariants(
+    Map<String, dynamic> json,
+  ) {
+    final variants = json['unitVariants'];
+    if (variants is List && variants.isNotEmpty) {
+      return variants
+          .whereType<Map<String, dynamic>>()
+          .map(ProductUnitVariant.fromJson)
+          .toList();
+    }
+
+    final unit = json['unit'] as String? ?? 'item';
+    final price = (json['price'] as num? ?? 0).toDouble();
+    final discountCost = (json['mrp'] as num? ?? json['cost'] as num? ?? 0)
+        .toDouble();
+    final stock = (json['stock'] as num? ?? 0).toInt();
+    return [
+      ProductUnitVariant(
+        unit: unit,
+        price: price,
+        discountCost: discountCost,
+        stock: stock,
+      ),
+    ];
+  }
 }

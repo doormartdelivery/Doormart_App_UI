@@ -497,8 +497,8 @@ class AppState extends ChangeNotifier {
                 if (pincode != null) 'pincode': pincode.trim(),
                 'pickupLocation':
                     pickupLatitude != null && pickupLongitude != null
-                        ? {'latitude': pickupLatitude, 'longitude': pickupLongitude}
-                        : null,
+                    ? {'latitude': pickupLatitude, 'longitude': pickupLongitude}
+                    : null,
               },
             )
             as Map<String, dynamic>;
@@ -944,6 +944,7 @@ class AppState extends ChangeNotifier {
     String description = '',
     String dashboardSection = 'daily_essentials',
     String imageUrl = '',
+    List<Map<String, dynamic>>? unitVariants,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin &&
@@ -968,6 +969,8 @@ class AppState extends ChangeNotifier {
                 'description': description,
                 'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
+                if (unitVariants != null && unitVariants.isNotEmpty)
+                  'unitVariants': unitVariants,
               },
             )
             as Map<String, dynamic>;
@@ -992,6 +995,7 @@ class AppState extends ChangeNotifier {
     String description = '',
     String dashboardSection = 'daily_essentials',
     String imageUrl = '',
+    List<Map<String, dynamic>>? unitVariants,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin &&
@@ -1016,6 +1020,8 @@ class AppState extends ChangeNotifier {
                 'description': description,
                 'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
+                if (unitVariants != null && unitVariants.isNotEmpty)
+                  'unitVariants': unitVariants,
               },
             )
             as Map<String, dynamic>;
@@ -1807,10 +1813,9 @@ class AppState extends ChangeNotifier {
                 'city': city,
                 'state': state,
                 'pincode': pincode,
-                'location':
-                    latitude != null && longitude != null
-                        ? {'latitude': latitude, 'longitude': longitude}
-                        : null,
+                'location': latitude != null && longitude != null
+                    ? {'latitude': latitude, 'longitude': longitude}
+                    : null,
               },
             )
             as Map<String, dynamic>;
@@ -1844,10 +1849,9 @@ class AppState extends ChangeNotifier {
                 'city': city,
                 'state': state,
                 'pincode': pincode,
-                'location':
-                    latitude != null && longitude != null
-                        ? {'latitude': latitude, 'longitude': longitude}
-                        : null,
+                'location': latitude != null && longitude != null
+                    ? {'latitude': latitude, 'longitude': longitude}
+                    : null,
               },
             )
             as Map<String, dynamic>;

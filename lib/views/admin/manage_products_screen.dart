@@ -70,9 +70,13 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return products;
     return products.where((p) {
+      final variantText = p.unitVariants
+          .map((variant) => variant.unit)
+          .join(' ');
       return p.name.toLowerCase().contains(query) ||
           p.category.toLowerCase().contains(query) ||
           p.unit.toLowerCase().contains(query) ||
+          variantText.toLowerCase().contains(query) ||
           p.stock.toString().contains(query) ||
           p.price.toStringAsFixed(0).contains(query);
     }).toList();
@@ -905,7 +909,7 @@ class _ProductsTable extends StatelessWidget {
                           ),
                         ),
                       ),
-                      DataCell(Text(p.unit)),
+                      DataCell(Text(_unitSummary(p))),
                       DataCell(
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1168,7 +1172,7 @@ class _ProductDetailsDialog extends StatelessWidget {
                     label: 'Original Price',
                     value: 'Rs ${product.price}',
                   ),
-                  _InfoPill(label: 'Unit', value: product.unit),
+                  _InfoPill(label: 'Units', value: _unitSummary(product)),
                   _InfoPill(label: 'Rating', value: product.rating.toString()),
                   _InfoPill(
                     label: 'Section',
@@ -1176,6 +1180,28 @@ class _ProductDetailsDialog extends StatelessWidget {
                   ),
                 ],
               ),
+              if (product.unitVariants.length > 1) ...[
+                const SizedBox(height: 18),
+                const Text(
+                  'Unit breakdown',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: product.unitVariants
+                      .asMap()
+                      .entries
+                      .map(
+                        (entry) => _UnitVariantChip(
+                          label: 'Unit ${entry.key + 1}',
+                          value: _variantSummary(entry.value),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
               const SizedBox(height: 18),
               const Text(
                 'Description',
@@ -1320,6 +1346,69 @@ String _formatVendorDisplayId(String? vendorId, String? id) {
   return 'DMD-VENDOR-${suffix.toUpperCase()}';
 }
 
+String _unitSummary(ProductModel product) {
+  final variants = product.unitVariants;
+  if (variants.isEmpty) {
+    final unit = product.unit.trim();
+    return unit.isEmpty ? 'item' : unit;
+  }
+  if (variants.length == 1) {
+    return variants.first.unit.trim().isEmpty ? 'item' : variants.first.unit;
+  }
+  final first = variants.first.unit.trim().isEmpty
+      ? 'item'
+      : variants.first.unit;
+  return '$first + ${variants.length - 1} more';
+}
+
+String _variantSummary(ProductUnitVariant variant) {
+  final unit = variant.unit.trim().isEmpty ? 'item' : variant.unit.trim();
+  return '$unit • Rs ${variant.price.toStringAsFixed(0)} • Discount Rs ${variant.discountCost.toStringAsFixed(0)} • Stock ${variant.stock}';
+}
+
+class _UnitVariantChip extends StatelessWidget {
+  const _UnitVariantChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 190),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7F2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1D2C2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF9E6B52),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Product Dialog ───────────────────────────────────────────────────────────
 // KEY FIX: imageUrl is now optional — product can be saved without an image.
 // Upload errors are shown inline but do NOT block save.
@@ -1332,16 +1421,44 @@ class _ProductDialog extends StatefulWidget {
   State<_ProductDialog> createState() => _ProductDialogState();
 }
 
+class _UnitVariantDraft {
+  _UnitVariantDraft({
+    String unit = '',
+    String price = '',
+    String discountCost = '',
+    String stock = '',
+  }) : unitCtrl = TextEditingController(text: unit),
+       priceCtrl = TextEditingController(text: price),
+       discountCostCtrl = TextEditingController(text: discountCost),
+       stockCtrl = TextEditingController(text: stock);
+
+  final TextEditingController unitCtrl;
+  final TextEditingController priceCtrl;
+  final TextEditingController discountCostCtrl;
+  final TextEditingController stockCtrl;
+
+  void dispose() {
+    unitCtrl.dispose();
+    priceCtrl.dispose();
+    discountCostCtrl.dispose();
+    stockCtrl.dispose();
+  }
+
+  Map<String, dynamic> toJson() => {
+    'unit': unitCtrl.text.trim(),
+    'price': double.parse(priceCtrl.text.trim()),
+    'discountCost': double.parse(discountCostCtrl.text.trim()),
+    'stock': int.parse(stockCtrl.text.trim()),
+  };
+}
+
 class _ProductDialogState extends State<_ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _mrpCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
-  final _stockCtrl = TextEditingController();
   final _ratingCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
-  final _unitCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final List<_UnitVariantDraft> _unitVariants = [];
 
   String? _selectedCategory;
   String _dashboardSection = 'daily_essentials';
@@ -1356,30 +1473,71 @@ class _ProductDialogState extends State<_ProductDialog> {
   void initState() {
     super.initState();
     final p = widget.product;
-    if (p == null) return;
+    if (p == null) {
+      _addUnitVariant();
+      return;
+    }
     _nameCtrl.text = p.name;
-    _mrpCtrl.text = (p.mrp > 0 ? p.mrp : p.cost).toStringAsFixed(0);
-    _priceCtrl.text = p.price.toStringAsFixed(0);
-    _stockCtrl.text = p.stock.toString();
     _ratingCtrl.text = p.rating.toStringAsFixed(1);
     _imageCtrl.text = p.imageUrl;
-    _unitCtrl.text = p.unit;
     _descriptionCtrl.text = p.description;
     _dashboardSection = p.dashboardSection;
     _selectedCategory = p.category;
+    if (p.unitVariants.isNotEmpty) {
+      for (final variant in p.unitVariants) {
+        _unitVariants.add(
+          _UnitVariantDraft(
+            unit: variant.unit,
+            price: variant.price.toStringAsFixed(0),
+            discountCost: variant.discountCost.toStringAsFixed(0),
+            stock: variant.stock.toString(),
+          ),
+        );
+      }
+    } else {
+      _addUnitVariant(
+        unit: p.unit,
+        price: p.price.toStringAsFixed(0),
+        discountCost: (p.mrp > 0 ? p.mrp : p.cost).toStringAsFixed(0),
+        stock: p.stock.toString(),
+      );
+    }
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _mrpCtrl.dispose();
-    _priceCtrl.dispose();
-    _stockCtrl.dispose();
     _ratingCtrl.dispose();
     _imageCtrl.dispose();
-    _unitCtrl.dispose();
     _descriptionCtrl.dispose();
+    for (final variant in _unitVariants) {
+      variant.dispose();
+    }
     super.dispose();
+  }
+
+  void _addUnitVariant({
+    String unit = '',
+    String price = '',
+    String discountCost = '',
+    String stock = '',
+  }) {
+    _unitVariants.add(
+      _UnitVariantDraft(
+        unit: unit,
+        price: price,
+        discountCost: discountCost,
+        stock: stock,
+      ),
+    );
+  }
+
+  void _removeUnitVariant(int index) {
+    if (_unitVariants.length <= 1) return;
+    setState(() {
+      final removed = _unitVariants.removeAt(index);
+      removed.dispose();
+    });
   }
 
   // ── Image upload ──────────────────────────────────────────────────────────
@@ -1433,6 +1591,12 @@ class _ProductDialogState extends State<_ProductDialog> {
     setState(() => _saveError = null);
 
     if (!_formKey.currentState!.validate()) return;
+    if (_unitVariants.isEmpty) {
+      setState(() {
+        _saveError = 'Please add at least one unit.';
+      });
+      return;
+    }
 
     setState(() => _saving = true);
 
@@ -1446,35 +1610,41 @@ class _ProductDialogState extends State<_ProductDialog> {
         return;
       }
       final finalImageUrl = imageUrl;
+      final unitVariants = _unitVariants
+          .map((variant) => variant.toJson())
+          .toList();
+      final primaryVariant = unitVariants.first;
 
       if (_isEdit) {
         await state.updateProduct(
           productId: widget.product!.id,
           name: _nameCtrl.text.trim(),
           category: _selectedCategory ?? '',
-          price: double.parse(_priceCtrl.text.trim()),
-          cost: double.parse(_mrpCtrl.text.trim()),
-          mrp: double.parse(_mrpCtrl.text.trim()),
-          stock: int.parse(_stockCtrl.text.trim()),
-          unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
+          price: primaryVariant['price'] as double,
+          cost: primaryVariant['discountCost'] as double,
+          mrp: primaryVariant['discountCost'] as double,
+          stock: primaryVariant['stock'] as int,
+          unit: primaryVariant['unit'] as String? ?? 'item',
           rating: double.parse(_ratingCtrl.text.trim()),
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
+          unitVariants: unitVariants,
         );
       } else {
         await state.createProduct(
           name: _nameCtrl.text.trim(),
           category: _selectedCategory ?? '',
-          price: double.parse(_priceCtrl.text.trim()),
-          cost: double.parse(_mrpCtrl.text.trim()),
-          mrp: double.parse(_mrpCtrl.text.trim()),
-          stock: int.parse(_stockCtrl.text.trim()),
-          unit: _unitCtrl.text.trim().isEmpty ? 'item' : _unitCtrl.text.trim(),
+          price: primaryVariant['price'] as double,
+          cost: primaryVariant['discountCost'] as double,
+          mrp: primaryVariant['discountCost'] as double,
+          stock: primaryVariant['stock'] as int,
+          unit: primaryVariant['unit'] as String? ?? 'item',
           rating: double.parse(_ratingCtrl.text.trim()),
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
+          unitVariants: unitVariants,
         );
       }
       if (mounted) Navigator.pop(context, true);
@@ -1610,49 +1780,66 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                     ),
 
-                    // ── MRP + Original Price ─────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Field(
-                            controller: _mrpCtrl,
-                            label: 'MRP *',
-                            icon: Icons.price_change_rounded,
-                            keyboardType: TextInputType.number,
-                            validator: (v) {
-                              if (v?.trim().isEmpty ?? true) {
-                                return 'Required';
-                              }
-                              if (double.tryParse(v!.trim()) == null) {
-                                return 'Invalid number';
-                              }
-                              return null;
-                            },
+                    // ── Unit variants ─────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 12),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Unit variants *',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _Field(
-                            controller: _priceCtrl,
-                            label: 'Original price *',
-                            icon: Icons.sell_rounded,
-                            keyboardType: TextInputType.number,
-                            validator: (v) {
-                              if (v?.trim().isEmpty ?? true) {
-                                return 'Required';
-                              }
-                              if (double.tryParse(v!.trim()) == null) {
-                                return 'Invalid number';
-                              }
-                              return null;
-                            },
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFE8541A),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                            ),
+                            onPressed: () => setState(_addUnitVariant),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text(
+                              'Add unit',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const Text(
+                      'Each unit row has unit, price, discount cost, and stock.',
+                      style: TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._unitVariants.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final variant = entry.value;
+                      return _UnitVariantCard(
+                        index: index,
+                        total: _unitVariants.length,
+                        unitCtrl: variant.unitCtrl,
+                        priceCtrl: variant.priceCtrl,
+                        discountCostCtrl: variant.discountCostCtrl,
+                        stockCtrl: variant.stockCtrl,
+                        onRemove: () => _removeUnitVariant(index),
+                      );
+                    }),
 
                     // ── Rating ──────────────────────────────────────────
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
                     _Field(
                       controller: _ratingCtrl,
                       label: 'Rating * (0 to 5)',
@@ -1673,38 +1860,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                         }
                         return null;
                       },
-                    ),
-
-                    // ── Stock + Unit ────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Field(
-                            controller: _stockCtrl,
-                            label: 'Stock qty *',
-                            icon: Icons.numbers_rounded,
-                            keyboardType: TextInputType.number,
-                            validator: (v) {
-                              if (v?.trim().isEmpty ?? true) {
-                                return 'Required';
-                              }
-                              if (int.tryParse(v!.trim()) == null) {
-                                return 'Must be integer';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _Field(
-                            controller: _unitCtrl,
-                            label: 'Package / Unit (e.g. 1 kg, 500 ml)',
-                            icon: Icons.straighten_rounded,
-                            required: false,
-                          ),
-                        ),
-                      ],
                     ),
 
                     // ── Description ──────────────────────────────────
@@ -1990,6 +2145,139 @@ class _ImageSection extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnitVariantCard extends StatelessWidget {
+  const _UnitVariantCard({
+    required this.index,
+    required this.total,
+    required this.unitCtrl,
+    required this.priceCtrl,
+    required this.discountCostCtrl,
+    required this.stockCtrl,
+    required this.onRemove,
+  });
+
+  final int index;
+  final int total;
+  final TextEditingController unitCtrl;
+  final TextEditingController priceCtrl;
+  final TextEditingController discountCostCtrl;
+  final TextEditingController stockCtrl;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8E8E8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0EB),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Color(0xFFE8541A),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Unit details',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (total > 1)
+                TextButton.icon(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                  label: const Text('Remove'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _Field(
+            controller: unitCtrl,
+            label: 'Unit * (kg / ltr / gram)',
+            icon: Icons.straighten_rounded,
+            validator: (v) =>
+                (v?.trim().isEmpty ?? true) ? 'Unit is required' : null,
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _Field(
+                  controller: priceCtrl,
+                  label: 'Price *',
+                  icon: Icons.sell_rounded,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v?.trim().isEmpty ?? true) return 'Required';
+                    if (double.tryParse(v!.trim()) == null) {
+                      return 'Invalid number';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _Field(
+                  controller: discountCostCtrl,
+                  label: 'Discount cost *',
+                  icon: Icons.price_change_rounded,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    if (v?.trim().isEmpty ?? true) return 'Required';
+                    if (double.tryParse(v!.trim()) == null) {
+                      return 'Invalid number';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          _Field(
+            controller: stockCtrl,
+            label: 'Stock *',
+            icon: Icons.inventory_2_rounded,
+            keyboardType: TextInputType.number,
+            validator: (v) {
+              if (v?.trim().isEmpty ?? true) return 'Required';
+              if (int.tryParse(v!.trim()) == null) return 'Must be integer';
+              return null;
+            },
           ),
         ],
       ),
