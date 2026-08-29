@@ -115,7 +115,7 @@ class OrderModel {
               cost: 0,
               stock: 0,
               imageUrl: item['imageUrl']?.toString() ?? '',
-              unit: 'item',
+              unit: item['unit']?.toString() ?? 'item',
             ),
           )
           .toList(),

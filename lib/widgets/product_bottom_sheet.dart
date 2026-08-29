@@ -16,7 +16,7 @@ const _kGreenLight = Color(0xFFEAF7EF);
 Future<void> showProductBottomSheet(
   BuildContext context,
   ProductModel product, {
-  Future<void> Function(int quantity)? onAddToCart,
+  Future<void> Function(int quantity, ProductUnitVariant variant)? onAddToCart,
 }) {
   final mq = MediaQuery.of(context);
 
@@ -44,7 +44,8 @@ Future<void> showProductBottomSheet(
 class _ProductSheet extends StatefulWidget {
   const _ProductSheet({required this.product, required this.onAddToCart});
   final ProductModel product;
-  final Future<void> Function(int quantity)? onAddToCart;
+  final Future<void> Function(int quantity, ProductUnitVariant variant)?
+  onAddToCart;
 
   @override
   State<_ProductSheet> createState() => _ProductSheetState();
@@ -54,6 +55,7 @@ class _ProductSheetState extends State<_ProductSheet>
     with SingleTickerProviderStateMixin {
   int _quantity = 1;
   bool _adding = false;
+  late int _selectedVariantIndex;
   late final Future<List<ProductReviewModel>> _reviewsFuture;
 
   // Sheet entry animation
@@ -75,6 +77,7 @@ class _ProductSheetState extends State<_ProductSheet>
   @override
   void initState() {
     super.initState();
+    _selectedVariantIndex = 0;
     _reviewsFuture = Future.microtask(
       () => context.read<AppState>().loadProductReviews(widget.product.id),
     );
@@ -87,6 +90,10 @@ class _ProductSheetState extends State<_ProductSheet>
   }
 
   void _increment() {
+    final selectedStock = _selectedVariant.stock > 0
+        ? _selectedVariant.stock
+        : widget.product.stock;
+    if (selectedStock > 0 && _quantity >= selectedStock) return;
     HapticFeedback.selectionClick();
     setState(() => _quantity++);
   }
@@ -97,10 +104,37 @@ class _ProductSheetState extends State<_ProductSheet>
     setState(() => _quantity--);
   }
 
+  ProductUnitVariant get _selectedVariant {
+    final variants = widget.product.unitVariants;
+    if (variants.isNotEmpty && _selectedVariantIndex < variants.length) {
+      return variants[_selectedVariantIndex];
+    }
+    return ProductUnitVariant(
+      unit: widget.product.unit,
+      price: widget.product.price,
+      discountCost: widget.product.mrp,
+      stock: widget.product.stock,
+    );
+  }
+
+  void _selectVariant(int index) {
+    final variants = widget.product.unitVariants;
+    if (index < 0 || index >= variants.length) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedVariantIndex = index;
+      final stock = variants[index].stock;
+      if (stock > 0 && _quantity > stock) {
+        _quantity = stock;
+      }
+      if (_quantity <= 0) _quantity = 1;
+    });
+  }
+
   Future<void> _addToCart() async {
     HapticFeedback.mediumImpact();
     setState(() => _adding = true);
-    await widget.onAddToCart?.call(_quantity);
+    await widget.onAddToCart?.call(_quantity, _selectedVariant);
     if (mounted) {
       setState(() => _adding = false);
       Navigator.pop(context);
@@ -110,7 +144,22 @@ class _ProductSheetState extends State<_ProductSheet>
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final selectedVariant = _selectedVariant;
     final catColor = _categoryAccent(product.category);
+    final vendorName = _vendorNameFor(product);
+    final canPickVariant = product.unitVariants.length > 1;
+    final selectedPrice = selectedVariant.price > 0 ? selectedVariant.price : product.price;
+    final selectedMrp = selectedVariant.discountCost > selectedPrice
+        ? selectedVariant.discountCost
+        : product.mrp > selectedPrice
+            ? product.mrp
+            : selectedPrice * 1.12;
+    final selectedStock = selectedVariant.stock > 0
+        ? selectedVariant.stock
+        : product.stock;
+    final stockText = selectedStock > 0
+        ? '$selectedStock available'
+        : 'Out of stock';
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -163,13 +212,36 @@ class _ProductSheetState extends State<_ProductSheet>
                         Row(
                           children: [
                             const Icon(
+                              Icons.storefront_rounded,
+                              size: 14,
+                              color: Color(0xFF888888),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                vendorName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF666666),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
                               Icons.straighten_rounded,
                               size: 14,
                               color: Color(0xFF888888),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _unitLabel(product.unit),
+                              _unitLabel(selectedVariant.unit),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF888888),
@@ -184,10 +256,10 @@ class _ProductSheetState extends State<_ProductSheet>
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${product.stock} in stock',
+                              stockText,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: product.stock > 10
+                                color: selectedStock > 10
                                     ? _kGreen
                                     : const Color(0xFFE8541A),
                                 fontWeight: FontWeight.w600,
@@ -200,7 +272,7 @@ class _ProductSheetState extends State<_ProductSheet>
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Rs ${product.price.toStringAsFixed(0)}',
+                              'Rs ${selectedPrice.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w900,
@@ -210,7 +282,7 @@ class _ProductSheetState extends State<_ProductSheet>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Rs ${(product.price * 1.15).toStringAsFixed(0)}',
+                              'Rs ${selectedMrp.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Color(0xFFAAAAAA),
@@ -240,6 +312,14 @@ class _ProductSheetState extends State<_ProductSheet>
                             ),
                           ],
                         ),
+                        if (canPickVariant) ...[
+                          const SizedBox(height: 14),
+                          _VariantPicker(
+                            variants: product.unitVariants,
+                            selectedIndex: _selectedVariantIndex,
+                            onSelected: _selectVariant,
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         _DeliveryStrip(),
                         const SizedBox(height: 14),
@@ -268,6 +348,9 @@ class _ProductSheetState extends State<_ProductSheet>
                           onDecrement: _decrement,
                           onAddToCart: _addToCart,
                           product: product,
+                          selectedUnit: selectedVariant.unit,
+                          selectedPrice: selectedPrice,
+                          selectedStock: selectedStock,
                         ),
                       ],
                     ),
@@ -727,6 +810,9 @@ class _QuantityCartBar extends StatelessWidget {
     required this.onDecrement,
     required this.onAddToCart,
     required this.product,
+    required this.selectedUnit,
+    required this.selectedPrice,
+    required this.selectedStock,
   });
 
   final int quantity;
@@ -735,10 +821,15 @@ class _QuantityCartBar extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onAddToCart;
   final ProductModel product;
+  final String selectedUnit;
+  final double selectedPrice;
+  final int selectedStock;
 
   @override
   Widget build(BuildContext context) {
-    final totalPrice = product.price * quantity;
+    final totalPrice = selectedPrice * quantity;
+    final canIncrease = selectedStock > 0 ? quantity < selectedStock : false;
+    final canAdd = selectedStock > 0;
 
     return Row(
       children: [
@@ -777,7 +868,7 @@ class _QuantityCartBar extends StatelessWidget {
               ),
               _QtyBtn(
                 icon: Icons.add_rounded,
-                enabled: true,
+                enabled: canIncrease,
                 onTap: onIncrement,
               ),
             ],
@@ -791,10 +882,141 @@ class _QuantityCartBar extends StatelessWidget {
           child: _AddToCartButton(
             adding: adding,
             totalPrice: totalPrice,
+            unitLabel: selectedUnit,
+            enabled: canAdd,
             onTap: onAddToCart,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _VariantPicker extends StatelessWidget {
+  const _VariantPicker({
+    required this.variants,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<ProductUnitVariant> variants;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Choose pack size',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(variants.length, (index) {
+              final variant = variants[index];
+              final selected = index == selectedIndex;
+              final displayPrice = variant.price > 0 ? variant.price : 0;
+              final stock = variant.stock;
+              return InkWell(
+                onTap: () => onSelected(index),
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFFFF0EB) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: selected
+                          ? const Color(0xFFE8541A)
+                          : const Color(0xFFE5E7EB),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: selected
+                            ? const Color(0xFFE8541A).withValues(alpha: 0.10)
+                            : Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            selected
+                                ? Icons.radio_button_checked_rounded
+                                : Icons.radio_button_off_rounded,
+                            size: 16,
+                            color: selected
+                                ? const Color(0xFFE8541A)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _unitLabel(variant.unit),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: selected
+                                  ? const Color(0xFFE8541A)
+                                  : const Color(0xFF374151),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Rs ${displayPrice.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        stock > 0 ? '$stock in stock' : 'Out of stock',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: stock > 0
+                              ? const Color(0xFF6B7280)
+                              : const Color(0xFFE8541A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -870,10 +1092,14 @@ class _AddToCartButton extends StatefulWidget {
   const _AddToCartButton({
     required this.adding,
     required this.totalPrice,
+    required this.unitLabel,
+    required this.enabled,
     required this.onTap,
   });
   final bool adding;
   final double totalPrice;
+  final String unitLabel;
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
@@ -900,8 +1126,8 @@ class _AddToCartButtonState extends State<_AddToCartButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: widget.adding ? null : (_) => _c.forward(),
-      onTapUp: widget.adding
+      onTapDown: widget.adding || !widget.enabled ? null : (_) => _c.forward(),
+      onTapUp: widget.adding || !widget.enabled
           ? null
           : (_) {
               _c.reverse();
@@ -913,16 +1139,18 @@ class _AddToCartButtonState extends State<_AddToCartButton>
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            gradient: widget.adding
+            gradient: widget.adding || !widget.enabled
                 ? null
                 : const LinearGradient(
                     colors: [Color(0xFFF26522), Color(0xFFE8401A)],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
-            color: widget.adding ? const Color(0xFFE0E0E0) : null,
+            color: widget.adding || !widget.enabled
+                ? const Color(0xFFE0E0E0)
+                : null,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: widget.adding
+            boxShadow: widget.adding || !widget.enabled
                 ? []
                 : [
                     BoxShadow(
@@ -966,7 +1194,7 @@ class _AddToCartButtonState extends State<_AddToCartButton>
                         ],
                       ),
                       Text(
-                        'Rs ${widget.totalPrice.toStringAsFixed(0)} total',
+                        'Rs ${widget.totalPrice.toStringAsFixed(0)} • ${widget.unitLabel}',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.80),
                           fontSize: 11,

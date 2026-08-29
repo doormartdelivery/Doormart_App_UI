@@ -909,7 +909,7 @@ class _ProductsTable extends StatelessWidget {
                           ),
                         ),
                       ),
-                      DataCell(Text(_unitSummary(p))),
+                      DataCell(_UnitListCell(product: p)),
                       DataCell(
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1185,7 +1185,7 @@ class _ProductDetailsDialog extends StatelessWidget {
                   ),
                 ],
               ),
-              if (product.unitVariants.length > 1) ...[
+              if (product.unitVariants.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 const Text(
                   'Unit breakdown',
@@ -1200,7 +1200,7 @@ class _ProductDetailsDialog extends StatelessWidget {
                       .entries
                       .map(
                         (entry) => _UnitVariantChip(
-                          label: 'Unit ${entry.key + 1}',
+                          label: _variantUnitLabel(entry.value.unit),
                           value: _variantSummary(entry.value),
                         ),
                       )
@@ -1357,18 +1357,37 @@ String _unitSummary(ProductModel product) {
     final unit = product.unit.trim();
     return unit.isEmpty ? 'item' : unit;
   }
-  if (variants.length == 1) {
-    return variants.first.unit.trim().isEmpty ? 'item' : variants.first.unit;
+  final labels = variants
+      .map((variant) => _variantUnitLabel(variant.unit))
+      .where((label) => label.trim().isNotEmpty)
+      .toList();
+  if (labels.isEmpty) return 'item';
+  if (labels.length <= 3) return labels.join(', ');
+  return '${labels.take(2).join(', ')} + ${labels.length - 2} more';
+}
+
+List<String> _unitLabels(ProductModel product) {
+  final variants = product.unitVariants;
+  if (variants.isEmpty) {
+    final unit = product.unit.trim();
+    return [unit.isEmpty ? 'item' : _variantUnitLabel(unit)];
   }
-  final first = variants.first.unit.trim().isEmpty
-      ? 'item'
-      : variants.first.unit;
-  return '$first + ${variants.length - 1} more';
+  return variants
+      .map((variant) => _variantUnitLabel(variant.unit))
+      .where((label) => label.trim().isNotEmpty)
+      .toList();
 }
 
 String _variantSummary(ProductUnitVariant variant) {
   final unit = variant.unit.trim().isEmpty ? 'item' : variant.unit.trim();
   return '$unit • Rs ${variant.price.toStringAsFixed(0)} • Discount Rs ${variant.discountCost.toStringAsFixed(0)} • Stock ${variant.stock}';
+}
+
+String _variantUnitLabel(String unit) {
+  final value = unit.trim();
+  if (value.isEmpty) return 'item';
+  if (RegExp(r'^\d').hasMatch(value)) return value;
+  return '1 $value';
 }
 
 class _UnitVariantChip extends StatelessWidget {
@@ -1409,6 +1428,46 @@ class _UnitVariantChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _UnitListCell extends StatelessWidget {
+  const _UnitListCell({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = _unitLabels(product);
+    if (labels.isEmpty) {
+      return const Text('item');
+    }
+
+    return SizedBox(
+      width: 210,
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: labels.map((label) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7F2),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFF1D2C2)),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFE8541A),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

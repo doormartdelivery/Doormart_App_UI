@@ -1553,11 +1553,15 @@ class _ProductRail extends StatelessWidget {
                       onTap: () => showProductBottomSheet(
                         ctx,
                         products[i],
-                        onAddToCart: (qty) async {
+                        onAddToCart: (qty, variant) async {
                           final tapSw = Stopwatch()..start();
                           final ok = await state.addToCart(
                             products[i],
                             quantity: qty,
+                            unit: variant.unit,
+                            price: variant.price,
+                            discountCost: variant.discountCost,
+                            stock: variant.stock,
                           );
                           if (!ctx.mounted) return;
                           showToast(
@@ -2298,9 +2302,16 @@ class _EssentialsGrid extends StatelessWidget {
                   onTap: () => showProductBottomSheet(
                     ctx,
                     product,
-                    onAddToCart: (qty) async {
+                    onAddToCart: (qty, variant) async {
                       final tapSw = Stopwatch()..start();
-                      final ok = await state.addToCart(product, quantity: qty);
+                      final ok = await state.addToCart(
+                        product,
+                        quantity: qty,
+                        unit: variant.unit,
+                        price: variant.price,
+                        discountCost: variant.discountCost,
+                        stock: variant.stock,
+                      );
                       if (!ctx.mounted) return;
                       showToast(
                         ctx,
@@ -2650,8 +2661,15 @@ class _TopOffersFeed extends StatelessWidget {
                   onTap: () => showProductBottomSheet(
                     ctx,
                     product,
-                    onAddToCart: (qty) async {
-                      final ok = await state.addToCart(product, quantity: qty);
+                    onAddToCart: (qty, variant) async {
+                      final ok = await state.addToCart(
+                        product,
+                        quantity: qty,
+                        unit: variant.unit,
+                        price: variant.price,
+                        discountCost: variant.discountCost,
+                        stock: variant.stock,
+                      );
                       if (!ctx.mounted) return;
                       showToast(
                         ctx,
@@ -3482,7 +3500,7 @@ class _PopularProductsGrid extends StatelessWidget {
                   onTap: () => showProductBottomSheet(
                     ctx,
                     product,
-                    onAddToCart: (qty) async {
+                    onAddToCart: (qty, variant) async {
                       final ok = await state.addToCart(product, quantity: qty);
                       if (!ctx.mounted) return;
                       showToast(

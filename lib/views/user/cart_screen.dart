@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../../core/utils/network_image_url.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/toast_widget.dart';
-import '../app_page.dart';
 import 'checkout_screen.dart';
 import 'search_screen.dart';
 import 'user_home_screen.dart';
@@ -49,15 +48,45 @@ class CartScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final line = state.cart[index];
                       return _CartItemCard(
-                        key: ValueKey(line.product.id),
+                        key: ValueKey(line.key),
                         line: line,
                         onIncrement: () {
                           HapticFeedback.lightImpact();
-                          unawaited(state.addToCart(line.product));
+                          unawaited(
+                            state.addToCart(
+                              line.product,
+                              quantity: 1,
+                              unit: line.selectedUnit,
+                              price: line.price,
+                              discountCost: line.discountCost,
+                              stock: line.stock,
+                            ),
+                          );
                         },
                         onDecrement: () {
                           HapticFeedback.lightImpact();
-                          unawaited(state.decrement(line.product));
+                          unawaited(
+                            state.decrement(
+                              line.product,
+                              unit: line.selectedUnit,
+                            ),
+                          );
+                        },
+                        onUnitChanged: (unit) {
+                          HapticFeedback.lightImpact();
+                          unawaited(() async {
+                            final ok = await state.changeCartUnit(
+                              line.product,
+                              fromUnit: line.selectedUnit,
+                              toUnit: unit,
+                            );
+                            if (!ok && context.mounted) {
+                              showToast(
+                                context,
+                                state.error ?? 'Unable to change unit',
+                              );
+                            }
+                          }());
                         },
                       );
                     },
@@ -218,11 +247,13 @@ class _CartItemCard extends StatelessWidget {
     required this.line,
     required this.onIncrement,
     required this.onDecrement,
+    required this.onUnitChanged,
   });
 
   final dynamic line; // your CartLine / CartItem type
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final ValueChanged<String> onUnitChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +322,10 @@ class _CartItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _UnitChip(label: _unitLabel(line.product.unit)),
+                      _UnitSwitcher(
+                        line: line,
+                        onUnitChanged: onUnitChanged,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -310,7 +344,7 @@ class _CartItemCard extends StatelessWidget {
                     children: [
                       // Price
                       Text(
-                        'Rs ${line.product.price.toStringAsFixed(2)}',
+                        'Rs ${line.unitPrice.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
@@ -358,6 +392,80 @@ class _UnitChip extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
+      ),
+    );
+  }
+}
+
+class _UnitSwitcher extends StatelessWidget {
+  const _UnitSwitcher({
+    required this.line,
+    required this.onUnitChanged,
+  });
+
+  final dynamic line;
+  final ValueChanged<String> onUnitChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final variants = <String, Map<String, dynamic>>{};
+    for (final variant in line.product.unitVariants) {
+      variants[variant.unit.toString()] = {
+        'price': variant.price,
+        'stock': variant.stock,
+      };
+    }
+    if (variants.length <= 1) {
+      return _UnitChip(label: _unitLabel(line.selectedUnit));
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Change unit',
+      padding: EdgeInsets.zero,
+      position: PopupMenuPosition.under,
+      onSelected: onUnitChanged,
+      itemBuilder: (context) {
+        return variants.entries.map((entry) {
+          final unit = entry.key;
+          final price = (entry.value['price'] as num?)?.toDouble() ?? 0;
+          final stock = (entry.value['stock'] as num?)?.toInt() ?? 0;
+          final isSelected =
+              unit.trim().toLowerCase() == line.selectedUnit.trim().toLowerCase();
+          return PopupMenuItem<String>(
+            value: unit,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _unitLabel(unit),
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Rs ${price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: _kTextMid,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  stock > 0 ? '$stock' : '0',
+                  style: const TextStyle(
+                    color: _kTextMid,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList();
+      },
+      child: _UnitChip(
+        label: '${_unitLabel(line.selectedUnit)}  ▾',
       ),
     );
   }

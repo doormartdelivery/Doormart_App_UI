@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/utils/network_image_url.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/toast_widget.dart';
 import '../../widgets/product_bottom_sheet.dart';
+import '../../widgets/toast_widget.dart';
 
 const _kBg = Color(0xFFF6F6F6);
 const _kCard = Colors.white;
@@ -138,10 +138,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               onTap: () => showProductBottomSheet(
                                 context,
                                 product,
-                                onAddToCart: (quantity) async {
+                                onAddToCart: (quantity, variant) async {
                                   final added = await context
                                       .read<AppState>()
-                                      .addToCart(product, quantity: quantity);
+                                      .addToCart(
+                                        product,
+                                        quantity: quantity,
+                                        unit: variant.unit,
+                                        price: variant.price,
+                                        discountCost: variant.discountCost,
+                                        stock: variant.stock,
+                                      );
                                   if (!context.mounted) return;
                                   showToast(
                                     context,

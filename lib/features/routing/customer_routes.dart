@@ -15,6 +15,7 @@ import '../../views/user/search_screen.dart';
 import '../../views/user/payment_screen.dart';
 import '../../views/user/privacy_policy_screen.dart';
 import '../../views/user/profile_screen.dart';
+import '../../views/user/product_details_screen.dart';
 import '../../views/user/scheduled_order_screen.dart';
 import '../../views/user/signup_screen.dart';
 import '../../views/user/splash_screen.dart';
@@ -30,6 +31,7 @@ class CustomerRoutes {
     SignupScreen.routeName: (_) => const SignupScreen(),
     SearchScreen.routeName: (_) => const SearchScreen(),
     ProductListScreen.routeName: (_) => const ProductListScreen(),
+    ProductDetailsScreen.routeName: (_) => const ProductDetailsScreen(),
     ProductCategoryScreen.routeName: (_) => const ProductCategoryScreen(),
     CartScreen.routeName: (_) => const CartScreen(),
     CheckoutScreen.routeName: (_) => const CheckoutScreen(),

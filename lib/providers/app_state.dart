@@ -19,18 +19,48 @@ import '../services/socket_service.dart';
 import '../services/session_service.dart';
 
 class CartLine {
-  CartLine({required this.product, this.quantity = 1});
+  CartLine({
+    required this.product,
+    this.quantity = 1,
+    this.unit,
+    this.price,
+    this.discountCost,
+    this.stock,
+  });
 
   final ProductModel product;
   int quantity;
+  final String? unit;
+  final double? price;
+  final double? discountCost;
+  final int? stock;
 
-  double get total => product.price * quantity;
+  String get selectedUnit {
+    final value = (unit ?? product.unit).trim();
+    return value.isEmpty ? product.unit : value;
+  }
+
+  ProductUnitVariant? get _matchedVariant {
+    final normalized = selectedUnit.toLowerCase();
+    for (final variant in product.unitVariants) {
+      if (variant.unit.toLowerCase() == normalized) return variant;
+    }
+    return null;
+  }
+
+  double get unitPrice => price ?? _matchedVariant?.price ?? product.price;
+  double get unitMrp => discountCost ?? _matchedVariant?.discountCost ?? product.mrp;
+  int get availableStock => stock ?? _matchedVariant?.stock ?? product.stock;
+  double get total => unitPrice * quantity;
+  String get key => '${product.id}::${selectedUnit.toLowerCase()}';
 
   Map<String, dynamic> toOrderJson() => {
     'productId': product.id,
     'name': product.name,
     'quantity': quantity,
-    'price': product.price,
+    'price': unitPrice,
+    'unit': selectedUnit,
+    'discountCost': unitMrp,
   };
 }
 
@@ -758,17 +788,57 @@ class AppState extends ChangeNotifier {
   }
 
   List<CartLine> _cloneCart() => cart
-      .map((line) => CartLine(product: line.product, quantity: line.quantity))
+      .map(
+        (line) => CartLine(
+          product: line.product,
+          quantity: line.quantity,
+          unit: line.unit,
+          price: line.price,
+          discountCost: line.discountCost,
+          stock: line.stock,
+        ),
+      )
       .toList();
 
-  void _setCartQuantity(ProductModel product, int quantity) {
-    final index = cart.indexWhere((line) => line.product.id == product.id);
+  ProductUnitVariant _variantFor(ProductModel product, String unit) {
+    final normalized = unit.trim().toLowerCase();
+    for (final variant in product.unitVariants) {
+      if (variant.unit.toLowerCase() == normalized) return variant;
+    }
+    return ProductUnitVariant(
+      unit: unit.trim().isEmpty ? product.unit : unit.trim(),
+      price: product.price,
+      discountCost: product.mrp,
+      stock: product.stock,
+    );
+  }
+
+  void _setCartQuantity(
+    ProductModel product,
+    int quantity, {
+    String? unit,
+    double? price,
+    double? discountCost,
+    int? stock,
+  }) {
+    final selectedUnit = (unit ?? product.unit).trim();
+    final key = '${product.id}::${selectedUnit.toLowerCase()}';
+    final index = cart.indexWhere((line) => line.key == key);
     if (quantity <= 0) {
       if (index != -1) cart.removeAt(index);
       return;
     }
     if (index == -1) {
-      cart.add(CartLine(product: product, quantity: quantity));
+      cart.add(
+        CartLine(
+          product: product,
+          quantity: quantity,
+          unit: selectedUnit,
+          price: price,
+          discountCost: discountCost,
+          stock: stock,
+        ),
+      );
       return;
     }
     cart[index].quantity = quantity;
@@ -1189,12 +1259,105 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> addToCart(ProductModel product, {int quantity = 1}) async {
-    return _syncAddToCart(product, quantity: quantity);
+  Future<bool> addToCart(
+    ProductModel product, {
+    int quantity = 1,
+    String? unit,
+    double? price,
+    double? discountCost,
+    int? stock,
+  }) async {
+    return _syncAddToCart(
+      product,
+      quantity: quantity,
+      unit: unit,
+      price: price,
+      discountCost: discountCost,
+      stock: stock,
+    );
   }
 
-  Future<bool> decrement(ProductModel product) async {
-    return _syncDecrement(product);
+  Future<bool> decrement(ProductModel product, {String? unit}) async {
+    return _syncDecrement(product, unit: unit);
+  }
+
+  Future<bool> changeCartUnit(
+    ProductModel product, {
+    required String fromUnit,
+    required String toUnit,
+  }) async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+
+    final sourceUnit = fromUnit.trim();
+    final targetUnit = toUnit.trim();
+    if (sourceUnit.toLowerCase() == targetUnit.toLowerCase()) {
+      return true;
+    }
+
+    final current = cart.firstWhere(
+      (line) => line.key == '${product.id}::${sourceUnit.toLowerCase()}',
+      orElse: () => CartLine(product: product, quantity: 0, unit: sourceUnit),
+    );
+    if (current.quantity <= 0) return false;
+
+    final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
+    final variant = _variantFor(product, targetUnit);
+    final currentTarget = cart.firstWhere(
+      (line) => line.key == '${product.id}::${targetUnit.toLowerCase()}',
+      orElse: () => CartLine(product: product, quantity: 0, unit: targetUnit),
+    );
+    if (variant.stock > 0 && currentTarget.quantity + current.quantity > variant.stock) {
+      error = 'Only ${variant.stock} ${targetUnit.isEmpty ? product.unit : targetUnit} available';
+      notifyListeners();
+      return false;
+    }
+    final movedQuantity = variant.stock > 0 && current.quantity > variant.stock
+        ? variant.stock
+        : current.quantity;
+    final nextQuantity = currentTarget.quantity + movedQuantity;
+
+    _setCartQuantity(product, 0, unit: sourceUnit);
+    _setCartQuantity(
+      product,
+      nextQuantity,
+      unit: targetUnit,
+      price: variant.price,
+      discountCost: variant.discountCost,
+      stock: variant.stock,
+    );
+    error = null;
+    notifyListeners();
+
+    unawaited(
+      _syncCartMutation(
+        mutationToken: mutationToken,
+        snapshot: snapshot,
+        action: () async {
+          await apiService.delete(
+            '/cart/remove/${product.id}?unit=${Uri.encodeComponent(sourceUnit)}',
+            token: token,
+          );
+          await apiService.post(
+            '/cart/add',
+            token: token,
+            body: {
+              'productId': product.id,
+              'quantity': movedQuantity,
+              if (targetUnit.isNotEmpty) 'unit': targetUnit,
+              if (variant.price > 0) 'price': variant.price,
+              if (variant.discountCost > 0) 'discountCost': variant.discountCost,
+              if (variant.stock > 0) 'stock': variant.stock,
+            },
+          );
+        },
+      ),
+    );
+    return true;
   }
 
   Future<bool> clearCart() async {
@@ -2145,16 +2308,31 @@ class AppState extends ChangeNotifier {
           if (quantity is! num) {
             return null;
           }
+          final unit = item['unit'] as String?;
+          final price = (item['price'] as num?)?.toDouble();
+          final discountCost = (item['discountCost'] as num?)?.toDouble();
+          final stock = (item['stock'] as num?)?.toInt();
           return CartLine(
             product: ProductModel.fromJson(productJson),
             quantity: quantity.toInt(),
+            unit: unit,
+            price: price,
+            discountCost: discountCost,
+            stock: stock,
           );
         }).whereType<CartLine>(),
       );
     notifyListeners();
   }
 
-  Future<bool> _syncAddToCart(ProductModel product, {int quantity = 1}) async {
+  Future<bool> _syncAddToCart(
+    ProductModel product, {
+    int quantity = 1,
+    String? unit,
+    double? price,
+    double? discountCost,
+    int? stock,
+  }) async {
     if (token == null) {
       error = 'Please login first';
       notifyListeners();
@@ -2162,15 +2340,28 @@ class AppState extends ChangeNotifier {
     }
     final snapshot = _cloneCart();
     final mutationToken = _nextCartMutationToken();
+    final selectedUnit = (unit ?? product.unit).trim();
     _setCartQuantity(
       product,
       (cart
               .firstWhere(
-                (line) => line.product.id == product.id,
-                orElse: () => CartLine(product: product, quantity: 0),
+                (line) =>
+                    line.key == '${product.id}::${selectedUnit.toLowerCase()}',
+                orElse: () => CartLine(
+                  product: product,
+                  quantity: 0,
+                  unit: selectedUnit,
+                  price: price,
+                  discountCost: discountCost,
+                  stock: stock,
+                ),
               )
               .quantity) +
           quantity,
+      unit: selectedUnit,
+      price: price,
+      discountCost: discountCost,
+      stock: stock,
     );
     error = null;
     notifyListeners();
@@ -2182,7 +2373,14 @@ class AppState extends ChangeNotifier {
           await apiService.post(
             '/cart/add',
             token: token,
-            body: {'productId': product.id, 'quantity': quantity},
+            body: {
+              'productId': product.id,
+              'quantity': quantity,
+              if (selectedUnit.isNotEmpty) 'unit': selectedUnit,
+              if (price != null) 'price': price,
+              if (discountCost != null) 'discountCost': discountCost,
+              if (stock != null) 'stock': stock,
+            },
           );
         },
       ),
@@ -2190,20 +2388,28 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> _syncDecrement(ProductModel product) async {
+  Future<bool> _syncDecrement(ProductModel product, {String? unit}) async {
     if (token == null) {
       error = 'Please login first';
       notifyListeners();
       return false;
     }
+    final selectedUnit = (unit ?? product.unit).trim();
     final current = cart.firstWhere(
-      (line) => line.product.id == product.id,
-      orElse: () => CartLine(product: product, quantity: 0),
+      (line) => line.key == '${product.id}::${selectedUnit.toLowerCase()}',
+      orElse: () => CartLine(product: product, quantity: 0, unit: selectedUnit),
     );
     final snapshot = _cloneCart();
     final mutationToken = _nextCartMutationToken();
     final nextQuantity = current.quantity <= 1 ? 0 : current.quantity - 1;
-    _setCartQuantity(product, nextQuantity);
+    _setCartQuantity(
+      product,
+      nextQuantity,
+      unit: selectedUnit,
+      price: current.price,
+      discountCost: current.discountCost,
+      stock: current.stock,
+    );
     error = null;
     notifyListeners();
     unawaited(
@@ -2212,13 +2418,20 @@ class AppState extends ChangeNotifier {
         snapshot: snapshot,
         action: () async {
           if (current.quantity <= 1) {
-            await apiService.delete('/cart/remove/${product.id}', token: token);
+            await apiService.delete(
+              '/cart/remove/${product.id}?unit=${Uri.encodeComponent(selectedUnit)}',
+              token: token,
+            );
             return;
           }
           await apiService.put(
             '/cart/update',
             token: token,
-            body: {'productId': product.id, 'quantity': nextQuantity},
+            body: {
+              'productId': product.id,
+              'quantity': nextQuantity,
+              'unit': selectedUnit,
+            },
           );
         },
       ),

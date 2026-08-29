@@ -97,10 +97,17 @@ class _WishlistScreenState extends State<WishlistScreen> {
                               onTap: () => showProductBottomSheet(
                                 context,
                                 product,
-                                onAddToCart: (quantity) async {
+                                onAddToCart: (quantity, variant) async {
                                   final added = await context
                                       .read<AppState>()
-                                      .addToCart(product, quantity: quantity);
+                                      .addToCart(
+                                        product,
+                                        quantity: quantity,
+                                        unit: variant.unit,
+                                        price: variant.price,
+                                        discountCost: variant.discountCost,
+                                        stock: variant.stock,
+                                      );
                                   if (!context.mounted) return;
                                   showToast(
                                     context,

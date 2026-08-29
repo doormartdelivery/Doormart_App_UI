@@ -160,12 +160,28 @@ class ProductModel {
   static List<ProductUnitVariant> _parseUnitVariants(
     Map<String, dynamic> json,
   ) {
-    final variants = json['unitVariants'];
-    if (variants is List && variants.isNotEmpty) {
-      return variants
-          .whereType<Map<String, dynamic>>()
-          .map(ProductUnitVariant.fromJson)
-          .toList();
+    final parsedVariants = <ProductUnitVariant>[];
+    final rawVariants = [
+      json['unitVariants'],
+      json['variants'],
+    ];
+
+    for (final variants in rawVariants) {
+      if (variants is List && variants.isNotEmpty) {
+        parsedVariants.addAll(
+          variants.whereType<Map<String, dynamic>>().map(ProductUnitVariant.fromJson),
+        );
+      }
+    }
+
+    if (parsedVariants.isNotEmpty) {
+      final seen = <String>{};
+      return parsedVariants.where((variant) {
+        final key = variant.unit.trim().toLowerCase();
+        if (key.isEmpty || seen.contains(key)) return false;
+        seen.add(key);
+        return true;
+      }).toList();
     }
 
     final unit = json['unit'] as String? ?? 'item';
