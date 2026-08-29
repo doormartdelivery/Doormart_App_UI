@@ -7,7 +7,7 @@ class OrderStatusWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const steps = ['Placed', 'Accepted', 'Picked up', 'Delivered'];
+    const steps = ['Placed', 'Processing', 'In transit', 'Delivered'];
     return Row(
       children: List.generate(steps.length, (index) {
         final active = index <= activeStep;

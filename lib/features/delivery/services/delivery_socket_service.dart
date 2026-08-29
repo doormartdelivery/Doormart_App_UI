@@ -13,6 +13,7 @@ class DeliverySocketService {
     required void Function(dynamic data) onNewOrderRequest,
     required void Function(dynamic data) onOrderTaken,
     required void Function(dynamic data) onOrderAssigned,
+    required void Function(dynamic data) onOrderPacked,
     required void Function(dynamic data) onOrderPickedUp,
     required void Function(dynamic data) onOrderDelivered,
     void Function()? onDeliveryOnline,
@@ -60,6 +61,8 @@ class DeliverySocketService {
     _socket!.on('order:new', onNewOrderRequest);
     _socket!.on('order_taken', onOrderTaken);
     _socket!.on('order_assigned', onOrderAssigned);
+    _socket!.on('order:packed', onOrderPacked);
+    _socket!.on('order_packed', onOrderPacked);
     _socket!.on('order_picked_up', onOrderPickedUp);
     _socket!.on('order_delivered', onOrderDelivered);
   }

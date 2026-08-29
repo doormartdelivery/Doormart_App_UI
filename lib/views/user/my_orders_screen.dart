@@ -421,6 +421,7 @@ class _PreviousOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
     final status = order.status.name.toUpperCase();
     return Container(
       decoration: BoxDecoration(
@@ -531,14 +532,26 @@ class _PreviousOrderCard extends StatelessWidget {
               )
             else
               Column(
-                children: order.products
-                    .map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ItemRow(item: item),
-                      ),
-                    )
-                    .toList(),
+                children: order.products.map((item) {
+                  final reviewed = state.hasReviewedProduct(
+                    orderId: order.id,
+                    productId: item.id,
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ItemRow(
+                      item: item,
+                      reviewed: reviewed,
+                      onRateTap: reviewed
+                          ? null
+                          : () => _openProductReviewDialog(
+                              context: context,
+                              order: order,
+                              product: item,
+                            ),
+                    ),
+                  );
+                }).toList(),
               ),
           ],
         ),
@@ -945,9 +958,11 @@ class _LiveBadgeState extends State<_LiveBadge>
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item});
+  const _ItemRow({required this.item, this.reviewed = false, this.onRateTap});
 
   final ProductModel item;
+  final bool reviewed;
+  final VoidCallback? onRateTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1008,17 +1023,223 @@ class _ItemRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            '₹${item.price.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Color(0xFFE8541A),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${item.price.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFE8541A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              reviewed
+                  ? const _RatedChip()
+                  : TextButton.icon(
+                      onPressed: onRateTap,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        foregroundColor: const Color(0xFFE8541A),
+                        backgroundColor: const Color(0xFFFFF0EB),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      icon: const Icon(Icons.star_rounded, size: 15),
+                      label: const Text(
+                        'Rate',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class _RatedChip extends StatelessWidget {
+  const _RatedChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF7EF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Rated',
+        style: TextStyle(
+          color: Color(0xFF15803D),
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _openProductReviewDialog({
+  required BuildContext context,
+  required OrderModel order,
+  required ProductModel product,
+}) async {
+  double rating = 0;
+  bool submitting = false;
+  final commentCtrl = TextEditingController();
+
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+          Future<void> submit() async {
+            if (rating <= 0) return;
+            setModalState(() => submitting = true);
+            try {
+              await context.read<AppState>().submitProductReview(
+                orderId: order.id,
+                productId: product.id,
+                rating: rating,
+                comment: commentCtrl.text.trim(),
+              );
+              if (!dialogContext.mounted) return;
+              Navigator.pop(dialogContext);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Thanks for your rating')),
+              );
+            } catch (e) {
+              if (!dialogContext.mounted) return;
+              setModalState(() => submitting = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(e.toString().replaceFirst('Exception: ', '')),
+                ),
+              );
+            }
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            title: const Text(
+              'Rate this product',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Order ${order.displayOrderId}',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'How would you rate it?',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: List.generate(5, (index) {
+                        final starValue = index + 1;
+                        final filled = rating >= starValue;
+                        return IconButton(
+                          onPressed: submitting
+                              ? null
+                              : () => setModalState(
+                                  () => rating = starValue.toDouble(),
+                                ),
+                          icon: Icon(
+                            filled
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            color: const Color(0xFFE8541A),
+                            size: 30,
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: commentCtrl,
+                      maxLines: 3,
+                      enabled: !submitting,
+                      decoration: InputDecoration(
+                        labelText: 'Comment (optional)',
+                        hintText:
+                            'Tell us what you liked or what could improve',
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: submitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: submitting || rating <= 0 ? null : submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE8541A),
+                ),
+                child: submitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Submit',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+
+  commentCtrl.dispose();
 }
 
 class _StatusPill extends StatelessWidget {

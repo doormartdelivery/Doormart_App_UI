@@ -3,6 +3,7 @@ import '../../../core/utils/network_image_url.dart';
 enum DeliveryOrderStatus {
   waitingForAccept,
   accepted,
+  packed,
   pickedUp,
   outForDelivery,
   delivered,
@@ -212,6 +213,7 @@ DeliveryOrderStatus _statusFromJson(String? value) {
   return switch (value) {
     'WAITING_FOR_ACCEPT' || 'waiting_for_accept' || 'placed' => DeliveryOrderStatus.waitingForAccept,
     'ACCEPTED' || 'accepted' => DeliveryOrderStatus.accepted,
+    'packed' || 'PACKED' => DeliveryOrderStatus.packed,
     'PICKED_UP' || 'picked_up' => DeliveryOrderStatus.pickedUp,
     'OUT_FOR_DELIVERY' || 'out_for_delivery' => DeliveryOrderStatus.outForDelivery,
     'DELIVERED' || 'delivered' => DeliveryOrderStatus.delivered,

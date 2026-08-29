@@ -57,6 +57,8 @@ class AppState extends ChangeNotifier {
   List<OrderModel> adminOrders = [];
   List<AddressModel> savedAddresses = [];
   List<Map<String, dynamic>> supportTickets = [];
+  final Map<String, List<ProductReviewModel>> _productReviewsById = {};
+  Set<String> reviewedProductKeys = {};
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
   final List<CartLine> cart = [];
@@ -100,6 +102,7 @@ class AppState extends ChangeNotifier {
       ]);
       if (token != null && user?.role == UserRoles.user) {
         await _restoreSession();
+        await loadReviewedProductKeys();
       }
       if (token != null && user?.role == UserRoles.vendor) {
         await _refreshCurrentProfileSafely();
@@ -534,6 +537,7 @@ class AppState extends ChangeNotifier {
         _safeCall(loadFavorites),
         _safeCall(loadOrders),
       ]);
+      await loadReviewedProductKeys();
       return;
     }
     if (role == UserRoles.deliveryPerson) {
@@ -571,6 +575,104 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Support tickets skipped: $e');
     }
+  }
+
+  Future<void> loadReviewedProductKeys() async {
+    final currentUserId = user?.id;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      reviewedProductKeys = {};
+      return;
+    }
+    try {
+      final data = await apiService.get('/reviews/mine', token: token);
+      final reviews = data is List ? data : const [];
+      reviewedProductKeys = reviews
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (review) => _reviewKey(
+              review['orderId']?.toString() ?? review['order']?.toString() ?? '',
+              review['productId']?.toString() ??
+                  review['product']?.toString() ??
+                  '',
+            ),
+          )
+          .where((key) => key != '::')
+          .toSet();
+      await _sessionService.saveReviewedProductKeys(
+        keys: reviewedProductKeys,
+        userId: currentUserId,
+      );
+    } catch (e) {
+      debugPrint('Review sync skipped: $e');
+      reviewedProductKeys = await _sessionService.getReviewedProductKeys(
+        userId: currentUserId,
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<List<ProductReviewModel>> loadProductReviews(
+    String productId, {
+    bool refresh = false,
+  }) async {
+    final normalizedProductId = productId.trim();
+    if (normalizedProductId.isEmpty) return const [];
+    if (!refresh) {
+      final cached = _productReviewsById[normalizedProductId];
+      if (cached != null) return cached;
+    }
+
+    try {
+      final data = await apiService.get('/products/$normalizedProductId/reviews');
+      final reviews = data is List
+          ? data
+              .whereType<Map<String, dynamic>>()
+              .map(ProductReviewModel.fromJson)
+              .toList()
+          : const <ProductReviewModel>[];
+      _productReviewsById[normalizedProductId] = reviews;
+      return reviews;
+    } catch (error) {
+      debugPrint('Product reviews load skipped: $error');
+      return _productReviewsById[normalizedProductId] ?? const [];
+    }
+  }
+
+  bool hasReviewedProduct({
+    required String orderId,
+    required String productId,
+  }) {
+    return reviewedProductKeys.contains(_reviewKey(orderId, productId));
+  }
+
+  Future<void> submitProductReview({
+    required String orderId,
+    required String productId,
+    required double rating,
+    String comment = '',
+  }) async {
+    if (token == null || user?.role != UserRoles.user) {
+      throw StateError('Customer login required');
+    }
+
+    final reviewKey = _reviewKey(orderId, productId);
+    if (reviewedProductKeys.contains(reviewKey)) return;
+
+    final payload = <String, dynamic>{
+      'orderId': orderId,
+      'productId': productId,
+      'rating': rating,
+      if (comment.trim().isNotEmpty) 'comment': comment.trim(),
+    };
+
+    await apiService.post('/reviews', token: token, body: payload);
+
+    reviewedProductKeys.add(reviewKey);
+    await _sessionService.addReviewedProductKey(
+      key: reviewKey,
+      userId: user?.id,
+    );
+    notifyListeners();
   }
 
   Future<Map<String, dynamic>> createSupportTicket({
@@ -625,11 +727,17 @@ class AppState extends ChangeNotifier {
     adminOrders = [];
     savedAddresses = [];
     selectedAddress = null;
+    reviewedProductKeys = {};
+    _productReviewsById.clear();
     cart.clear();
     favorites = [];
     socketService.disconnect();
     await _sessionService.clearSession();
     notifyListeners();
+  }
+
+  String _reviewKey(String orderId, String productId) {
+    return '${orderId.trim()}::${productId.trim()}';
   }
 
   Future<void> _syncDeliveryToken() async {

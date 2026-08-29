@@ -22,6 +22,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
   final TextEditingController _otpController = TextEditingController();
   String? _otpError;
   bool _otpVerified = false;
+  bool _markingPickedUp = false;
   bool _markingDelivered = false;
 
   @override
@@ -137,6 +138,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
         order.status == DeliveryOrderStatus.outForDelivery ||
         order.status == DeliveryOrderStatus.delivered;
     final pickupFlowColor =
+        order.status == DeliveryOrderStatus.packed ||
         order.status == DeliveryOrderStatus.pickedUp ||
             order.status == DeliveryOrderStatus.outForDelivery ||
             order.status == DeliveryOrderStatus.delivered
@@ -272,7 +274,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                           const SizedBox(height: 4),
                           _MapActionButton(
                             label: 'Get Vendor Directions',
-                            subtitle: 'Open turn-by-turn pickup navigation',
+                            subtitle: 'Open turn-by-turn vendor navigation',
                             icon: Icons.store_mall_directory_rounded,
                             onPressed:
                                 order.vendorLatitude != null &&
@@ -442,7 +444,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               step: '2',
                               icon: Icons.call_outlined,
                               title: 'Call customer',
-                              subtitle: 'Speak with the customer before pickup',
+                              subtitle: 'Speak with the customer before proceeding',
                               accent: const Color(0xFFFFA142),
                               onTap: () => _call(order.customerPhone),
                             ),
@@ -453,10 +455,26 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               step: '3',
                               icon: Icons.inventory_2_outlined,
                               title: 'Mark Picked Up',
-                              subtitle:
-                                  'Tap after the parcel leaves the vendor',
+                              subtitle: 'Moves the order to In transit',
                               accent: const Color(0xFFFFB366),
-                              onTap: provider.markPickedUp,
+                              onTap: () async {
+                                if (_markingPickedUp) return;
+                                setState(() => _markingPickedUp = true);
+                                final message = await provider.markPickedUp();
+                                if (!context.mounted) return;
+                                setState(() => _markingPickedUp = false);
+                                if (message == null) {
+                                  showToast(
+                                    context,
+                                    'Order marked as picked up',
+                                  );
+                                } else if (message.isNotEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(message)),
+                                  );
+                                }
+                              },
+                              loading: _markingPickedUp,
                             ),
                             const SizedBox(height: 10),
                             _FlowArrow(color: pickupFlowColor),
@@ -465,8 +483,8 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               step: '4',
                               title: 'Verify delivery OTP',
                               subtitle: canEnterOtp
-                                  ? 'Enter the OTP only after pickup to unlock delivery completion.'
-                                  : 'Pickup first, then the OTP field becomes active.',
+                                  ? 'Enter the OTP when the order is ready to complete delivery.'
+                                  : 'Update the order to In transit first, then the OTP field becomes active.',
                               canEnterOtp: canEnterOtp,
                               controller: _otpController,
                               errorText: _otpError,
@@ -615,6 +633,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     return switch (status) {
       DeliveryOrderStatus.waitingForAccept => 'Waiting',
       DeliveryOrderStatus.accepted => 'Accepted',
+      DeliveryOrderStatus.packed => 'Processing',
       DeliveryOrderStatus.pickedUp => 'Picked up',
       DeliveryOrderStatus.outForDelivery => 'Out for delivery',
       DeliveryOrderStatus.delivered => 'Delivered',
@@ -1161,7 +1180,7 @@ class _OtpFlowCard extends StatelessWidget {
               counterText: '',
               hintText: canEnterOtp
                   ? 'Enter OTP to verify'
-                  : 'OTP unlocks after pickup',
+                  : 'OTP unlocks after the order is updated',
               hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.08),

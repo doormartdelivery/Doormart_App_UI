@@ -54,6 +54,7 @@ class _ProductSheetState extends State<_ProductSheet>
     with SingleTickerProviderStateMixin {
   int _quantity = 1;
   bool _adding = false;
+  late final Future<List<ProductReviewModel>> _reviewsFuture;
 
   // Sheet entry animation
   late final AnimationController _entryCtrl = AnimationController(
@@ -70,6 +71,14 @@ class _ProductSheetState extends State<_ProductSheet>
     parent: _entryCtrl,
     curve: Curves.easeOut,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewsFuture = Future.microtask(
+      () => context.read<AppState>().loadProductReviews(widget.product.id),
+    );
+  }
 
   @override
   void dispose() {
@@ -107,182 +116,167 @@ class _ProductSheetState extends State<_ProductSheet>
       opacity: _fadeAnim,
       child: SlideTransition(
         position: _slideAnim,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 40,
-                offset: const Offset(0, -8),
-              ),
-            ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.92,
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Image hero ──────────────────────────────────────────
-              _ImageHero(product: product, catColor: catColor),
-
-              // ── Content ──────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Category + rating row
-                    Row(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 40,
+                  offset: const Offset(0, -8),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                _ImageHero(product: product, catColor: catColor),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _CategoryPill(category: product.category),
-                        const Spacer(),
-                        _RatingPill(rating: product.rating),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Product name
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF1A1A1A),
-                        letterSpacing: -0.4,
-                        height: 1.2,
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // Unit
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.straighten_rounded,
-                          size: 14,
-                          color: Color(0xFF888888),
+                        Row(
+                          children: [
+                            _CategoryPill(category: product.category),
+                            const Spacer(),
+                            _RatingPill(rating: product.rating),
+                          ],
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(height: 10),
                         Text(
-                          _unitLabel(product.unit),
+                          product.name,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -0.4,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.straighten_rounded,
+                              size: 14,
+                              color: Color(0xFF888888),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _unitLabel(product.unit),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF888888),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Icon(
+                              Icons.inventory_2_rounded,
+                              size: 14,
+                              color: Color(0xFF888888),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${product.stock} in stock',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: product.stock > 10
+                                    ? _kGreen
+                                    : const Color(0xFFE8541A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Rs ${product.price.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                color: _kOrange,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Rs ${(product.price * 1.15).toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFFAAAAAA),
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: Color(0xFFAAAAAA),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _kGreenLight,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                '13% OFF',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: _kGreen,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _DeliveryStrip(),
+                        const SizedBox(height: 14),
+                        _VendorSourceCard(product: product),
+                        const SizedBox(height: 14),
+                        Text(
+                          _descriptionFor(product),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             color: Color(0xFF888888),
-                            fontWeight: FontWeight.w500,
+                            height: 1.5,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.inventory_2_rounded,
-                          size: 14,
-                          color: Color(0xFF888888),
+                        const SizedBox(height: 14),
+                        _ProductReviewsSection(
+                          product: product,
+                          reviewsFuture: _reviewsFuture,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${product.stock} in stock',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: product.stock > 10
-                                ? _kGreen
-                                : const Color(0xFFE8541A),
-                            fontWeight: FontWeight.w600,
-                          ),
+                        const SizedBox(height: 20),
+                        _QuantityCartBar(
+                          quantity: _quantity,
+                          adding: _adding,
+                          onIncrement: _increment,
+                          onDecrement: _decrement,
+                          onAddToCart: _addToCart,
+                          product: product,
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 14),
-
-                    // Price row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Rs ${product.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: _kOrange,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // MRP strikethrough
-                        Text(
-                          'Rs ${(product.price * 1.15).toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Color(0xFFAAAAAA),
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: Color(0xFFAAAAAA),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Discount badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _kGreenLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            '13% OFF',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: _kGreen,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Delivery promise strip
-                    _DeliveryStrip(),
-
-                    const SizedBox(height: 14),
-
-                    // Vendor / source block
-                    _VendorSourceCard(product: product),
-
-                    const SizedBox(height: 14),
-
-                    // Description
-                    Text(
-                      _descriptionFor(product),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF888888),
-                        height: 1.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Quantity + Add to cart ─────────────────────────
-                    _QuantityCartBar(
-                      quantity: _quantity,
-                      adding: _adding,
-                      onIncrement: _increment,
-                      onDecrement: _decrement,
-                      onAddToCart: _addToCart,
-                      product: product,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1163,6 +1157,303 @@ Widget _funnyMissingImageFallback(BuildContext context, ProductModel product) {
   );
 }
 
+class _ProductReviewsSection extends StatelessWidget {
+  const _ProductReviewsSection({
+    required this.product,
+    required this.reviewsFuture,
+  });
+
+  final ProductModel product;
+  final Future<List<ProductReviewModel>> reviewsFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: FutureBuilder<List<ProductReviewModel>>(
+        future: reviewsFuture,
+        builder: (context, snapshot) {
+          final reviews = snapshot.data ?? const <ProductReviewModel>[];
+          final visibleReviews = reviews.take(3).toList();
+          final count = product.ratingCount > 0 ? product.ratingCount : reviews.length;
+          final average = product.rating > 0
+              ? product.rating
+              : (reviews.isEmpty
+                    ? 0
+                    : reviews.fold<double>(
+                        0,
+                        (sum, review) => sum + review.rating,
+                      ) /
+                      reviews.length);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.reviews_rounded, color: _kOrange, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Customer reviews',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Text(
+                    average > 0 ? average.toStringAsFixed(1) : 'No rating yet',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _CompactStars(rating: average.toDouble()),
+                  const SizedBox(width: 8),
+                  Text(
+                    count > 0 ? 'from $count customers' : 'Be the first to review',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6B7280),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (snapshot.hasError)
+                const Text(
+                  'Could not load review comments right now.',
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 12,
+                  ),
+                )
+              else if (snapshot.connectionState == ConnectionState.waiting &&
+                  reviews.isEmpty)
+                const _ReviewLoading()
+              else if (visibleReviews.isEmpty)
+                const _ReviewEmptyState()
+              else
+                Column(
+                  children: [
+                    for (final review in visibleReviews) ...[
+                      _ReviewTile(review: review),
+                      if (review != visibleReviews.last)
+                        const SizedBox(height: 10),
+                    ],
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CompactStars extends StatelessWidget {
+  const _CompactStars({required this.rating});
+
+  final double rating;
+
+  @override
+  Widget build(BuildContext context) {
+    final filled = rating.clamp(0, 5).round();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        final active = index < filled;
+        return Icon(
+          active ? Icons.star_rounded : Icons.star_border_rounded,
+          size: 15,
+          color: const Color(0xFFF59E0B),
+        );
+      }),
+    );
+  }
+}
+
+class _ReviewLoading extends StatelessWidget {
+  const _ReviewLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 12),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _ReviewEmptyState extends StatelessWidget {
+  const _ReviewEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: const Text(
+        'No written reviews yet. Ratings from delivered orders will appear here.',
+        style: TextStyle(
+          fontSize: 12.5,
+          color: Color(0xFF6B7280),
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({required this.review});
+
+  final ProductReviewModel review;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = review.userName.trim();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReviewAvatar(review: review, initial: initial),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        review.userName,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _reviewTimeLabel(review.createdAt),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF9CA3AF),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                _CompactStars(rating: review.rating),
+                if (review.comment.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    review.comment.trim(),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF374151),
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewAvatar extends StatelessWidget {
+  const _ReviewAvatar({required this.review, required this.initial});
+
+  final ProductReviewModel review;
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = review.userAvatarUrl.trim();
+    final hasAsset = avatar.startsWith('assets/');
+    final hasHttp = avatar.startsWith('http');
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEEAD8),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFF9C7A6)),
+      ),
+      child: ClipOval(
+        child: hasHttp
+            ? Image.network(
+                avatar,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _initials(),
+              )
+            : hasAsset
+                ? Image.asset(
+                    avatar,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _initials(),
+                  )
+                : _initials(),
+      ),
+    );
+  }
+
+  Widget _initials() {
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+          color: _kOrange,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 String _unitLabel(String value) {
@@ -1181,6 +1472,17 @@ String _vendorNameFor(ProductModel product) {
   final supplier = product.supplierName.trim();
   if (supplier.isNotEmpty) return supplier;
   return 'Doormart Main Store';
+}
+
+String _reviewTimeLabel(DateTime? createdAt) {
+  if (createdAt == null) return '';
+  final local = createdAt.toLocal();
+  final diff = DateTime.now().difference(local);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+  if (diff.inDays < 1) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${local.day}/${local.month}/${local.year}';
 }
 
 Color _categoryAccent(String category) {

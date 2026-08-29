@@ -1173,7 +1173,12 @@ class _ProductDetailsDialog extends StatelessWidget {
                     value: 'Rs ${product.price}',
                   ),
                   _InfoPill(label: 'Units', value: _unitSummary(product)),
-                  _InfoPill(label: 'Rating', value: product.rating.toString()),
+                  _InfoPill(
+                    label: 'Customer rating',
+                    value: product.ratingCount > 0
+                        ? '${product.rating.toStringAsFixed(1)} (${product.ratingCount})'
+                        : 'No customer ratings yet',
+                  ),
                   _InfoPill(
                     label: 'Section',
                     value: _sectionLabel(product.dashboardSection),
@@ -1409,6 +1414,69 @@ class _UnitVariantChip extends StatelessWidget {
   }
 }
 
+class _ReadOnlyNotice extends StatelessWidget {
+  const _ReadOnlyNotice({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFFE8541A), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    height: 1.45,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Product Dialog ───────────────────────────────────────────────────────────
 // KEY FIX: imageUrl is now optional — product can be saved without an image.
 // Upload errors are shown inline but do NOT block save.
@@ -1455,7 +1523,6 @@ class _UnitVariantDraft {
 class _ProductDialogState extends State<_ProductDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _ratingCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final List<_UnitVariantDraft> _unitVariants = [];
@@ -1478,7 +1545,6 @@ class _ProductDialogState extends State<_ProductDialog> {
       return;
     }
     _nameCtrl.text = p.name;
-    _ratingCtrl.text = p.rating.toStringAsFixed(1);
     _imageCtrl.text = p.imageUrl;
     _descriptionCtrl.text = p.description;
     _dashboardSection = p.dashboardSection;
@@ -1507,7 +1573,6 @@ class _ProductDialogState extends State<_ProductDialog> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _ratingCtrl.dispose();
     _imageCtrl.dispose();
     _descriptionCtrl.dispose();
     for (final variant in _unitVariants) {
@@ -1614,6 +1679,7 @@ class _ProductDialogState extends State<_ProductDialog> {
           .map((variant) => variant.toJson())
           .toList();
       final primaryVariant = unitVariants.first;
+      final existingRating = widget.product?.rating ?? 0;
 
       if (_isEdit) {
         await state.updateProduct(
@@ -1625,7 +1691,7 @@ class _ProductDialogState extends State<_ProductDialog> {
           mrp: primaryVariant['discountCost'] as double,
           stock: primaryVariant['stock'] as int,
           unit: primaryVariant['unit'] as String? ?? 'item',
-          rating: double.parse(_ratingCtrl.text.trim()),
+          rating: existingRating,
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
@@ -1640,7 +1706,7 @@ class _ProductDialogState extends State<_ProductDialog> {
           mrp: primaryVariant['discountCost'] as double,
           stock: primaryVariant['stock'] as int,
           unit: primaryVariant['unit'] as String? ?? 'item',
-          rating: double.parse(_ratingCtrl.text.trim()),
+          rating: 0,
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
@@ -1838,28 +1904,12 @@ class _ProductDialogState extends State<_ProductDialog> {
                       );
                     }),
 
-                    // ── Rating ──────────────────────────────────────────
                     const SizedBox(height: 4),
-                    _Field(
-                      controller: _ratingCtrl,
-                      label: 'Rating * (0 to 5)',
+                    const _ReadOnlyNotice(
                       icon: Icons.star_rounded,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      validator: (v) {
-                        if (v?.trim().isEmpty ?? true) {
-                          return 'Required';
-                        }
-                        final value = double.tryParse(v!.trim());
-                        if (value == null) {
-                          return 'Invalid number';
-                        }
-                        if (value < 0 || value > 5) {
-                          return 'Rating must be between 0 and 5';
-                        }
-                        return null;
-                      },
+                      title: 'Ratings are customer-driven',
+                      message:
+                          'Vendors and super admin cannot edit product ratings here. Ratings should come from customers after delivered orders.',
                     ),
 
                     // ── Description ──────────────────────────────────

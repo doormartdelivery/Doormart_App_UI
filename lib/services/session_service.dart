@@ -7,8 +7,8 @@ class SessionService {
   SessionService({
     FlutterSecureStorage? secureStorage,
     SharedPreferences? prefs,
-  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _prefs = prefs;
+  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+       _prefs = prefs;
 
   static const _tokenKey = 'auth_token';
   static const _loggedInKey = 'is_logged_in';
@@ -17,6 +17,7 @@ class SessionService {
   static const _userNameKey = 'user_name';
   static const _emailKey = 'user_email';
   static const _roleKey = 'user_role';
+  static const _reviewedProductKeysPrefix = 'reviewed_product_keys';
 
   final FlutterSecureStorage _secureStorage;
   SharedPreferences? _prefs;
@@ -60,6 +61,7 @@ class SessionService {
 
   Future<void> clearSession() async {
     final prefs = await _sharedPrefs;
+    final userId = prefs.getString(_userIdKey);
     await _secureStorage.delete(key: _tokenKey);
     await prefs.remove(_loggedInKey);
     await prefs.remove(_userKey);
@@ -67,5 +69,39 @@ class SessionService {
     await prefs.remove(_userNameKey);
     await prefs.remove(_emailKey);
     await prefs.remove(_roleKey);
+    if (userId != null && userId.isNotEmpty) {
+      await prefs.remove(_reviewedProductKeysScopedKey(userId));
+    }
+  }
+
+  Future<Set<String>> getReviewedProductKeys({String? userId}) async {
+    final prefs = await _sharedPrefs;
+    final scopedKey = _reviewedProductKeysScopedKey(userId);
+    return (prefs.getStringList(scopedKey) ?? const <String>[]).toSet();
+  }
+
+  Future<void> addReviewedProductKey({
+    required String key,
+    String? userId,
+  }) async {
+    final prefs = await _sharedPrefs;
+    final scopedKey = _reviewedProductKeysScopedKey(userId);
+    final keys = (prefs.getStringList(scopedKey) ?? const <String>[]).toSet();
+    keys.add(key);
+    await prefs.setStringList(scopedKey, keys.toList(growable: false));
+  }
+
+  Future<void> saveReviewedProductKeys({
+    required Set<String> keys,
+    String? userId,
+  }) async {
+    final prefs = await _sharedPrefs;
+    final scopedKey = _reviewedProductKeysScopedKey(userId);
+    await prefs.setStringList(scopedKey, keys.toList(growable: false));
+  }
+
+  String _reviewedProductKeysScopedKey(String? userId) {
+    final scope = (userId ?? '').trim().isEmpty ? 'guest' : userId!.trim();
+    return '${_reviewedProductKeysPrefix}_$scope';
   }
 }

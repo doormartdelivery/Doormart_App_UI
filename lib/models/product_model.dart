@@ -36,6 +36,35 @@ class ProductUnitVariant {
   };
 }
 
+class ProductReviewModel {
+  const ProductReviewModel({
+    required this.id,
+    required this.rating,
+    required this.comment,
+    required this.userName,
+    required this.userAvatarUrl,
+    required this.createdAt,
+  });
+
+  final String id;
+  final double rating;
+  final String comment;
+  final String userName;
+  final String userAvatarUrl;
+  final DateTime? createdAt;
+
+  factory ProductReviewModel.fromJson(Map<String, dynamic> json) {
+    return ProductReviewModel(
+      id: json['id'] as String? ?? json['_id'] as String? ?? '',
+      rating: (json['rating'] as num? ?? 0).toDouble(),
+      comment: json['comment'] as String? ?? '',
+      userName: json['userName'] as String? ?? 'Customer',
+      userAvatarUrl: NetworkImageUrl.normalize(json['userAvatarUrl'] as String?),
+      createdAt: _parseDateTime(json['createdAt']),
+    );
+  }
+}
+
 class ProductModel {
   const ProductModel({
     required this.id,
@@ -52,6 +81,7 @@ class ProductModel {
     this.description = '',
     this.dashboardSection = 'daily_essentials',
     this.rating = 0,
+    this.ratingCount = 0,
     this.mrp = 0,
     this.unit = 'item',
     this.unitVariants = const [],
@@ -71,6 +101,7 @@ class ProductModel {
   final String description;
   final String dashboardSection;
   final double rating;
+  final int ratingCount;
   final double mrp;
   final String unit;
   final List<ProductUnitVariant> unitVariants;
@@ -97,6 +128,7 @@ class ProductModel {
       dashboardSection:
           json['dashboardSection'] as String? ?? 'daily_essentials',
       rating: (json['rating'] as num? ?? 0).toDouble(),
+      ratingCount: (json['ratingCount'] as num? ?? 0).toInt(),
       mrp: (json['mrp'] as num? ?? 0).toDouble(),
       unit: json['unit'] as String? ?? 'item',
       unitVariants: _parseUnitVariants(json),
@@ -119,6 +151,7 @@ class ProductModel {
     'description': description,
     'dashboardSection': dashboardSection,
     'rating': rating,
+    'ratingCount': ratingCount,
     'mrp': mrp,
     'unit': unit,
     'unitVariants': unitVariants.map((variant) => variant.toJson()).toList(),
@@ -149,4 +182,13 @@ class ProductModel {
       ),
     ];
   }
+}
+
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

@@ -662,6 +662,7 @@ class DeliveryProvider extends ChangeNotifier {
       onNewOrderRequest: _handleNewOrderRequest,
       onOrderTaken: _handleOrderTaken,
       onOrderAssigned: _handleOrderAssigned,
+      onOrderPacked: _handleOrderPacked,
       onOrderPickedUp: _handleOrderPickedUp,
       onOrderDelivered: _handleOrderDelivered,
     );
@@ -702,6 +703,16 @@ class DeliveryProvider extends ChangeNotifier {
     if (rawOrderId.isEmpty) return;
     if (!_isMyOrder(map)) return;
     activeOrder = _forceAccepted(DeliveryOrderModel.fromJson(map));
+    pendingRequests.removeWhere((item) => item.id == activeOrder!.id);
+    history.removeWhere((item) => item.id == activeOrder!.id);
+    notifyListeners();
+  }
+
+  void _handleOrderPacked(dynamic data) {
+    final map = _normalize(data);
+    if (map == null) return;
+    if (!_isMyOrder(map)) return;
+    activeOrder = DeliveryOrderModel.fromJson(map);
     pendingRequests.removeWhere((item) => item.id == activeOrder!.id);
     history.removeWhere((item) => item.id == activeOrder!.id);
     notifyListeners();
@@ -755,6 +766,7 @@ class DeliveryProvider extends ChangeNotifier {
 
   DeliveryOrderModel _forceAccepted(DeliveryOrderModel order) {
     if (order.status == DeliveryOrderStatus.accepted ||
+        order.status == DeliveryOrderStatus.packed ||
         order.status == DeliveryOrderStatus.pickedUp ||
         order.status == DeliveryOrderStatus.outForDelivery ||
         order.status == DeliveryOrderStatus.delivered) {
