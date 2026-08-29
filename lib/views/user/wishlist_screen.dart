@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -88,7 +90,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                             24 + bottomInset,
                           ),
                           itemCount: favorites.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (context, index) =>
                               const SizedBox(height: 16),
                           itemBuilder: (context, index) {
                             final product = favorites[index];
@@ -390,7 +392,7 @@ class _TopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
+                    color: Colors.black.withValues(alpha: 0.07),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -492,36 +494,104 @@ class _FavoriteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _categoryColor(product.category);
+    final storeLabel = _storeLabel(product);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: accent.withValues(alpha: 0.18),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: Colors.white.withValues(alpha: 0.74),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 198,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _GlassThumb(product: product, accent: accent),
+                        Positioned(
+                          top: 14,
+                          left: 14,
+                          child: _StarBadge(rating: product.rating.toStringAsFixed(1)),
+                        ),
+                        Positioned(
+                          top: 14,
+                          right: 14,
+                          child: GestureDetector(
+                            onTap: onToggleFavorite,
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.95),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFE8541A).withValues(alpha: 0.22),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isFavorited ? Icons.favorite : Icons.favorite_border,
+                                size: 18,
+                                color: isFavorited
+                                    ? const Color(0xFFE8541A)
+                                    : const Color(0xFFAAAAAA),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 14,
+                          right: 14,
+                          bottom: 14,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (storeLabel.isNotEmpty)
+                                _MiniGlassChip(
+                                  icon: Icons.storefront_rounded,
+                                  label: storeLabel,
+                                ),
+                              _MiniGlassChip(
+                                icon: Icons.alarm_rounded,
+                                label: '20-25 Min',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: _Thumb(product: product),
-                ),
-                // Right content
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 44, 14),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -531,174 +601,98 @@ class _FavoriteCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E1C1A),
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF111827),
                             height: 1.15,
+                            letterSpacing: -0.2,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           product.category,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFFAAAAAA),
-                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF6B7280),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           'Fresh, quality-picked product ready to add to your cart.',
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF666666),
+                            color: Colors.black.withValues(alpha: 0.58),
                             height: 1.35,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        // Rating + time row
+                        const SizedBox(height: 14),
                         Row(
                           children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 18,
-                              color: Color(0xFFFFC107),
-                            ),
-                            const SizedBox(width: 4),
                             Text(
-                              product.rating.toStringAsFixed(1),
+                              'Rs ${product.price.toStringAsFixed(0)}',
                               style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1E1C1A),
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            const Icon(
-                              Icons.alarm,
-                              size: 16,
-                              color: Color(0xFFE8541A),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              '20-25 Min',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF555555),
+                            const Spacer(),
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFF7A34),
+                                    Color(0xFFE8541A),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: FilledButton.icon(
+                                onPressed: onToggleFavorite,
+                                icon: Icon(
+                                  isFavorited
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  isFavorited ? 'Saved' : 'Save',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shadowColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        // Orange price pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8541A),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Text(
-                            'Rs ${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: GestureDetector(
-                onTap: onToggleFavorite,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFE8541A).withOpacity(0.22),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    isFavorited ? Icons.favorite : Icons.favorite_border,
-                    size: 18,
-                    color: isFavorited
-                        ? const Color(0xFFE8541A)
-                        : const Color(0xFFAAAAAA),
-                  ),
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-// ─── Thumb ───────────────────────────────────────────────────────────────────
-
-class _Thumb extends StatelessWidget {
-  const _Thumb({required this.product});
-
-  final dynamic product;
-
-  @override
-  Widget build(BuildContext context) {
-    const width = 130.0;
-    const height = 176.0;
-    final normalized = NetworkImageUrl.normalize(product.imageUrl);
-
-    if (normalized.startsWith('assets/')) {
-      return Image.asset(
-        normalized,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => SizedBox(
-          width: width,
-          height: height,
-          child: _funnyMissingImageFallback(context, product),
-        ),
-      );
-    }
-    if (normalized.startsWith('http')) {
-      return Image.network(
-        normalized,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => SizedBox(
-          width: width,
-          height: height,
-          child: _funnyMissingImageFallback(context, product),
-        ),
-      );
-    }
-    return SizedBox(
-      width: width,
-      height: height,
-      child: _funnyMissingImageFallback(context, product),
     );
   }
 }
@@ -789,6 +783,149 @@ Widget _funnyMissingImageFallback(BuildContext context, dynamic product) {
       ],
     ),
   );
+}
+
+class _GlassThumb extends StatelessWidget {
+  const _GlassThumb({required this.product, required this.accent});
+
+  final dynamic product;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
+    final child = normalized.startsWith('assets/')
+        ? Image.asset(normalized, fit: BoxFit.cover)
+        : normalized.startsWith('http')
+        ? Image.network(
+            normalized,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                _funnyMissingImageFallback(
+              context,
+              product,
+            ),
+          )
+        : _funnyMissingImageFallback(context, product);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.04),
+                Colors.black.withValues(alpha: 0.24),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 12,
+          bottom: 12,
+          child: _MiniGlassChip(
+            icon: Icons.local_fire_department_rounded,
+            label: 'Trending',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniGlassChip extends StatelessWidget {
+  const _MiniGlassChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StarBadge extends StatelessWidget {
+  const _StarBadge({required this.rating});
+
+  final String rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFD54F)),
+          const SizedBox(width: 3),
+          Text(
+            rating,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _categoryColor(String category) {
+  return switch (category.toLowerCase()) {
+    'vegetables' => const Color(0xFF16A34A),
+    'fruits' => const Color(0xFFEA580C),
+    'dairy' => const Color(0xFF2563EB),
+    'staples' => const Color(0xFFB45309),
+    'snacks' => const Color(0xFFDB2777),
+    'beverages' => const Color(0xFF0891B2),
+    _ => const Color(0xFFE8541A),
+  };
+}
+
+String _storeLabel(ProductModel product) {
+  final name = product.supplierName.trim();
+  final city = product.supplierCity.trim();
+  if (name.isEmpty) return '';
+  if (city.isEmpty) return name;
+  return '$name · $city';
 }
 
 Color _categoryAccent(String category) {

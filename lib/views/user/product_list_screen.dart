@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/network_image_url.dart';
+import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_bottom_sheet.dart';
@@ -567,159 +570,354 @@ class _ProductFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final storeLabel = _storeLabel(product);
+    final accent = _categoryAccent((product.category as String?) ?? '');
     return GestureDetector(
       onTap: onTap,
       child: Stack(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: accent.withValues(alpha: 0.20),
+                  blurRadius: 26,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(22),
-                      ),
-                      child: SizedBox(
-                        width: 120,
-                        height: 180,
-                        child: _ImageThumb(product: product),
-                      ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    color: Colors.white.withValues(alpha: 0.72),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.65),
                     ),
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: _RatingChip(
-                        rating: product.rating.toStringAsFixed(1),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 14, 44, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1A1A1A),
-                            height: 1.25,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${product.category} • ${_unitLabel(product.unit)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9E9E9E),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Fresh, handpicked and ready to add to your basket.',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.2,
-                            color: Colors.black.withValues(alpha: 0.58),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Row(
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        height: 210,
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            Text(
-                              'Rs ${product.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF1A1A1A),
+                            _GlassImage(product: product, accent: accent),
+                            Positioned(
+                              top: 14,
+                              left: 14,
+                              child: _RatingChip(
+                                rating: product.rating.toStringAsFixed(1),
                               ),
                             ),
-                            const Spacer(),
+                            Positioned(
+                              top: 14,
+                              right: 14,
+                              child: _HeartButton(
+                                isFavorite: isFavorite,
+                                onTap: onFavoriteToggle,
+                              ),
+                            ),
+                            Positioned(
+                              left: 14,
+                              right: 14,
+                              bottom: 14,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (storeLabel.isNotEmpty) ...[
+                                    _ChipLabel(
+                                      icon: Icons.storefront_rounded,
+                                      label: storeLabel,
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                  _ChipLabel(
+                                    icon: Icons.local_fire_department_rounded,
+                                    label: _unitLabel(product.unit),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 40,
-                          ), // Move button to the right
-                          child: Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8541A),
-                              borderRadius: BorderRadius.circular(999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFE8541A,
-                                  ).withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF121826),
+                                height: 1.12,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              product.category,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Fresh, handpicked and ready to add to your basket.',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.35,
+                                color: Colors.black.withValues(alpha: 0.60),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Rs ${product.price.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF0F172A),
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Tap to view more packs',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black.withValues(
+                                          alpha: 0.45,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFF7A34),
+                                        Color(0xFFE8541A),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(999),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFFE8541A,
+                                        ).withValues(alpha: 0.28),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: FilledButton.icon(
+                                    onPressed: onAddToCart,
+                                    icon: const Icon(
+                                      Icons.shopping_cart_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'Add',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shadowColor: Colors.transparent,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 18,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                            child: SizedBox(
-                              width: 270, // Reduce width if needed
-                              child: FilledButton.icon(
-                                onPressed: onAddToCart,
-                                icon: const Icon(
-                                  Icons.shopping_cart_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text(
-                                  'Add to Cart',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 14,
+            top: 14,
+            child: _GlassEdgeGlow(accent: accent),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlassEdgeGlow extends StatelessWidget {
+  const _GlassEdgeGlow({required this.accent});
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          colors: [
+            accent.withValues(alpha: 0.22),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassImage extends StatelessWidget {
+  const _GlassImage({required this.product, required this.accent});
+
+  final dynamic product;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
+    final child = normalized.startsWith('assets/')
+        ? Image.asset(normalized, fit: BoxFit.cover)
+        : normalized.startsWith('http')
+        ? Image.network(
+            normalized,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _funnyMissingImageFallback(
+              context,
+              product,
+            ),
+          )
+        : _funnyMissingImageFallback(context, product);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.05),
+                Colors.black.withValues(alpha: 0.28),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 16,
+          bottom: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'Premium selection',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: _HeartButton(
-              isFavorite: isFavorite,
-              onTap: onFavoriteToggle,
+        ),
+      ],
+    );
+  }
+}
+
+class _ChipLabel extends StatelessWidget {
+  const _ChipLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -733,6 +931,14 @@ String _unitLabel(String value) {
   if (unit.isEmpty) return '1 item';
   if (RegExp(r'^\d').hasMatch(unit)) return unit;
   return '1 $unit';
+}
+
+String _storeLabel(ProductModel product) {
+  final name = product.supplierName.trim();
+  final city = product.supplierCity.trim();
+  if (name.isEmpty) return '';
+  if (city.isEmpty) return name;
+  return '$name · $city';
 }
 
 class _HeartButton extends StatelessWidget {
@@ -798,34 +1004,6 @@ class _RatingChip extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _ImageThumb extends StatelessWidget {
-  const _ImageThumb({required this.product});
-
-  final dynamic product;
-
-  @override
-  Widget build(BuildContext context) {
-    final normalized = NetworkImageUrl.normalize(product.imageUrl);
-    if (normalized.startsWith('assets/')) {
-      return Image.asset(
-        normalized,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            _funnyMissingImageFallback(context, product),
-      );
-    }
-    if (normalized.startsWith('http')) {
-      return Image.network(
-        normalized,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            _funnyMissingImageFallback(context, product),
-      );
-    }
-    return _funnyMissingImageFallback(context, product);
   }
 }
 

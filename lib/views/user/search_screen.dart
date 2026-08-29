@@ -3,13 +3,11 @@ import 'dart:ui';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/network_image_url.dart';
-import '../../models/product_model.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/gradient_background.dart';
 import '../../widgets/product_bottom_sheet.dart';
-import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -391,41 +389,99 @@ class _ProductFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _categoryAccent((product.category as String?) ?? '');
+    final storeLabel = _storeLabel(product);
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: accent.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 22,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: Stack(
-            children: [
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(22),
-                    ),
-                    child: SizedBox(
-                      width: 120,
-                      height: 158,
-                      child: _ImageThumb(product: product),
-                    ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  color: Colors.white.withValues(alpha: 0.74),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 14, 44, 14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 190,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _GlassThumb(product: product, accent: accent),
+                          Positioned(
+                            top: 14,
+                            left: 14,
+                            child: _StarBadge(
+                              rating: product.rating.toStringAsFixed(1),
+                            ),
+                          ),
+                          Positioned(
+                            top: 14,
+                            right: 14,
+                            child: _BadgeButton(
+                              active: isFavorite,
+                              onTap: onFavoriteToggle,
+                              child: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 16,
+                                color: isFavorite
+                                    ? const Color(0xFFE8541A)
+                                    : const Color(0xFFAAAAAA),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 14,
+                            right: 14,
+                            bottom: 14,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (storeLabel.isNotEmpty)
+                                  _MiniGlassChip(
+                                    icon: Icons.storefront_rounded,
+                                    label: storeLabel,
+                                  ),
+                                _MiniGlassChip(
+                                  icon: Icons.straighten_rounded,
+                                  label: _unitLabel(product.unit),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -434,157 +490,119 @@ class _ProductFeedCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1A1A1A),
-                              height: 1.25,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF111827),
+                              height: 1.15,
+                              letterSpacing: -0.3,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
+                          Text(
+                            product.category,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Fresh, quality-picked product ready to add to your cart.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black.withValues(alpha: 0.58),
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                           Row(
                             children: [
-                              _StoreLogo(product: product),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  _storeLabel(product),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF9E9E9E),
-                                    fontWeight: FontWeight.w700,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Rs ${product.price.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF111827),
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Tap to see more packs',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black.withValues(alpha: 0.42),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF7A34),
+                                      Color(0xFFE8541A),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFE8541A,
+                                      ).withValues(alpha: 0.28),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: FilledButton.icon(
+                                  onPressed: onAdd,
+                                  icon: const Icon(
+                                    Icons.shopping_cart_outlined,
+                                    size: 16,
+                                  ),
+                                  label: const Text(
+                                    'Add',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Rs ${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1A1A1A),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8541A),
-                              borderRadius: BorderRadius.circular(999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFE8541A,
-                                  ).withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: SizedBox(
-                              width: 235,
-                              child: FilledButton.icon(
-                                onPressed: onAdd,
-                                icon: const Icon(
-                                  Icons.shopping_cart_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text(
-                                  'Add to Cart',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: _BadgeButton(
-                  active: isFavorite,
-                  child: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    size: 16,
-                    color: isFavorite
-                        ? const Color(0xFFE8541A)
-                        : const Color(0xFFAAAAAA),
-                  ),
-                  onTap: onFavoriteToggle,
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StoreLogo extends StatelessWidget {
-  const _StoreLogo({required this.product});
-
-  final dynamic product;
-
-  @override
-  Widget build(BuildContext context) {
-    final logo = NetworkImageUrl.normalize(product.supplierLogo as String?);
-    final hasLogo = logo.isNotEmpty && logo != 'null';
-    return Container(
-      width: 18,
-      height: 18,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE3E8DF)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: hasLogo
-            ? (logo.startsWith('http')
-                  ? Image.network(
-                      logo,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.storefront_rounded,
-                        size: 10,
-                        color: Color(0xFFE8541A),
-                      ),
-                    )
-                  : Image.asset(
-                      logo,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.storefront_rounded,
-                        size: 10,
-                        color: Color(0xFFE8541A),
-                      ),
-                    ))
-            : const Icon(
-                Icons.storefront_rounded,
-                size: 10,
-                color: Color(0xFFE8541A),
-              ),
       ),
     );
   }
@@ -598,40 +616,133 @@ String _storeLabel(dynamic product) {
   return '$name · $city';
 }
 
-class _ImageThumb extends StatelessWidget {
-  const _ImageThumb({required this.product});
+String _unitLabel(String value) {
+  final unit = value.trim();
+  if (unit.isEmpty) return '1 item';
+  if (RegExp(r'^\d').hasMatch(unit)) return unit;
+  return '1 $unit';
+}
+
+class _GlassThumb extends StatelessWidget {
+  const _GlassThumb({required this.product, required this.accent});
 
   final dynamic product;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final normalized = NetworkImageUrl.normalize(product.imageUrl);
-    if (normalized.startsWith('assets/')) {
-      return Image.asset(
-        normalized,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => SizedBox(
-          width: 120,
-          height: 158,
-          child: _funnyMissingImageFallback(context, product, compact: true),
+    final child = normalized.startsWith('assets/')
+        ? Image.asset(normalized, fit: BoxFit.cover)
+        : normalized.startsWith('http')
+        ? Image.network(
+            normalized,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                _funnyMissingImageFallback(
+              context,
+              product,
+              compact: true,
+            ),
+          )
+        : _funnyMissingImageFallback(context, product, compact: true);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.04),
+                Colors.black.withValues(alpha: 0.24),
+              ],
+            ),
+          ),
         ),
-      );
-    }
-    if (normalized.startsWith('http')) {
-      return Image.network(
-        normalized,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => SizedBox(
-          width: 120,
-          height: 158,
-          child: _funnyMissingImageFallback(context, product, compact: true),
+        Positioned(
+          left: 12,
+          bottom: 12,
+          child: _MiniGlassChip(
+            icon: Icons.local_fire_department_rounded,
+            label: 'Trending',
+          ),
         ),
-      );
-    }
-    return SizedBox(
-      width: 120,
-      height: 158,
-      child: _funnyMissingImageFallback(context, product, compact: true),
+      ],
+    );
+  }
+}
+
+class _MiniGlassChip extends StatelessWidget {
+  const _MiniGlassChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StarBadge extends StatelessWidget {
+  const _StarBadge({required this.rating});
+
+  final String rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFD54F)),
+          const SizedBox(width: 3),
+          Text(
+            rating,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -781,49 +892,6 @@ class _BadgeButton extends StatelessWidget {
           active ? Icons.favorite : Icons.favorite_border,
           size: 18,
           color: active ? const Color(0xFFE8541A) : const Color(0xFFAAAAAA),
-        ),
-      ),
-    );
-  }
-}
-
-class _TextChip extends StatelessWidget {
-  const _TextChip(this.label, {required this.subText});
-
-  final String label;
-  final String subText;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.6,
-              ),
-            ),
-            Text(
-              subText,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
         ),
       ),
     );
