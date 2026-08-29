@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1759,6 +1758,8 @@ class _HomeFeedCard extends StatelessWidget {
     required this.onFavoriteToggle,
     required this.onAdd,
     required this.onTap,
+    required this.ratingSummary,
+    required this.ratingLoading,
     this.imageFallbackBuilder,
   });
 
@@ -1767,6 +1768,8 @@ class _HomeFeedCard extends StatelessWidget {
   final VoidCallback onFavoriteToggle;
   final VoidCallback onAdd;
   final VoidCallback? onTap;
+  final _ReviewSummary ratingSummary;
+  final bool ratingLoading;
   final Widget Function(BuildContext context, ProductModel product)?
   imageFallbackBuilder;
 
@@ -1809,7 +1812,8 @@ class _HomeFeedCard extends StatelessWidget {
                       top: 10,
                       right: 10,
                       child: _HomeRatingChip(
-                        rating: product.rating.toStringAsFixed(1),
+                        summary: ratingSummary,
+                        loading: ratingLoading,
                       ),
                     ),
                     Positioned(
@@ -1983,34 +1987,99 @@ class _QuantityLikeFavorite extends StatelessWidget {
 }
 
 class _HomeRatingChip extends StatelessWidget {
-  const _HomeRatingChip({required this.rating});
-  final String rating;
+  const _HomeRatingChip({
+    required this.summary,
+    required this.loading,
+  });
+
+  final _ReviewSummary summary;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.24),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFD54F)),
-          const SizedBox(width: 3),
-          Text(
-            rating,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+      child: loading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFD54F)),
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 14,
+                      color: Color(0xFFFFD54F),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      summary.averageLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  summary.countLabel,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
+}
+
+class _ReviewSummary {
+  const _ReviewSummary({
+    required this.average,
+    required this.count,
+  });
+
+  final double average;
+  final int count;
+
+  String get averageLabel =>
+      average > 0 ? average.toStringAsFixed(1) : 'No rating';
+
+  String get countLabel {
+    if (count <= 0) return 'Customer reviews';
+    return '$count review${count == 1 ? '' : 's'}';
+  }
+}
+
+_ReviewSummary _reviewSummaryFor(
+  ProductModel product,
+  List<ProductReviewModel> reviews,
+) {
+  if (reviews.isNotEmpty) {
+    final average =
+        reviews.fold<double>(0, (sum, review) => sum + review.rating) /
+        reviews.length;
+    return _ReviewSummary(average: average, count: reviews.length);
+  }
+
+  return _ReviewSummary(average: product.rating, count: product.ratingCount);
 }
 
 class _HomeFeedImage extends StatelessWidget {
@@ -2558,39 +2627,50 @@ class _TopOffersFeed extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 18),
           itemBuilder: (ctx, i) {
             final product = products[i];
-            return _HomeFeedCard(
-              product: product,
-              isFavorite: state.isFavorite(product),
-              imageFallbackBuilder: _funnyMissingImageFallback,
-              onFavoriteToggle: () {
-                if (!state.signedIn) {
-                  showToast(ctx, 'Please login first');
-                  return;
-                }
-                state.toggleFavorite(product);
-              },
-              onTap: () => showProductBottomSheet(
-                ctx,
-                product,
-                onAddToCart: (qty) async {
-                  final ok = await state.addToCart(product, quantity: qty);
-                  if (!ctx.mounted) return;
-                  showToast(
+            return FutureBuilder<List<ProductReviewModel>>(
+              future: state.loadProductReviews(product.id),
+              builder: (context, snapshot) {
+                final reviews = snapshot.data ?? const <ProductReviewModel>[];
+                final summary = _reviewSummaryFor(product, reviews);
+                return _HomeFeedCard(
+                  product: product,
+                  isFavorite: state.isFavorite(product),
+                  imageFallbackBuilder: _funnyMissingImageFallback,
+                  ratingSummary: summary,
+                  ratingLoading:
+                      snapshot.connectionState == ConnectionState.waiting &&
+                      reviews.isEmpty,
+                  onFavoriteToggle: () {
+                    if (!state.signedIn) {
+                      showToast(ctx, 'Please login first');
+                      return;
+                    }
+                    state.toggleFavorite(product);
+                  },
+                  onTap: () => showProductBottomSheet(
                     ctx,
-                    ok
-                        ? '${product.name} added to cart'
-                        : state.error ?? 'Please login first',
-                  );
-                },
-              ),
-              onAdd: () async {
-                final ok = await state.addToCart(product);
-                if (!ctx.mounted) return;
-                showToast(
-                  ctx,
-                  ok
-                      ? '${product.name} added to cart'
-                      : state.error ?? 'Please login first',
+                    product,
+                    onAddToCart: (qty) async {
+                      final ok = await state.addToCart(product, quantity: qty);
+                      if (!ctx.mounted) return;
+                      showToast(
+                        ctx,
+                        ok
+                            ? '${product.name} added to cart'
+                            : state.error ?? 'Please login first',
+                      );
+                    },
+                  ),
+                  onAdd: () async {
+                    final ok = await state.addToCart(product);
+                    if (!ctx.mounted) return;
+                    showToast(
+                      ctx,
+                      ok
+                          ? '${product.name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
+                  },
                 );
               },
             );
@@ -3385,33 +3465,44 @@ class _PopularProductsGrid extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 18),
           itemBuilder: (ctx, i) {
             final product = products[i];
-            return _HomeFeedCard(
-              product: product,
-              isFavorite: state.isFavorite(product),
-              imageFallbackBuilder: _funnyMissingImageFallback,
-              onFavoriteToggle: () => onFavoriteToggle(product),
-              onTap: () => showProductBottomSheet(
-                ctx,
-                product,
-                onAddToCart: (qty) async {
-                  final ok = await state.addToCart(product, quantity: qty);
-                  if (!ctx.mounted) return;
-                  showToast(
+            return FutureBuilder<List<ProductReviewModel>>(
+              future: state.loadProductReviews(product.id),
+              builder: (context, snapshot) {
+                final reviews = snapshot.data ?? const <ProductReviewModel>[];
+                final summary = _reviewSummaryFor(product, reviews);
+                return _HomeFeedCard(
+                  product: product,
+                  isFavorite: state.isFavorite(product),
+                  imageFallbackBuilder: _funnyMissingImageFallback,
+                  ratingSummary: summary,
+                  ratingLoading:
+                      snapshot.connectionState == ConnectionState.waiting &&
+                      reviews.isEmpty,
+                  onFavoriteToggle: () => onFavoriteToggle(product),
+                  onTap: () => showProductBottomSheet(
                     ctx,
-                    ok
-                        ? '${product.name} added to cart'
-                        : state.error ?? 'Please login first',
-                  );
-                },
-              ),
-              onAdd: () async {
-                final ok = await state.addToCart(product);
-                if (!ctx.mounted) return;
-                showToast(
-                  ctx,
-                  ok
-                      ? '${product.name} added to cart'
-                      : state.error ?? 'Please login first',
+                    product,
+                    onAddToCart: (qty) async {
+                      final ok = await state.addToCart(product, quantity: qty);
+                      if (!ctx.mounted) return;
+                      showToast(
+                        ctx,
+                        ok
+                            ? '${product.name} added to cart'
+                            : state.error ?? 'Please login first',
+                      );
+                    },
+                  ),
+                  onAdd: () async {
+                    final ok = await state.addToCart(product);
+                    if (!ctx.mounted) return;
+                    showToast(
+                      ctx,
+                      ok
+                          ? '${product.name} added to cart'
+                          : state.error ?? 'Please login first',
+                    );
+                  },
                 );
               },
             );
