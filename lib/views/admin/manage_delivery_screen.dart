@@ -147,6 +147,21 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
     _showSnack('${updated.name} updated');
   }
 
+  Future<void> _showStatusDetails(_DeliveryPartnerRow partner) async {
+    final appState = context.read<AppState>();
+    final loadLogs = () => appState.adminDeliveryStatusDetails(partner.user.id);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DeliveryStatusSheet(
+        deliveryPerson: partner.user,
+        isOnline: partner.isOnline,
+        loadLogs: loadLogs,
+      ),
+    );
+  }
+
   Future<void> _approvePartner(UserModel user) async {
     setState(() => _loading = true);
     try {
@@ -385,6 +400,7 @@ class _ManageDeliveryScreenState extends State<ManageDeliveryScreen> {
               child: _PartnerCard(
                 user: u.user,
                 isOnline: u.isOnline,
+                onShowStatus: () => _showStatusDetails(u),
                 onApprove: u.user.approvalStatus.toLowerCase() == 'pending'
                     ? () => _approvePartner(u.user)
                     : null,
@@ -592,6 +608,7 @@ class _PartnerCard extends StatelessWidget {
   const _PartnerCard({
     required this.user,
     required this.isOnline,
+    required this.onShowStatus,
     this.onApprove,
     this.onReject,
     required this.onEdit,
@@ -599,6 +616,7 @@ class _PartnerCard extends StatelessWidget {
   });
   final UserModel user;
   final bool isOnline;
+  final VoidCallback onShowStatus;
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
   final VoidCallback onEdit;
@@ -748,6 +766,14 @@ class _PartnerCard extends StatelessWidget {
                       const SizedBox(height: 6),
                     ],
                     _ActionBtn(
+                      icon: Icons.timeline_rounded,
+                      color: const Color(0xFF4F46E5),
+                      bg: const Color(0xFFEFF2FF),
+                      tooltip: 'Show status',
+                      onTap: onShowStatus,
+                    ),
+                    const SizedBox(height: 6),
+                    _ActionBtn(
                       icon: Icons.edit_rounded,
                       color: _kOrange,
                       bg: _kOrangeLight,
@@ -857,6 +883,435 @@ class _ActionBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Status Sheet ────────────────────────────────────────────────────────────
+
+class _DeliveryStatusSheet extends StatefulWidget {
+  const _DeliveryStatusSheet({
+    required this.deliveryPerson,
+    required this.isOnline,
+    required this.loadLogs,
+  });
+
+  final UserModel deliveryPerson;
+  final bool isOnline;
+  final Future<List<Map<String, dynamic>>> Function() loadLogs;
+
+  @override
+  State<_DeliveryStatusSheet> createState() => _DeliveryStatusSheetState();
+}
+
+class _DeliveryStatusSheetState extends State<_DeliveryStatusSheet> {
+  _StatusFilter _filter = _StatusFilter.all;
+  late Future<List<Map<String, dynamic>>> _futureLogs;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureLogs = widget.loadLogs();
+  }
+
+  void _refresh() {
+    setState(() {
+      _futureLogs = widget.loadLogs();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: 0.92,
+      child: Material(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _futureLogs,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: _kOrange),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return _SheetError(
+                  message: snapshot.error.toString().replaceFirst(
+                    'Exception: ',
+                    '',
+                  ),
+                  onRetry: _refresh,
+                );
+              }
+
+              final logs = snapshot.data ?? const <Map<String, dynamic>>[];
+              final sortedLogs = List<Map<String, dynamic>>.from(logs)
+                ..sort((a, b) {
+                  final aStarted =
+                      _parseLocalDate(a['startedAt'] as String?) ??
+                      DateTime.fromMillisecondsSinceEpoch(0);
+                  final bStarted =
+                      _parseLocalDate(b['startedAt'] as String?) ??
+                      DateTime.fromMillisecondsSinceEpoch(0);
+                  return bStarted.compareTo(aStarted);
+                });
+              final filteredLogs = sortedLogs
+                  .where((log) => _matches(log, _filter))
+                  .toList();
+              final activeLogs = filteredLogs.where(_isActiveLog).toList();
+              final completedLogs = filteredLogs
+                  .where((log) => !_isActiveLog(log))
+                  .toList();
+              final latestLog = sortedLogs.isNotEmpty ? sortedLogs.first : null;
+
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD1D5DB),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.deliveryPerson.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: _kTextDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Status history and timing breakdown',
+                              style: TextStyle(
+                                color: _kTextMid.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _StatusSummaryCard(
+                    isOnline: widget.isOnline,
+                    latestLog: latestLog,
+                  ),
+                  const SizedBox(height: 16),
+                  _StatusFilterBar(
+                    filter: _filter,
+                    onChanged: (filter) => setState(() => _filter = filter),
+                  ),
+                  const SizedBox(height: 16),
+                  if (activeLogs.isNotEmpty) ...[
+                    const _SheetSectionTitle('In Progress'),
+                    const SizedBox(height: 10),
+                    ...activeLogs.map((log) => _StatusLogCard(log: log)),
+                    const SizedBox(height: 14),
+                  ],
+                  if (completedLogs.isNotEmpty) ...[
+                    const _SheetSectionTitle('Completed'),
+                    const SizedBox(height: 10),
+                    ...completedLogs.map((log) => _StatusLogCard(log: log)),
+                  ] else if (activeLogs.isEmpty)
+                    const _StatusEmptyState(),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusSummaryCard extends StatelessWidget {
+  const _StatusSummaryCard({required this.isOnline, required this.latestLog});
+
+  final bool isOnline;
+  final Map<String, dynamic>? latestLog;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = latestLog != null && _isActiveLog(latestLog!);
+    final startedAt = latestLog == null
+        ? null
+        : _parseLocalDate(latestLog!['startedAt'] as String?);
+    final title = isOnline ? 'Online right now' : 'Offline right now';
+    final subtitle = active && startedAt != null
+        ? 'Active since ${_formatDateTime(startedAt)}'
+        : 'No active shift at the moment';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDEDED)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+              color: _kOrange,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Current Status',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(title, style: const TextStyle(color: Color(0xFF6B7280))),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF374151),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusFilterBar extends StatelessWidget {
+  const _StatusFilterBar({required this.filter, required this.onChanged});
+
+  final _StatusFilter filter;
+  final ValueChanged<_StatusFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _StatusFilter.values.map((item) {
+        final selected = item == filter;
+        return ChoiceChip(
+          label: Text(item.label),
+          selected: selected,
+          onSelected: (_) => onChanged(item),
+          selectedColor: _kOrange,
+          labelStyle: TextStyle(
+            color: selected ? Colors.white : _kTextDark,
+            fontWeight: FontWeight.w700,
+          ),
+          side: BorderSide(color: selected ? _kOrange : _kBorder),
+          backgroundColor: Colors.white,
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _StatusLogCard extends StatelessWidget {
+  const _StatusLogCard({required this.log});
+
+  final Map<String, dynamic> log;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (log['status'] as String? ?? 'offline').toUpperCase();
+    final startedAt =
+        _parseLocalDate(log['startedAt'] as String?) ?? DateTime.now();
+    final endedAt = _parseLocalDate(log['endedAt'] as String?);
+    final active = endedAt == null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDEDED)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0EB),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  status,
+                  style: const TextStyle(
+                    color: Color(0xFFE8541A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                active ? 'IN PROGRESS' : 'ENDED',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('Started: ${_formatDateTime(startedAt)}'),
+          Text('Ended: ${active ? 'In progress' : _formatDateTime(endedAt!)}'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetSectionTitle extends StatelessWidget {
+  const _SheetSectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        color: _kTextDark,
+      ),
+    );
+  }
+}
+
+class _SheetError extends StatelessWidget {
+  const _SheetError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626)),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _kTextDark),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _StatusFilter { all, today, yesterday, week, month }
+
+extension on _StatusFilter {
+  String get label => switch (this) {
+    _StatusFilter.all => 'All',
+    _StatusFilter.today => 'Today',
+    _StatusFilter.yesterday => 'Yesterday',
+    _StatusFilter.week => 'Week',
+    _StatusFilter.month => 'Month',
+  };
+}
+
+bool _matches(Map<String, dynamic> log, _StatusFilter filter) {
+  if (filter == _StatusFilter.all) return true;
+  final startedAt = _parseLocalDate(log['startedAt'] as String?);
+  if (startedAt == null) return false;
+  final now = DateTime.now();
+  return switch (filter) {
+    _StatusFilter.all => true,
+    _StatusFilter.today =>
+      startedAt.year == now.year &&
+          startedAt.month == now.month &&
+          startedAt.day == now.day,
+    _StatusFilter.yesterday => _isSameDay(
+      startedAt,
+      now.subtract(const Duration(days: 1)),
+    ),
+    _StatusFilter.week => _isSameWeek(startedAt, now),
+    _StatusFilter.month =>
+      startedAt.year == now.year && startedAt.month == now.month,
+  };
+}
+
+bool _isActiveLog(Map<String, dynamic> log) {
+  return (log['status'] as String? ?? '').toLowerCase() == 'online' &&
+      (log['endedAt'] == null || log['endedAt'].toString().trim().isEmpty);
+}
+
+String _formatDateTime(DateTime d) {
+  final local = d.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final year = local.year;
+  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final suffix = local.hour >= 12 ? 'PM' : 'AM';
+  return '$day/$month/$year, $hour:$minute $suffix';
+}
+
+DateTime? _parseLocalDate(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+bool _isSameWeek(DateTime a, DateTime b) {
+  final aDate = DateTime(a.year, a.month, a.day);
+  final bDate = DateTime(b.year, b.month, b.day);
+  final mondayA = aDate.subtract(Duration(days: aDate.weekday - 1));
+  final mondayB = bDate.subtract(Duration(days: bDate.weekday - 1));
+  return mondayA.year == mondayB.year &&
+      mondayA.month == mondayB.month &&
+      mondayA.day == mondayB.day;
 }
 
 // ─── Delete Dialog ────────────────────────────────────────────────────────────
@@ -1065,6 +1520,22 @@ class _EmptyState extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusEmptyState extends StatelessWidget {
+  const _StatusEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Text(
+        'No status records found',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
       ),
     );
   }

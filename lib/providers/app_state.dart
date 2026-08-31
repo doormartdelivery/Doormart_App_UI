@@ -49,7 +49,8 @@ class CartLine {
   }
 
   double get unitPrice => price ?? _matchedVariant?.price ?? product.price;
-  double get unitMrp => discountCost ?? _matchedVariant?.discountCost ?? product.mrp;
+  double get unitMrp =>
+      discountCost ?? _matchedVariant?.discountCost ?? product.mrp;
   int get availableStock => stock ?? _matchedVariant?.stock ?? product.stock;
   double get total => unitPrice * quantity;
   String get key => '${product.id}::${selectedUnit.toLowerCase()}';
@@ -620,7 +621,9 @@ class AppState extends ChangeNotifier {
           .whereType<Map<String, dynamic>>()
           .map(
             (review) => _reviewKey(
-              review['orderId']?.toString() ?? review['order']?.toString() ?? '',
+              review['orderId']?.toString() ??
+                  review['order']?.toString() ??
+                  '',
               review['productId']?.toString() ??
                   review['product']?.toString() ??
                   '',
@@ -653,12 +656,14 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final data = await apiService.get('/products/$normalizedProductId/reviews');
+      final data = await apiService.get(
+        '/products/$normalizedProductId/reviews',
+      );
       final reviews = data is List
           ? data
-              .whereType<Map<String, dynamic>>()
-              .map(ProductReviewModel.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(ProductReviewModel.fromJson)
+                .toList()
           : const <ProductReviewModel>[];
       _productReviewsById[normalizedProductId] = reviews;
       return reviews;
@@ -1311,8 +1316,10 @@ class AppState extends ChangeNotifier {
       (line) => line.key == '${product.id}::${targetUnit.toLowerCase()}',
       orElse: () => CartLine(product: product, quantity: 0, unit: targetUnit),
     );
-    if (variant.stock > 0 && currentTarget.quantity + current.quantity > variant.stock) {
-      error = 'Only ${variant.stock} ${targetUnit.isEmpty ? product.unit : targetUnit} available';
+    if (variant.stock > 0 &&
+        currentTarget.quantity + current.quantity > variant.stock) {
+      error =
+          'Only ${variant.stock} ${targetUnit.isEmpty ? product.unit : targetUnit} available';
       notifyListeners();
       return false;
     }
@@ -1350,7 +1357,8 @@ class AppState extends ChangeNotifier {
               'quantity': movedQuantity,
               if (targetUnit.isNotEmpty) 'unit': targetUnit,
               if (variant.price > 0) 'price': variant.price,
-              if (variant.discountCost > 0) 'discountCost': variant.discountCost,
+              if (variant.discountCost > 0)
+                'discountCost': variant.discountCost,
               if (variant.stock > 0) 'stock': variant.stock,
             },
           );
@@ -1610,6 +1618,23 @@ class AppState extends ChangeNotifier {
     }
     final data =
         await apiService.get('/admin/delivery', token: token) as List<dynamic>;
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> adminDeliveryStatusDetails(
+    String deliveryPersonId,
+  ) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final safeId = Uri.encodeComponent(deliveryPersonId.trim());
+    final data =
+        await apiService.get(
+              '/delivery/status-details?deliveryPersonId=$safeId',
+              token: token,
+            )
+            as List<dynamic>;
     return data.cast<Map<String, dynamic>>();
   }
 

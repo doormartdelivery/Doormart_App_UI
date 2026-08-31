@@ -3,11 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/gestures.dart';
 
-import '../../core/constants.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import 'forgot_password_screen.dart';
 import 'user_home_screen.dart';
-import 'signup_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -98,11 +97,50 @@ class _LoginScreenState extends State<LoginScreen>
     if (pwd.length >= 6) s++;
     if (pwd.length >= 10 &&
         RegExp(r'[A-Z]').hasMatch(pwd) &&
-        RegExp(r'[0-9]').hasMatch(pwd))
+        RegExp(r'[0-9]').hasMatch(pwd)) {
       s++;
-    if (pwd.length >= 8 && RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pwd))
+    }
+    if (pwd.length >= 8 && RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pwd)) {
       s++;
+    }
     return s.clamp(0, 3);
+  }
+
+  String get _loginIdentifier => _loginEmailCtrl.text.trim();
+
+  String? _loginIdentifierValidation() {
+    if (_loginMode == _LoginMode.password) {
+      return Validators.emailOrPhone(
+        _loginIdentifier,
+        emptyMessage: 'Enter your email or phone',
+      );
+    }
+    return Validators.email(_loginIdentifier, emptyMessage: 'Enter your email');
+  }
+
+  Future<void> _sendLoginOtp() async {
+    final validation = _loginIdentifierValidation();
+    if (validation != null) {
+      setState(() => _error = validation);
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await context.read<AppState>().sendOtp(
+        email: _loginIdentifier.toLowerCase(),
+      );
+      if (!mounted) return;
+      setState(() => _otpSent = true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -113,21 +151,26 @@ class _LoginScreenState extends State<LoginScreen>
       _error = null;
     });
     try {
-      final email = _loginEmailCtrl.text.trim();
       if (_loginMode == _LoginMode.otp && !_otpSent) {
-        await context.read<AppState>().sendOtp(email: email);
+        await context.read<AppState>().sendOtp(
+          email: _loginIdentifier.toLowerCase(),
+        );
         if (!mounted) return;
         setState(() => _otpSent = true);
         return;
       }
+      final identifier = _loginIdentifier;
+      final isEmail = identifier.contains('@');
+      final normalizedPhone = Validators.normalizePhone(identifier);
       if (_loginMode == _LoginMode.password) {
         await context.read<AppState>().loginWithPassword(
-          email: email,
+          email: isEmail ? identifier.toLowerCase() : null,
+          phone: isEmail ? null : normalizedPhone,
           password: _loginPassCtrl.text.trim(),
         );
       } else {
         await context.read<AppState>().verifyOtp(
-          email: email,
+          email: _loginIdentifier.toLowerCase(),
           otp: _loginOtpCtrl.text.trim(),
         );
       }
@@ -221,8 +264,9 @@ class _LoginScreenState extends State<LoginScreen>
                         otpSent: _otpSent,
                         loginMode: _loginMode,
                         obscurePass: _obscureLoginPass,
-                        onTogglePass: () =>
-                            setState(() => _obscureLoginPass = !_obscureLoginPass),
+                        onTogglePass: () => setState(
+                          () => _obscureLoginPass = !_obscureLoginPass,
+                        ),
                         onChangeMode: (mode) {
                           setState(() {
                             _loginMode = mode;
@@ -236,22 +280,11 @@ class _LoginScreenState extends State<LoginScreen>
                         onGuest: _continueAsGuest,
                         onGoRegister: () => _tabCtrl.animateTo(1),
                         onGoForgotPassword: () {
-                          Navigator.of(context).pushNamed(
-                            ForgotPasswordScreen.routeName,
-                          );
+                          Navigator.of(
+                            context,
+                          ).pushNamed(ForgotPasswordScreen.routeName);
                         },
-                        onResendOtp: () async {
-                          setState(() {
-                            _error = null;
-                            _otpSent = false;
-                          });
-                          await context.read<AppState>().sendOtp(
-                            email: _loginEmailCtrl.text.trim(),
-                          );
-                          if (mounted) {
-                            setState(() => _otpSent = true);
-                          }
-                        },
+                        onResendOtp: _sendLoginOtp,
                       ),
 
                       // ── Sign up tab ───────────────────────────────
@@ -562,9 +595,11 @@ class _LoginTab extends StatelessWidget {
 
             const SizedBox(height: 18),
 
-            _FieldLabel(loginMode == _LoginMode.password
-                ? 'Email or phone number'
-                : 'Email address'),
+            _FieldLabel(
+              loginMode == _LoginMode.password
+                  ? 'Email or phone number'
+                  : 'Email address',
+            ),
             const SizedBox(height: 8),
             _Field(
               controller: emailCtrl,
@@ -574,24 +609,10 @@ class _LoginTab extends StatelessWidget {
               icon: Icons.email_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return loginMode == _LoginMode.password
-                      ? 'Enter your email or phone'
-                      : 'Enter your email';
-                }
-                final value = v.trim();
                 if (loginMode == _LoginMode.password) {
-                  final isEmail = value.contains('@');
-                  final isPhone = RegExp(r'^\+?\d{7,15}$').hasMatch(
-                    value.replaceAll(RegExp(r'\s+'), ''),
-                  );
-                  if (!isEmail && !isPhone) {
-                    return 'Enter a valid email or phone number';
-                  }
-                } else if (!value.contains('@')) {
-                  return 'Enter a valid email';
+                  return Validators.emailOrPhone(v);
                 }
-                return null;
+                return Validators.email(v, emptyMessage: 'Enter your email');
               },
             ),
 
@@ -605,9 +626,11 @@ class _LoginTab extends StatelessWidget {
                 hint: 'Enter your password',
                 icon: Icons.lock_rounded,
                 obscure: obscurePass,
-                suffix: _EyeToggle(obscure: obscurePass, onToggle: onTogglePass),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Enter your password' : null,
+                suffix: _EyeToggle(
+                  obscure: obscurePass,
+                  onToggle: onTogglePass,
+                ),
+                validator: (v) => Validators.password(v),
               ),
               const SizedBox(height: 6),
               Align(
@@ -634,8 +657,9 @@ class _LoginTab extends StatelessWidget {
                 hint: 'Enter the 6 digit OTP',
                 icon: Icons.password_rounded,
                 keyboardType: TextInputType.number,
-                validator: (v) =>
-                    otpSent && (v == null || v.isEmpty) ? 'Enter OTP' : null,
+                validator: (v) => otpSent
+                    ? Validators.requiredText(v, message: 'Enter OTP')
+                    : null,
               ),
 
               Align(

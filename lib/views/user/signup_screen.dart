@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/toast_widget.dart';
@@ -44,10 +45,12 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
+      final email = _emailController.text.trim().toLowerCase();
+      final phone = Validators.normalizePhone(_phoneController.text);
       await context.read<AppState>().register(
         name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        email: _emailController.text.trim(),
+        phone: phone,
+        email: email,
         password: _passwordController.text,
         addressLabel: _addressLabelController.text.trim(),
         addressLine1: _addressLine1Controller.text.trim(),
@@ -113,10 +116,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _nameController,
                           label: 'Full name',
                           icon: Icons.person_rounded,
-                          validator: (value) =>
-                              (value == null || value.trim().isEmpty)
-                              ? 'Enter your name'
-                              : null,
+                          validator: (value) => Validators.name(value),
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
@@ -124,10 +124,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'Phone number',
                           icon: Icons.phone_iphone_rounded,
                           keyboardType: TextInputType.phone,
-                          validator: (value) =>
-                              (value == null || value.trim().isEmpty)
-                              ? 'Enter your phone number'
-                              : null,
+                          validator: (value) => Validators.phone(value),
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
@@ -135,13 +132,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'Email address',
                           icon: Icons.alternate_email_rounded,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            final text = value?.trim() ?? '';
-                            if (text.isEmpty) return 'Enter your email';
-                            if (!text.contains('@'))
-                              return 'Enter a valid email';
-                            return null;
-                          },
+                          validator: (value) => Validators.email(value),
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
@@ -149,10 +140,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           label: 'Password',
                           icon: Icons.lock_rounded,
                           obscureText: true,
-                          validator: (value) =>
-                              (value == null || value.length < 6)
-                              ? 'Use at least 6 characters'
-                              : null,
+                          validator: (value) => Validators.password(
+                            value,
+                            minLength: 6,
+                            lengthMessage: 'Use at least 6 characters',
+                          ),
                         ),
                         const SizedBox(height: 18),
                         Text(
@@ -165,12 +157,20 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _addressLabelController,
                           label: 'Address label',
                           icon: Icons.home_rounded,
+                          validator: (value) => Validators.requiredText(
+                            value,
+                            message: 'Enter address label',
+                          ),
                         ),
                         const SizedBox(height: 12),
                         CustomTextField(
                           controller: _addressLine1Controller,
                           label: 'Flat, house no., street',
                           icon: Icons.location_on_rounded,
+                          validator: (value) => Validators.requiredText(
+                            value,
+                            message: 'Enter your address',
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -180,6 +180,10 @@ class _SignupScreenState extends State<SignupScreen> {
                                 controller: _cityController,
                                 label: 'City',
                                 icon: Icons.location_city_rounded,
+                                validator: (value) => Validators.requiredText(
+                                  value,
+                                  message: 'Enter your city',
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -189,6 +193,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 label: 'Pincode',
                                 icon: Icons.local_post_office_rounded,
                                 keyboardType: TextInputType.number,
+                                validator: (value) => Validators.pincode(value),
                               ),
                             ),
                           ],

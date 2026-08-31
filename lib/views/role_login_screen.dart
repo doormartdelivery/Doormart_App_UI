@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/role_access.dart';
+import '../core/utils/validators.dart';
 import '../providers/app_state.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/toast_widget.dart';
@@ -61,8 +62,9 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
     try {
       final useEmail =
           _useEmailOnly || (_usePhoneOrEmail && _passwordIdentifierIsEmail);
+      final normalizedPhone = Validators.normalizePhone(_passwordIdentifier);
       await context.read<AppState>().loginWithPassword(
-        phone: useEmail ? null : _passwordIdentifier,
+        phone: useEmail ? null : normalizedPhone,
         email: useEmail ? _passwordIdentifier : null,
         password: _passwordController.text,
       );
@@ -170,10 +172,10 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                             label: 'Email',
                             icon: Icons.email_rounded,
                             keyboardType: TextInputType.emailAddress,
-                            validator: (value) =>
-                                (value == null || value.trim().isEmpty)
-                                ? 'Enter email'
-                                : null,
+                            validator: (value) => Validators.email(
+                              value,
+                              emptyMessage: 'Enter email',
+                            ),
                           )
                         else
                           CustomTextField(
@@ -185,14 +187,19 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                                 ? Icons.account_circle_rounded
                                 : Icons.phone_iphone_rounded,
                             keyboardType: _usePhoneOrEmail
-                                ? TextInputType.emailAddress
+                                ? TextInputType.text
                                 : TextInputType.phone,
-                            validator: (value) =>
-                                (value == null || value.trim().isEmpty)
-                                ? (_usePhoneOrEmail
-                                      ? 'Enter phone or email'
-                                      : 'Enter phone number')
-                                : null,
+                            validator: (value) => _usePhoneOrEmail
+                                ? Validators.emailOrPhone(
+                                    value,
+                                    emptyMessage: 'Enter phone or email',
+                                    invalidMessage:
+                                        'Enter a valid email or phone number',
+                                  )
+                                : Validators.phone(
+                                    value,
+                                    emptyMessage: 'Enter phone number',
+                                  ),
                           ),
                         const SizedBox(height: 12),
                         if (widget.allowPhonePassword ||
@@ -202,10 +209,10 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                             label: 'Password',
                             icon: Icons.lock_rounded,
                             obscureText: true,
-                            validator: (value) =>
-                                (value == null || value.isEmpty)
-                                ? 'Enter password'
-                                : null,
+                            validator: (value) => Validators.password(
+                              value,
+                              message: 'Enter password',
+                            ),
                           ),
                         if (widget.allowOtp) ...[
                           const SizedBox(height: 12),

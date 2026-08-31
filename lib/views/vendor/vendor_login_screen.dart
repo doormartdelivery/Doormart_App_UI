@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../user/forgot_password_screen.dart';
@@ -79,16 +80,16 @@ class _VendorLoginScreenState extends State<VendorLoginScreen>
     HapticFeedback.selectionClick();
     setState(() => _loading = true);
     try {
+      final appState = context.read<AppState>();
       final identifier = _identifierCtrl.text.trim();
       final isEmail = identifier.contains('@');
-      await context.read<AppState>().loginVendor(
+      final phone = Validators.normalizePhone(identifier);
+      await appState.loginVendor(
         email: isEmail ? identifier : null,
-        phone: isEmail ? null : identifier,
+        phone: isEmail ? null : phone,
         password: _passwordCtrl.text,
       );
       if (!mounted) return;
-
-      final appState = context.read<AppState>();
       if (appState.user?.role != UserRoles.vendor) {
         await appState.logout();
         if (!mounted) return;
@@ -162,20 +163,9 @@ class _VendorLoginScreenState extends State<VendorLoginScreen>
                             controller: _identifierCtrl,
                             hint: 'vendor@doormart.com or 9876543210',
                             icon: Icons.storefront_rounded,
-                            keyboardType: TextInputType.emailAddress,
+                            keyboardType: TextInputType.text,
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Enter your email or phone';
-                              }
-                              final value = v.trim();
-                              final isEmail = value.contains('@');
-                              final isPhone = RegExp(
-                                r'^\+?\d{7,15}$',
-                              ).hasMatch(value.replaceAll(RegExp(r'\s+'), ''));
-                              if (!isEmail && !isPhone) {
-                                return 'Enter a valid email or phone number';
-                              }
-                              return null;
+                              return Validators.emailOrPhone(v);
                             },
                           ),
                           const SizedBox(height: 16),
@@ -197,9 +187,7 @@ class _VendorLoginScreenState extends State<VendorLoginScreen>
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Enter your password'
-                                : null,
+                            validator: (v) => Validators.password(v),
                           ),
                           const SizedBox(height: 8),
                           Align(

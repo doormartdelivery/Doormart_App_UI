@@ -3,13 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../user/forgot_password_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
-const _kOrangeDeep = Color(0xFFD44010);
 const _kOrangeLight = Color(0xFFFFF0EB);
 const _kBg = Color(0xFFF7F7F8);
 const _kCard = Colors.white;
@@ -65,11 +65,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
 
     setState(() => _loading = true);
     try {
-      await context.read<AppState>().loginWithPassword(
-        email: _emailCtrl.text.trim(),
+      final appState = context.read<AppState>();
+      final identifier = _emailCtrl.text.trim();
+      final phone = Validators.normalizePhone(identifier);
+      await appState.loginWithPassword(
+        email: identifier.contains('@') ? identifier : null,
+        phone: identifier.contains('@') ? null : phone,
         password: _passCtrl.text,
       );
-      final appState = context.read<AppState>();
       if (appState.user?.role != UserRoles.admin &&
           appState.user?.role != UserRoles.superAdmin) {
         await appState.logout();
@@ -135,21 +138,11 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                             controller: _emailCtrl,
                             hint: 'vendor@doormart.com or 9876543210',
                             icon: Icons.admin_panel_settings_rounded,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Enter your vendor email or phone';
-                              }
-                              final value = v.trim();
-                              final isEmail = value.contains('@');
-                              final isPhone = RegExp(
-                                r'^\+?\d{7,15}$',
-                              ).hasMatch(value.replaceAll(RegExp(r'\s+'), ''));
-                              if (!isEmail && !isPhone) {
-                                return 'Enter a valid email or phone number';
-                              }
-                              return null;
-                            },
+                            keyboardType: TextInputType.text,
+                            validator: (v) => Validators.emailOrPhone(
+                              v,
+                              emptyMessage: 'Enter your vendor email or phone',
+                            ),
                           ),
 
                           const SizedBox(height: 18),
@@ -173,9 +166,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? 'Enter your password'
-                                : null,
+                            validator: (v) => Validators.password(v),
                           ),
 
                           const SizedBox(height: 6),

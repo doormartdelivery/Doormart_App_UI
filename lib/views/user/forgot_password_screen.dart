@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 
 const _kOrange = Color(0xFFE8541A);
-const _kOrangeLight = Color(0xFFFFF0EB);
 const _kBg = Color(0xFFF7F7F8);
 const _kCard = Colors.white;
 const _kTextDark = Color(0xFF1A1A2E);
@@ -42,6 +42,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  String get _identifier => _identifierCtrl.text.trim();
+
+  String get _normalizedIdentifier {
+    final value = _identifier;
+    if (value.contains('@')) return value.toLowerCase();
+    return Validators.normalizePhone(value);
+  }
+
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -50,7 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
     try {
       await context.read<AppState>().sendPasswordResetOtp(
-        identifier: _identifierCtrl.text.trim(),
+        identifier: _normalizedIdentifier,
       );
       if (!mounted) return;
       setState(() => _otpSent = true);
@@ -71,7 +79,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
     try {
       await context.read<AppState>().resetPasswordWithOtp(
-        identifier: _identifierCtrl.text.trim(),
+        identifier: _normalizedIdentifier,
         otp: _otpCtrl.text.trim(),
         password: _passCtrl.text,
       );
@@ -145,20 +153,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 hint: 'you@example.com or 9876543210',
                 icon: Icons.alternate_email_rounded,
                 keyboardType: TextInputType.text,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Enter your email or phone number';
-                  }
-                  final value = v.trim();
-                  final isEmail = value.contains('@');
-                  final isPhone = RegExp(
-                    r'^\+?\d{7,15}$',
-                  ).hasMatch(value.replaceAll(RegExp(r'\s+'), ''));
-                  if (!isEmail && !isPhone) {
-                    return 'Enter a valid email or phone number';
-                  }
-                  return null;
-                },
+                validator: (v) => Validators.emailOrPhone(v),
               ),
               const SizedBox(height: 16),
               if (_otpSent) ...[
@@ -169,12 +164,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   hint: 'Enter the OTP sent to your registered email',
                   icon: Icons.pin_rounded,
                   keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Enter the OTP';
-                    }
-                    return null;
-                  },
+                  validator: (v) =>
+                      Validators.requiredText(v, message: 'Enter the OTP'),
                 ),
                 const SizedBox(height: 16),
                 _FieldLabel('New password'),
@@ -194,12 +185,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     onPressed: () =>
                         setState(() => _obscurePass = !_obscurePass),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Enter a new password';
-                    if (v.length < 6)
-                      return 'Password must be at least 6 characters';
-                    return null;
-                  },
+                  validator: (v) => Validators.password(
+                    v,
+                    minLength: 6,
+                    message: 'Enter a new password',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _FieldLabel('Confirm password'),
@@ -220,7 +210,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Confirm your password';
+                    final required = Validators.requiredText(
+                      v,
+                      message: 'Confirm your password',
+                    );
+                    if (required != null) return required;
                     if (v != _passCtrl.text) return 'Passwords do not match';
                     return null;
                   },

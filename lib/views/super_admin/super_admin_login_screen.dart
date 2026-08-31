@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
+import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../user/forgot_password_screen.dart';
@@ -23,8 +24,7 @@ class SuperAdminLoginScreen extends StatefulWidget {
   static const routeName = '/super-admin/login';
 
   @override
-  State<SuperAdminLoginScreen> createState() =>
-      _SuperAdminLoginScreenState();
+  State<SuperAdminLoginScreen> createState() => _SuperAdminLoginScreenState();
 }
 
 class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
@@ -42,8 +42,10 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
     duration: const Duration(milliseconds: 700),
   )..forward();
 
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _entryCtrl,
+    curve: Curves.easeOut,
+  );
 
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.07),
@@ -64,11 +66,14 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
 
     setState(() => _loading = true);
     try {
-      await context.read<AppState>().loginWithPassword(
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
-          );
       final appState = context.read<AppState>();
+      final identifier = _emailCtrl.text.trim();
+      final phone = Validators.normalizePhone(identifier);
+      await appState.loginWithPassword(
+        email: identifier.contains('@') ? identifier : null,
+        phone: identifier.contains('@') ? null : phone,
+        password: _passCtrl.text,
+      );
       if (appState.user?.role != UserRoles.superAdmin) {
         await appState.logout();
         if (!mounted) return;
@@ -83,8 +88,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
       setState(() => _error = _friendlyAuthError(e));
     } catch (e) {
       if (!mounted) return;
-      setState(
-          () => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -134,20 +138,9 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                             controller: _emailCtrl,
                             hint: 'superadmin@doormart.com or 9876543210',
                             icon: Icons.manage_accounts_rounded,
-                            keyboardType: TextInputType.emailAddress,
+                            keyboardType: TextInputType.text,
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Enter your email or phone';
-                              }
-                              final value = v.trim();
-                              final isEmail = value.contains('@');
-                              final isPhone = RegExp(r'^\+?\d{7,15}$').hasMatch(
-                                value.replaceAll(RegExp(r'\s+'), ''),
-                              );
-                              if (!isEmail && !isPhone) {
-                                return 'Enter a valid email or phone number';
-                              }
-                              return null;
+                              return Validators.emailOrPhone(v);
                             },
                           ),
 
@@ -172,10 +165,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
-                            validator: (v) =>
-                                (v == null || v.isEmpty)
-                                    ? 'Enter your password'
-                                    : null,
+                            validator: (v) => Validators.password(v),
                           ),
 
                           const SizedBox(height: 6),
@@ -185,16 +175,15 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                Navigator.of(context).pushNamed(
-                                  ForgotPasswordScreen.routeName,
-                                );
+                                Navigator.of(
+                                  context,
+                                ).pushNamed(ForgotPasswordScreen.routeName);
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: _kOrange,
                                 padding: EdgeInsets.zero,
                                 minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: const Text(
                                 'Forgot master password?',
@@ -215,10 +204,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
                           const SizedBox(height: 24),
 
                           // ── Login button ──────────────────────────────
-                          _LoginButton(
-                            loading: _loading,
-                            onTap: _login,
-                          ),
+                          _LoginButton(loading: _loading, onTap: _login),
 
                           const SizedBox(height: 28),
 
@@ -322,7 +308,10 @@ class _SuperAdminHeroHeader extends StatelessWidget {
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(999),
@@ -398,16 +387,19 @@ class _SuperAdminHeroHeader extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _PrivilegeChip(
-                          icon: Icons.insights_rounded,
-                          label: 'Analytics'),
+                        icon: Icons.insights_rounded,
+                        label: 'Analytics',
+                      ),
                       const SizedBox(width: 8),
                       _PrivilegeChip(
-                          icon: Icons.groups_rounded,
-                          label: 'All Users'),
+                        icon: Icons.groups_rounded,
+                        label: 'All Users',
+                      ),
                       const SizedBox(width: 8),
                       _PrivilegeChip(
-                          icon: Icons.settings_rounded,
-                          label: 'Platform'),
+                        icon: Icons.settings_rounded,
+                        label: 'Platform',
+                      ),
                     ],
                   ),
                 ),
@@ -420,7 +412,8 @@ class _SuperAdminHeroHeader extends StatelessWidget {
                   decoration: const BoxDecoration(
                     color: _kBg,
                     borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28)),
+                      top: Radius.circular(28),
+                    ),
                   ),
                 ),
               ],
@@ -515,10 +508,10 @@ class _PulseDotState extends State<_PulseDot>
     duration: const Duration(milliseconds: 900),
   )..repeat(reverse: true);
 
-  late final Animation<double> _s =
-      Tween<double>(begin: 0.7, end: 1.3).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 0.7,
+    end: 1.3,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -605,11 +598,7 @@ class _WelcomeCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Full platform control with elevated\nprivileges and audit capabilities',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _kTextMid,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(fontSize: 12, color: _kTextMid, height: 1.4),
                 ),
               ],
             ),
@@ -688,10 +677,14 @@ class _Field extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-              color: _kTextMid.withValues(alpha: 0.6), fontSize: 14),
+            color: _kTextMid.withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 14,
+          ),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Icon(icon, color: _kOrange, size: 20),
@@ -763,10 +756,10 @@ class _LoginButtonState extends State<_LoginButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _s =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _s = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -798,14 +791,14 @@ class _LoginButtonState extends State<_LoginButton>
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
-            color:
-                widget.loading ? const Color(0xFFE0E0E0) : null,
+            color: widget.loading ? const Color(0xFFE0E0E0) : null,
             borderRadius: BorderRadius.circular(16),
             border: widget.loading
                 ? null
                 : Border.all(
                     color: _kOrange.withValues(alpha: 0.35),
-                    width: 1.5),
+                    width: 1.5,
+                  ),
             boxShadow: widget.loading
                 ? []
                 : [
@@ -822,15 +815,18 @@ class _LoginButtonState extends State<_LoginButton>
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation(Colors.white)),
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
                   )
                 : const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.admin_panel_settings_rounded,
-                          color: Colors.white, size: 20),
+                      Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Enter Master Control',
@@ -882,8 +878,11 @@ class _PlatformStrip extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.workspace_premium_rounded,
-                  size: 14, color: _kOrange),
+              const Icon(
+                Icons.workspace_premium_rounded,
+                size: 14,
+                color: _kOrange,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Super Admin Privileges',
@@ -909,7 +908,8 @@ class _PlatformStrip extends StatelessWidget {
                       color: _kCard,
                       borderRadius: BorderRadius.circular(13),
                       border: Border.all(
-                          color: _kOrange.withValues(alpha: 0.15)),
+                        color: _kOrange.withValues(alpha: 0.15),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: _kOrange.withValues(alpha: 0.10),
@@ -961,8 +961,11 @@ class _PrivilegeNotice extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: _kOrange, size: 16),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: _kOrange,
+                size: 16,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -982,10 +985,11 @@ class _PrivilegeNotice extends StatelessWidget {
             children: [
               const SizedBox(width: 24),
               _NoticeChip(
-                  icon: Icons.visibility_rounded, label: 'Session recorded'),
+                icon: Icons.visibility_rounded,
+                label: 'Session recorded',
+              ),
               const SizedBox(width: 8),
-              _NoticeChip(
-                  icon: Icons.shield_rounded, label: '2FA recommended'),
+              _NoticeChip(icon: Icons.shield_rounded, label: '2FA recommended'),
             ],
           ),
         ],
@@ -1046,8 +1050,11 @@ class _Footer extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.workspace_premium_rounded,
-                  color: Colors.white, size: 12),
+              child: const Icon(
+                Icons.workspace_premium_rounded,
+                color: Colors.white,
+                size: 12,
+              ),
             ),
             const SizedBox(width: 6),
             const Text(
