@@ -2452,6 +2452,11 @@ class _PopularStyleProductCard extends StatelessWidget {
                   ),
                   Positioned(
                     top: 10,
+                    left: 10,
+                    child: _EssentialsRatingBadge(rating: product.rating),
+                  ),
+                  Positioned(
+                    top: 10,
                     right: 10,
                     child: _QuantityLikeFavorite(
                       isFavorite: isFavorite,
@@ -2582,6 +2587,39 @@ class _PopularStyleProductCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EssentialsRatingBadge extends StatelessWidget {
+  const _EssentialsRatingBadge({required this.rating});
+
+  final double rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFD54F)),
+          const SizedBox(width: 3),
+          Text(
+            rating > 0 ? rating.toStringAsFixed(1) : 'New',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
