@@ -761,7 +761,9 @@ class _ProductFeedCard extends StatelessWidget {
                                         vertical: 12,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -777,11 +779,7 @@ class _ProductFeedCard extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 14,
-            top: 14,
-            child: _GlassEdgeGlow(accent: accent),
-          ),
+          Positioned(left: 14, top: 14, child: _GlassEdgeGlow(accent: accent)),
         ],
       ),
     );
@@ -800,10 +798,7 @@ class _GlassEdgeGlow extends StatelessWidget {
       height: 58,
       decoration: BoxDecoration(
         gradient: RadialGradient(
-          colors: [
-            accent.withValues(alpha: 0.22),
-            Colors.transparent,
-          ],
+          colors: [accent.withValues(alpha: 0.22), Colors.transparent],
         ),
       ),
     );
@@ -825,10 +820,8 @@ class _GlassImage extends StatelessWidget {
         ? Image.network(
             normalized,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _funnyMissingImageFallback(
-              context,
-              product,
-            ),
+            errorBuilder: (_, __, ___) =>
+                _funnyMissingImageFallback(context, product),
           )
         : _funnyMissingImageFallback(context, product);
 
@@ -844,40 +837,6 @@ class _GlassImage extends StatelessWidget {
               colors: [
                 Colors.black.withValues(alpha: 0.05),
                 Colors.black.withValues(alpha: 0.28),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          left: 16,
-          bottom: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  'Premium selection',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
               ],
             ),
           ),
@@ -908,7 +867,9 @@ class _ChipLabel extends StatelessWidget {
           Icon(icon, size: 12, color: Colors.white),
           const SizedBox(width: 5),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width - 92,
+            ),
             child: Text(
               label,
               maxLines: 1,

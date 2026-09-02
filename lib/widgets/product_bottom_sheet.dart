@@ -18,8 +18,6 @@ Future<void> showProductBottomSheet(
   ProductModel product, {
   Future<void> Function(int quantity, ProductUnitVariant variant)? onAddToCart,
 }) {
-  final mq = MediaQuery.of(context);
-
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -27,8 +25,10 @@ Future<void> showProductBottomSheet(
     barrierColor: Colors.black.withValues(alpha: 0.65),
     builder: (ctx) {
       return SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: _ProductSheet(product: product, onAddToCart: onAddToCart),
@@ -148,12 +148,14 @@ class _ProductSheetState extends State<_ProductSheet>
     final catColor = _categoryAccent(product.category);
     final vendorName = _vendorNameFor(product);
     final canPickVariant = product.unitVariants.length > 1;
-    final selectedPrice = selectedVariant.price > 0 ? selectedVariant.price : product.price;
+    final selectedPrice = selectedVariant.price > 0
+        ? selectedVariant.price
+        : product.price;
     final selectedMrp = selectedVariant.discountCost > selectedPrice
         ? selectedVariant.discountCost
         : product.mrp > selectedPrice
-            ? product.mrp
-            : selectedPrice * 1.12;
+        ? product.mrp
+        : selectedPrice * 1.12;
     final selectedStock = selectedVariant.stock > 0
         ? selectedVariant.stock
         : product.stock;
@@ -193,9 +195,7 @@ class _ProductSheetState extends State<_ProductSheet>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: [
-                            _CategoryPill(category: product.category),
-                          ],
+                          children: [_CategoryPill(category: product.category)],
                         ),
                         const SizedBox(height: 10),
                         Text(
@@ -268,8 +268,10 @@ class _ProductSheetState extends State<_ProductSheet>
                           ],
                         ),
                         const SizedBox(height: 14),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             Text(
                               'Rs ${selectedPrice.toStringAsFixed(0)}',
@@ -280,7 +282,6 @@ class _ProductSheetState extends State<_ProductSheet>
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Text(
                               'Rs ${selectedMrp.toStringAsFixed(0)}',
                               style: const TextStyle(
@@ -291,7 +292,6 @@ class _ProductSheetState extends State<_ProductSheet>
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -374,8 +374,13 @@ class _ImageHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final heroHeight = (MediaQuery.sizeOf(context).width * 0.58).clamp(
+      190.0,
+      240.0,
+    );
+
     return SizedBox(
-      height: 240,
+      height: heroHeight,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
@@ -652,23 +657,18 @@ class _DeliveryStrip extends StatelessWidget {
         children: [
           const Icon(Icons.local_shipping_rounded, size: 16, color: _kGreen),
           const SizedBox(width: 8),
-          const Text(
-            'Free delivery • Arrives in ',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: _kGreen,
-              fontWeight: FontWeight.w600,
+          const Expanded(
+            child: Text(
+              'Free delivery • Arrives in 10 minutes',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: _kGreen,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const Text(
-            '10 minutes',
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w900,
-              color: _kGreen,
-            ),
-          ),
-          const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
@@ -733,6 +733,8 @@ class _VendorSourceCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             vendorName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
@@ -1195,6 +1197,8 @@ class _AddToCartButtonState extends State<_AddToCartButton>
                       ),
                       Text(
                         'Rs ${widget.totalPrice.toStringAsFixed(0)} • ${widget.unitLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.80),
                           fontSize: 11,
@@ -1373,16 +1377,18 @@ class _ProductReviewsSection extends StatelessWidget {
         builder: (context, snapshot) {
           final reviews = snapshot.data ?? const <ProductReviewModel>[];
           final visibleReviews = reviews.take(3).toList();
-          final count = product.ratingCount > 0 ? product.ratingCount : reviews.length;
+          final count = product.ratingCount > 0
+              ? product.ratingCount
+              : reviews.length;
           final average = product.rating > 0
               ? product.rating
               : (reviews.isEmpty
                     ? 0
                     : reviews.fold<double>(
-                        0,
-                        (sum, review) => sum + review.rating,
-                      ) /
-                      reviews.length);
+                            0,
+                            (sum, review) => sum + review.rating,
+                          ) /
+                          reviews.length);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1410,7 +1416,10 @@ class _ProductReviewsSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
                 children: [
                   Text(
                     average > 0 ? average.toStringAsFixed(1) : 'No rating yet',
@@ -1420,11 +1429,11 @@ class _ProductReviewsSection extends StatelessWidget {
                       color: Color(0xFF111827),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   _CompactStars(rating: average.toDouble()),
-                  const SizedBox(width: 8),
                   Text(
-                    count > 0 ? 'from $count customers' : 'Be the first to review',
+                    count > 0
+                        ? 'from $count customers'
+                        : 'Be the first to review',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF6B7280),
@@ -1437,10 +1446,7 @@ class _ProductReviewsSection extends StatelessWidget {
               if (snapshot.hasError)
                 const Text(
                   'Could not load review comments right now.',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                 )
               else if (snapshot.connectionState == ConnectionState.waiting &&
                   reviews.isEmpty)
@@ -1555,6 +1561,8 @@ class _ReviewTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         review.userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
@@ -1562,12 +1570,17 @@ class _ReviewTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      _reviewTimeLabel(review.createdAt),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF9CA3AF),
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        _reviewTimeLabel(review.createdAt),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9CA3AF),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -1622,12 +1635,12 @@ class _ReviewAvatar extends StatelessWidget {
                 errorBuilder: (_, __, ___) => _initials(),
               )
             : hasAsset
-                ? Image.asset(
-                    avatar,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _initials(),
-                  )
-                : _initials(),
+            ? Image.asset(
+                avatar,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _initials(),
+              )
+            : _initials(),
       ),
     );
   }

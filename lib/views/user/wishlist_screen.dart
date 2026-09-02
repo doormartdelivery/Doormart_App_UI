@@ -536,7 +536,9 @@ class _FavoriteCard extends StatelessWidget {
                         Positioned(
                           top: 14,
                           left: 14,
-                          child: _StarBadge(rating: product.rating.toStringAsFixed(1)),
+                          child: _StarBadge(
+                            rating: product.rating.toStringAsFixed(1),
+                          ),
                         ),
                         Positioned(
                           top: 14,
@@ -551,14 +553,18 @@ class _FavoriteCard extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFE8541A).withValues(alpha: 0.22),
+                                    color: const Color(
+                                      0xFFE8541A,
+                                    ).withValues(alpha: 0.22),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
                               child: Icon(
-                                isFavorited ? Icons.favorite : Icons.favorite_border,
+                                isFavorited
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
                                 size: 18,
                                 color: isFavorited
                                     ? const Color(0xFFE8541A)
@@ -801,10 +807,7 @@ class _GlassThumb extends StatelessWidget {
             normalized,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
-                _funnyMissingImageFallback(
-              context,
-              product,
-            ),
+                _funnyMissingImageFallback(context, product),
           )
         : _funnyMissingImageFallback(context, product);
 
@@ -822,14 +825,6 @@ class _GlassThumb extends StatelessWidget {
                 Colors.black.withValues(alpha: 0.24),
               ],
             ),
-          ),
-        ),
-        Positioned(
-          left: 12,
-          bottom: 12,
-          child: _MiniGlassChip(
-            icon: Icons.local_fire_department_rounded,
-            label: 'Trending',
           ),
         ),
       ],
@@ -858,7 +853,9 @@ class _MiniGlassChip extends StatelessWidget {
           Icon(icon, size: 12, color: Colors.white),
           const SizedBox(width: 5),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 150),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width - 92,
+            ),
             child: Text(
               label,
               maxLines: 1,

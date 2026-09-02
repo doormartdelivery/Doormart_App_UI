@@ -1991,10 +1991,7 @@ class _QuantityLikeFavorite extends StatelessWidget {
 }
 
 class _HomeRatingChip extends StatelessWidget {
-  const _HomeRatingChip({
-    required this.summary,
-    required this.loading,
-  });
+  const _HomeRatingChip({required this.summary, required this.loading});
 
   final _ReviewSummary summary;
   final bool loading;
@@ -2055,10 +2052,7 @@ class _HomeRatingChip extends StatelessWidget {
 }
 
 class _ReviewSummary {
-  const _ReviewSummary({
-    required this.average,
-    required this.count,
-  });
+  const _ReviewSummary({required this.average, required this.count});
 
   final double average;
   final int count;
@@ -2278,61 +2272,68 @@ class _EssentialsGrid extends StatelessWidget {
             ),
           );
         }
-        return GridView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 0.58,
-          ),
-          itemBuilder: (ctx, i) {
-            final product = products[i];
-            return Selector<AppState, bool>(
-              selector: (_, appState) => appState.isFavorite(product),
-              builder: (ctx, isFavorite, _) {
-                return _PopularStyleProductCard(
-                  product: product,
-                  isFavorite: isFavorite,
-                  imageFallbackBuilder: _funnyMissingImageFallback,
-                  onFavoriteToggle: () => onFavoriteToggle(product),
-                  onTap: () => showProductBottomSheet(
-                    ctx,
-                    product,
-                    onAddToCart: (qty, variant) async {
-                      final tapSw = Stopwatch()..start();
-                      final ok = await state.addToCart(
-                        product,
-                        quantity: qty,
-                        unit: variant.unit,
-                        price: variant.price,
-                        discountCost: variant.discountCost,
-                        stock: variant.stock,
-                      );
-                      if (!ctx.mounted) return;
-                      showToast(
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 14) / 2;
+            final cardHeight = (cardWidth * 1.92).clamp(300.0, 360.0);
+
+            return GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: products.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                mainAxisExtent: cardHeight,
+              ),
+              itemBuilder: (ctx, i) {
+                final product = products[i];
+                return Selector<AppState, bool>(
+                  selector: (_, appState) => appState.isFavorite(product),
+                  builder: (ctx, isFavorite, _) {
+                    return _PopularStyleProductCard(
+                      product: product,
+                      isFavorite: isFavorite,
+                      imageFallbackBuilder: _funnyMissingImageFallback,
+                      onFavoriteToggle: () => onFavoriteToggle(product),
+                      onTap: () => showProductBottomSheet(
                         ctx,
-                        ok
-                            ? '${product.name} added to cart'
-                            : state.error ?? 'Please login first',
-                      );
-                      _logNextFrame('cart:popular', tapSw);
-                    },
-                  ),
-                  onAdd: () async {
-                    final tapSw = Stopwatch()..start();
-                    final ok = await state.addToCart(product);
-                    if (!ctx.mounted) return;
-                    showToast(
-                      ctx,
-                      ok
-                          ? '${product.name} added to cart'
-                          : state.error ?? 'Please login first',
+                        product,
+                        onAddToCart: (qty, variant) async {
+                          final tapSw = Stopwatch()..start();
+                          final ok = await state.addToCart(
+                            product,
+                            quantity: qty,
+                            unit: variant.unit,
+                            price: variant.price,
+                            discountCost: variant.discountCost,
+                            stock: variant.stock,
+                          );
+                          if (!ctx.mounted) return;
+                          showToast(
+                            ctx,
+                            ok
+                                ? '${product.name} added to cart'
+                                : state.error ?? 'Please login first',
+                          );
+                          _logNextFrame('cart:popular', tapSw);
+                        },
+                      ),
+                      onAdd: () async {
+                        final tapSw = Stopwatch()..start();
+                        final ok = await state.addToCart(product);
+                        if (!ctx.mounted) return;
+                        showToast(
+                          ctx,
+                          ok
+                              ? '${product.name} added to cart'
+                              : state.error ?? 'Please login first',
+                        );
+                        _logNextFrame('cart:popular', tapSw);
+                      },
                     );
-                    _logNextFrame('cart:popular', tapSw);
                   },
                 );
               },
@@ -2427,6 +2428,8 @@ class _PopularStyleProductCard extends StatelessWidget {
                     ),
                     Text(
                       '${product.category} • ${_unitLabel(product.unit)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 12, color: _kTextMid),
                     ),
                     Text(
@@ -2444,24 +2447,34 @@ class _PopularStyleProductCard extends StatelessWidget {
                     ),
                     Row(
                       children: [
-                        Text(
-                          '₹ ${product.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: _kTextDark,
+                        Flexible(
+                          child: FittedBox(
+                            alignment: Alignment.centerLeft,
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '₹ ${product.price.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: _kTextDark,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          '₹ ${_mrpValue(product).toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _kTextMid,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: _kTextMid,
-                            decorationThickness: 1.6,
+                        Flexible(
+                          child: Text(
+                            '₹ ${_mrpValue(product).toStringAsFixed(0)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _kTextMid,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: _kTextMid,
+                              decorationThickness: 1.6,
+                            ),
                           ),
                         ),
                         const Spacer(),
@@ -3673,8 +3686,8 @@ class _FeedChipState extends State<_FeedChip>
         scale: _scale,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          constraints: const BoxConstraints(minWidth: 92),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          constraints: const BoxConstraints(minWidth: 104, minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: widget.active
@@ -3700,16 +3713,36 @@ class _FeedChipState extends State<_FeedChip>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(widget.icon, size: 16, color: _kGreen),
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                  color: _kGreen,
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: widget.active
+                      ? _kGreen.withValues(alpha: 0.16)
+                      : Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(widget.icon, size: 15, color: _kGreen),
                 ),
               ),
+              const SizedBox(width: 7),
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: _kGreen,
+                  letterSpacing: 0.1,
+                ),
+              ),
+              if (widget.active) ...[
+                const SizedBox(width: 7),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 15,
+                  color: _kGreen,
+                ),
+              ],
             ],
           ),
         ),
@@ -3732,29 +3765,74 @@ class _SortTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: selected ? _kGreen : _kTextDark,
-        ),
-      ),
-      trailing: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: selected
-            ? Icon(
-                Icons.check_circle_rounded,
-                color: _kGreen,
-                key: const ValueKey(true),
-              )
-            : const Icon(
-                Icons.circle_outlined,
-                color: Color(0xFFB7B0A6),
-                key: ValueKey(false),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? _kGreenLight : const Color(0xFFF8F8F8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? _kGreen.withValues(alpha: 0.45) : _kBorder,
               ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: _kGreen.withValues(alpha: 0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: selected ? _kGreen : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? _kGreen : const Color(0xFFD6D6D6),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.sort_rounded,
+                      size: 15,
+                      color: selected ? Colors.white : _kTextMid,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: selected ? _kGreen : _kTextDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  color: selected ? _kGreen : const Color(0xFFB7B0A6),
+                  size: 21,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
