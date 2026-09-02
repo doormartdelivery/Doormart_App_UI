@@ -539,7 +539,9 @@ class _ProductFeedCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.black.withValues(alpha: 0.42),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.42,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -639,11 +641,7 @@ class _GlassThumb extends StatelessWidget {
             normalized,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
-                _funnyMissingImageFallback(
-              context,
-              product,
-              compact: true,
-            ),
+                _funnyMissingImageFallback(context, product, compact: true),
           )
         : _funnyMissingImageFallback(context, product, compact: true);
 
@@ -661,14 +659,6 @@ class _GlassThumb extends StatelessWidget {
                 Colors.black.withValues(alpha: 0.24),
               ],
             ),
-          ),
-        ),
-        Positioned(
-          left: 12,
-          bottom: 12,
-          child: _MiniGlassChip(
-            icon: Icons.local_fire_department_rounded,
-            label: 'Trending',
           ),
         ),
       ],
@@ -697,7 +687,9 @@ class _MiniGlassChip extends StatelessWidget {
           Icon(icon, size: 12, color: Colors.white),
           const SizedBox(width: 5),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 150),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width - 92,
+            ),
             child: Text(
               label,
               maxLines: 1,
@@ -772,29 +764,6 @@ Widget _funnyMissingImageFallback(
     child: Stack(
       fit: StackFit.expand,
       children: [
-        Positioned(
-          top: 16,
-          right: 16,
-          child: Transform.rotate(
-            angle: 0.12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: accent.withValues(alpha: 0.28)),
-              ),
-              child: const Text(
-                'oops',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF7C2D12),
-                ),
-              ),
-            ),
-          ),
-        ),
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

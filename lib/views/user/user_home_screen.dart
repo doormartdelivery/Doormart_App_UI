@@ -226,87 +226,15 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     final categories = context.read<AppState>().categoryCatalog;
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose category',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: _kTextDark,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    child: ChoiceChip(
-                      label: const Text('All'),
-                      selected: _selectedCategory == 'All',
-                      selectedColor: _kGreenLight,
-                      labelStyle: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: _selectedCategory == 'All' ? _kGreen : _kTextMid,
-                      ),
-                      onSelected: (_) =>
-                          setModal(() => _selectedCategory = 'All'),
-                    ),
-                  ),
-                  ...categories.map((cat) {
-                    final sel = _selectedCategory == cat.name;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      child: ChoiceChip(
-                        label: Text(cat.name),
-                        selected: sel,
-                        selectedColor: _kGreenLight,
-                        labelStyle: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: sel ? _kGreen : _kTextMid,
-                        ),
-                        onSelected: (_) =>
-                            setModal(() => _selectedCategory = cat.name),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: const Text(
-                    'Apply Filters',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _PremiumCategorySheet(
+        categories: categories.map((category) => category.name).toList(),
+        selectedCategory: _selectedCategory,
+        onApply: (category) {
+          setState(() => _selectedCategory = category);
+          Navigator.pop(sheetCtx);
+        },
       ),
     );
   }
@@ -315,83 +243,15 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     final categories = context.read<AppState>().categoryCatalog;
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose category',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: _kTextDark,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: _popularSelectedCategory == 'All',
-                    selectedColor: _kGreenLight,
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: _popularSelectedCategory == 'All'
-                          ? _kGreen
-                          : _kTextMid,
-                    ),
-                    onSelected: (_) =>
-                        setModal(() => _popularSelectedCategory = 'All'),
-                  ),
-                  ...categories.map((cat) {
-                    final sel = _popularSelectedCategory == cat.name;
-                    return ChoiceChip(
-                      label: Text(cat.name),
-                      selected: sel,
-                      selectedColor: _kGreenLight,
-                      labelStyle: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: sel ? _kGreen : _kTextMid,
-                      ),
-                      onSelected: (_) =>
-                          setModal(() => _popularSelectedCategory = cat.name),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: const Text(
-                    'Apply Filters',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _PremiumCategorySheet(
+        categories: categories.map((category) => category.name).toList(),
+        selectedCategory: _popularSelectedCategory,
+        onApply: (category) {
+          setState(() => _popularSelectedCategory = category);
+          Navigator.pop(sheetCtx);
+        },
       ),
     );
   }
@@ -399,81 +259,14 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   void _showPopularSortSheet() {
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sort products',
-                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: _kTextDark,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _SortTile(
-                label: 'Relevance',
-                selected: _popularSort == _EssentialsSort.relevance,
-                onTap: () =>
-                    setModal(() => _popularSort = _EssentialsSort.relevance),
-              ),
-              _SortTile(
-                label: 'Price: Low to High',
-                selected: _popularSort == _EssentialsSort.priceLowHigh,
-                onTap: () =>
-                    setModal(() => _popularSort = _EssentialsSort.priceLowHigh),
-              ),
-              _SortTile(
-                label: 'Price: High to Low',
-                selected: _popularSort == _EssentialsSort.priceHighLow,
-                onTap: () =>
-                    setModal(() => _popularSort = _EssentialsSort.priceHighLow),
-              ),
-              _SortTile(
-                label: 'Rating: High to Low',
-                selected: _popularSort == _EssentialsSort.ratingHighLow,
-                onTap: () => setModal(
-                  () => _popularSort = _EssentialsSort.ratingHighLow,
-                ),
-              ),
-              _SortTile(
-                label: 'Name: A to Z',
-                selected: _popularSort == _EssentialsSort.nameAZ,
-                onTap: () =>
-                    setModal(() => _popularSort = _EssentialsSort.nameAZ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: const Text(
-                    'Apply Sort',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _PremiumSortSheet(
+        selected: _popularSort,
+        onApply: (sort) {
+          setState(() => _popularSort = sort);
+          Navigator.pop(sheetCtx);
+        },
       ),
     );
   }
@@ -481,48 +274,309 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   void _showSortSheet() {
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _PremiumSortSheet(
+        selected: _sort,
+        onApply: (sort) {
+          setState(() => _sort = sort);
+          Navigator.pop(sheetCtx);
+        },
       ),
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...[
-                ('Relevance', _EssentialsSort.relevance),
-                ('Price: Low to High', _EssentialsSort.priceLowHigh),
-                ('Price: High to Low', _EssentialsSort.priceHighLow),
-                ('Rating: High to Low', _EssentialsSort.ratingHighLow),
-                ('Name: A to Z', _EssentialsSort.nameAZ),
-              ].map(
-                (e) => _SortTile(
-                  label: e.$1,
-                  selected: _sort == e.$2,
-                  onTap: () => setModal(() => _sort = e.$2),
+    );
+  }
+}
+
+class _PremiumCategorySheet extends StatefulWidget {
+  const _PremiumCategorySheet({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onApply,
+  });
+
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onApply;
+
+  @override
+  State<_PremiumCategorySheet> createState() => _PremiumCategorySheetState();
+}
+
+class _PremiumCategorySheetState extends State<_PremiumCategorySheet> {
+  late String _selected = widget.selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = ['All', ...widget.categories];
+    return _PremiumSheetFrame(
+      icon: Icons.tune_rounded,
+      title: 'Filter products',
+      subtitle: 'Choose a category to refine your essentials.',
+      actionLabel: 'Apply Filters',
+      onAction: () => widget.onApply(_selected),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          for (final category in options)
+            _PremiumCategoryOption(
+              label: category,
+              selected: _selected == category,
+              onTap: () => setState(() => _selected = category),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumCategoryOption extends StatelessWidget {
+  const _PremiumCategoryOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        constraints: BoxConstraints(
+          minHeight: 44,
+          maxWidth: MediaQuery.sizeOf(context).width - 56,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? _kGreenLight : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? _kGreen : const Color(0xFFE8E2DD),
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: _kGreen.withValues(alpha: 0.14),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 17,
+              color: selected ? _kGreen : const Color(0xFFB7B0A6),
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: selected ? _kGreen : _kTextDark,
                 ),
               ),
-              const SizedBox(height: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumSortSheet extends StatefulWidget {
+  const _PremiumSortSheet({required this.selected, required this.onApply});
+
+  final _EssentialsSort selected;
+  final ValueChanged<_EssentialsSort> onApply;
+
+  @override
+  State<_PremiumSortSheet> createState() => _PremiumSortSheetState();
+}
+
+class _PremiumSortSheetState extends State<_PremiumSortSheet> {
+  late _EssentialsSort _selected = widget.selected;
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      ('Relevance', _EssentialsSort.relevance),
+      ('Price: Low to High', _EssentialsSort.priceLowHigh),
+      ('Price: High to Low', _EssentialsSort.priceHighLow),
+      ('Rating: High to Low', _EssentialsSort.ratingHighLow),
+      ('Name: A to Z', _EssentialsSort.nameAZ),
+    ];
+
+    return _PremiumSheetFrame(
+      icon: Icons.swap_vert_rounded,
+      title: 'Sort products',
+      subtitle: 'Choose how products should appear on this page.',
+      actionLabel: 'Apply Sort',
+      onAction: () => widget.onApply(_selected),
+      child: Column(
+        children: [
+          for (final option in options)
+            _SortTile(
+              label: option.$1,
+              selected: _selected == option.$2,
+              onTap: () => setState(() => _selected = option.$2),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumSheetFrame extends StatelessWidget {
+  const _PremiumSheetFrame({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onAction,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFFCFA),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3D9D1),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFEFE7), Color(0xFFFFD8C3)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(icon, color: _kGreen, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                            color: _kTextDark,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                            color: _kTextMid,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              child,
+              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                height: 52,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFF26522), Color(0xFFE54518)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    borderRadius: BorderRadius.circular(17),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kGreen.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 7),
+                      ),
+                    ],
                   ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: const Text(
-                    'Apply Sort',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  child: FilledButton.icon(
+                    onPressed: onAction,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: Text(
+                      actionLabel,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(17),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -7,6 +7,7 @@ import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/product_bottom_sheet.dart';
+import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import 'cart_screen.dart';
@@ -174,101 +175,26 @@ class _WishlistScreenState extends State<WishlistScreen> {
   void _showFilterSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose filter',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF1E1C1A),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Fast Delivery'),
-                    selected: _fastDeliveryOnly,
-                    onSelected: (_) => setModalState(
-                      () => _fastDeliveryOnly = !_fastDeliveryOnly,
-                    ),
-                    selectedColor: const Color(0xFFFFF0EB),
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: _fastDeliveryOnly
-                          ? const Color(0xFFE8541A)
-                          : const Color(0xFF4E4A47),
-                      fontWeight: FontWeight.w700,
-                    ),
-                    side: BorderSide(
-                      color: _fastDeliveryOnly
-                          ? const Color(0xFFE8541A)
-                          : const Color(0xFFE6D7CE),
-                    ),
-                    checkmarkColor: const Color(0xFFE8541A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Ratings 4.0+'),
-                    selected: _ratingOnly,
-                    onSelected: (_) =>
-                        setModalState(() => _ratingOnly = !_ratingOnly),
-                    selectedColor: const Color(0xFFFFF0EB),
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: _ratingOnly
-                          ? const Color(0xFFE8541A)
-                          : const Color(0xFF4E4A47),
-                      fontWeight: FontWeight.w700,
-                    ),
-                    side: BorderSide(
-                      color: _ratingOnly
-                          ? const Color(0xFFE8541A)
-                          : const Color(0xFFE6D7CE),
-                    ),
-                    checkmarkColor: const Color(0xFFE8541A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE8541A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetContext);
-                  },
-                  child: const Text('Apply Filters'),
-                ),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => PremiumSelectionSheet(
+        icon: Icons.tune_rounded,
+        title: 'Filter favourites',
+        subtitle: 'Select one or more ways to refine your saved products.',
+        options: const ['Fast Delivery', 'Ratings 4.0+'],
+        selectedValues: {
+          if (_fastDeliveryOnly) 'Fast Delivery',
+          if (_ratingOnly) 'Ratings 4.0+',
+        },
+        multiSelect: true,
+        actionLabel: 'Apply Filters',
+        onApply: (values) {
+          setState(() {
+            _fastDeliveryOnly = values.contains('Fast Delivery');
+            _ratingOnly = values.contains('Ratings 4.0+');
+          });
+          Navigator.pop(sheetContext);
+        },
       ),
     );
   }
@@ -276,77 +202,26 @@ class _WishlistScreenState extends State<WishlistScreen> {
   void _showSortSheet(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sort by',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF1E1C1A),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _SortTile(
-                label: 'Relevance',
-                selected: _sort == _WishlistSort.relevance,
-                onTap: () =>
-                    setModalState(() => _sort = _WishlistSort.relevance),
-              ),
-              _SortTile(
-                label: 'Price: Low to High',
-                selected: _sort == _WishlistSort.priceLowHigh,
-                onTap: () =>
-                    setModalState(() => _sort = _WishlistSort.priceLowHigh),
-              ),
-              _SortTile(
-                label: 'Price: High to Low',
-                selected: _sort == _WishlistSort.priceHighLow,
-                onTap: () =>
-                    setModalState(() => _sort = _WishlistSort.priceHighLow),
-              ),
-              _SortTile(
-                label: 'Rating: High to Low',
-                selected: _sort == _WishlistSort.ratingHighLow,
-                onTap: () =>
-                    setModalState(() => _sort = _WishlistSort.ratingHighLow),
-              ),
-              _SortTile(
-                label: 'Name: A to Z',
-                selected: _sort == _WishlistSort.nameAZ,
-                onTap: () => setModalState(() => _sort = _WishlistSort.nameAZ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE8541A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(sheetContext);
-                  },
-                  child: const Text('Apply Sort'),
-                ),
-              ),
-            ],
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => PremiumSelectionSheet(
+        icon: Icons.swap_vert_rounded,
+        title: 'Sort favourites',
+        subtitle: 'Choose how your saved products should appear.',
+        options: const [
+          'Relevance',
+          'Price: Low to High',
+          'Price: High to Low',
+          'Rating: High to Low',
+          'Name: A to Z',
+        ],
+        selectedValues: {_wishlistSortLabel(_sort)},
+        listMode: true,
+        actionLabel: 'Apply Sort',
+        onApply: (values) {
+          setState(() => _sort = _wishlistSortFromLabel(values.first));
+          Navigator.pop(sheetContext);
+        },
       ),
     );
   }
@@ -358,6 +233,26 @@ enum _WishlistSort {
   priceHighLow,
   ratingHighLow,
   nameAZ,
+}
+
+String _wishlistSortLabel(_WishlistSort sort) {
+  return switch (sort) {
+    _WishlistSort.relevance => 'Relevance',
+    _WishlistSort.priceLowHigh => 'Price: Low to High',
+    _WishlistSort.priceHighLow => 'Price: High to Low',
+    _WishlistSort.ratingHighLow => 'Rating: High to Low',
+    _WishlistSort.nameAZ => 'Name: A to Z',
+  };
+}
+
+_WishlistSort _wishlistSortFromLabel(String label) {
+  return switch (label) {
+    'Price: Low to High' => _WishlistSort.priceLowHigh,
+    'Price: High to Low' => _WishlistSort.priceHighLow,
+    'Rating: High to Low' => _WishlistSort.ratingHighLow,
+    'Name: A to Z' => _WishlistSort.nameAZ,
+    _ => _WishlistSort.relevance,
+  };
 }
 
 // ─── Top Bar ────────────────────────────────────────────────────────────────
@@ -1051,38 +946,6 @@ class _EmptyFavoritesCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ─── Sort Tile ────────────────────────────────────────────────────────────────
-
-class _SortTile extends StatelessWidget {
-  const _SortTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: selected ? const Color(0xFFE8541A) : const Color(0xFF1E1C1A),
-        ),
-      ),
-      trailing: selected
-          ? const Icon(Icons.check_circle, color: Color(0xFFE8541A))
-          : const Icon(Icons.circle_outlined, color: Color(0xFFB7B0A6)),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_bottom_sheet.dart';
+import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 
 const _kBg = Color(0xFFF6F6F6);
@@ -263,204 +264,47 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final categories = context.read<AppState>().categoryCatalog;
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Choose category',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      ChoiceChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('All'),
-                            if (_selectedCategory == 'All') ...[
-                              const SizedBox(width: 6),
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                size: 16,
-                                color: Color(0xFFE8541A),
-                              ),
-                            ],
-                          ],
-                        ),
-                        selected: _selectedCategory == 'All',
-                        selectedColor: const Color(0xFFFFF0EB),
-                        backgroundColor: Colors.white,
-                        labelStyle: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: _selectedCategory == 'All'
-                              ? const Color(0xFFE8541A)
-                              : const Color(0xFF17211B),
-                        ),
-                        side: BorderSide(
-                          color: _selectedCategory == 'All'
-                              ? const Color(0xFFE8541A)
-                              : const Color(0xFFD9DED8),
-                        ),
-                        onSelected: (_) => setModalState(() {
-                          _selectedCategory = 'All';
-                        }),
-                      ),
-                      ...categories.map((category) {
-                        final selected = _selectedCategory == category.name;
-                        return ChoiceChip(
-                          label: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(category.name),
-                              if (selected) ...[
-                                const SizedBox(width: 6),
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 16,
-                                  color: Color(0xFFE8541A),
-                                ),
-                              ],
-                            ],
-                          ),
-                          selected: selected,
-                          selectedColor: const Color(0xFFFFF0EB),
-                          backgroundColor: Colors.white,
-                          labelStyle: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: selected
-                                ? const Color(0xFFE8541A)
-                                : const Color(0xFF17211B),
-                          ),
-                          side: BorderSide(
-                            color: selected
-                                ? const Color(0xFFE8541A)
-                                : const Color(0xFFD9DED8),
-                          ),
-                          onSelected: (_) => setModalState(() {
-                            _selectedCategory = category.name;
-                          }),
-                        );
-                      }),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8541A),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        setState(() {});
-                        Navigator.pop(sheetContext);
-                      },
-                      child: const Text('Apply Filters'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => PremiumSelectionSheet(
+        icon: Icons.tune_rounded,
+        title: 'Filter products',
+        subtitle: 'Choose a category to refine your product list.',
+        options: ['All', ...categories.map((category) => category.name)],
+        selectedValues: {_selectedCategory},
+        actionLabel: 'Apply Filters',
+        onApply: (values) {
+          setState(() => _selectedCategory = values.first);
+          Navigator.pop(sheetContext);
+        },
+      ),
     );
   }
 
   void _showSortSheet() {
     showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _SortTile(
-                    title: 'All',
-                    selected: _sort == _ProductListSort.relevance,
-                    onTap: () =>
-                        setModalState(() => _sort = _ProductListSort.relevance),
-                  ),
-                  _SortTile(
-                    title: 'Relevance',
-                    selected: _sort == _ProductListSort.relevance,
-                    onTap: () =>
-                        setModalState(() => _sort = _ProductListSort.relevance),
-                  ),
-                  _SortTile(
-                    title: 'Price: Low to High',
-                    selected: _sort == _ProductListSort.priceLowHigh,
-                    onTap: () => setModalState(
-                      () => _sort = _ProductListSort.priceLowHigh,
-                    ),
-                  ),
-                  _SortTile(
-                    title: 'Price: High to Low',
-                    selected: _sort == _ProductListSort.priceHighLow,
-                    onTap: () => setModalState(
-                      () => _sort = _ProductListSort.priceHighLow,
-                    ),
-                  ),
-                  _SortTile(
-                    title: 'Rating: High to Low',
-                    selected: _sort == _ProductListSort.ratingHighLow,
-                    onTap: () => setModalState(
-                      () => _sort = _ProductListSort.ratingHighLow,
-                    ),
-                  ),
-                  _SortTile(
-                    title: 'Name: A to Z',
-                    selected: _sort == _ProductListSort.nameAZ,
-                    onTap: () =>
-                        setModalState(() => _sort = _ProductListSort.nameAZ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFE8541A),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        setState(() {});
-                        Navigator.pop(sheetContext);
-                      },
-                      child: const Text('Apply Sort'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => PremiumSelectionSheet(
+        icon: Icons.swap_vert_rounded,
+        title: 'Sort products',
+        subtitle: 'Choose how products should appear in this list.',
+        options: const [
+          'Relevance',
+          'Price: Low to High',
+          'Price: High to Low',
+          'Rating: High to Low',
+          'Name: A to Z',
+        ],
+        selectedValues: {_productSortLabel(_sort)},
+        actionLabel: 'Apply Sort',
+        listMode: true,
+        onApply: (values) {
+          setState(() => _sort = _productSortFromLabel(values.first));
+          Navigator.pop(sheetContext);
+        },
+      ),
     );
   }
 }
@@ -471,6 +315,26 @@ enum _ProductListSort {
   priceHighLow,
   ratingHighLow,
   nameAZ,
+}
+
+String _productSortLabel(_ProductListSort sort) {
+  return switch (sort) {
+    _ProductListSort.relevance => 'Relevance',
+    _ProductListSort.priceLowHigh => 'Price: Low to High',
+    _ProductListSort.priceHighLow => 'Price: High to Low',
+    _ProductListSort.ratingHighLow => 'Rating: High to Low',
+    _ProductListSort.nameAZ => 'Name: A to Z',
+  };
+}
+
+_ProductListSort _productSortFromLabel(String label) {
+  return switch (label) {
+    'Price: Low to High' => _ProductListSort.priceLowHigh,
+    'Price: High to Low' => _ProductListSort.priceHighLow,
+    'Rating: High to Low' => _ProductListSort.ratingHighLow,
+    'Name: A to Z' => _ProductListSort.nameAZ,
+    _ => _ProductListSort.relevance,
+  };
 }
 
 class _Header extends StatelessWidget {
@@ -503,52 +367,6 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: 44),
       ],
-    );
-  }
-}
-
-class _SortTile extends StatelessWidget {
-  const _SortTile({
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      onTap: onTap,
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          color: selected ? const Color(0xFFE8541A) : const Color(0xFF17211B),
-        ),
-      ),
-      trailing: Container(
-        width: 22,
-        height: 22,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: selected ? const Color(0xFFFFF0EB) : Colors.transparent,
-          border: Border.all(
-            color: selected ? const Color(0xFFE8541A) : const Color(0xFFB8C2B6),
-            width: 1.4,
-          ),
-        ),
-        child: selected
-            ? const Icon(
-                Icons.check_rounded,
-                size: 15,
-                color: Color(0xFFE8541A),
-              )
-            : null,
-      ),
     );
   }
 }
