@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
 import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfupi.dart';
 import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfupipayment.dart';
@@ -34,7 +35,7 @@ class _PaymentScreenState extends State<PaymentScreen>
   String? _error;
   String? _orderId;
   String? _paymentSessionId;
-  CFEnvironment _environment = CFEnvironment.SANDBOX;
+  CFEnvironment? _environment;
 
   bool get _canStartPayment =>
       !_loading && !_processingPayment && !_verifyingPayment && !_hasFatalError;
@@ -87,6 +88,9 @@ class _PaymentScreenState extends State<PaymentScreen>
     setState(() {
       _loading = true;
       _error = null;
+      _orderId = null;
+      _paymentSessionId = null;
+      _environment = null;
     });
 
     try {
@@ -134,6 +138,9 @@ class _PaymentScreenState extends State<PaymentScreen>
       if (!mounted) return;
       setState(() {
         _loading = false;
+        _orderId = null;
+        _paymentSessionId = null;
+        _environment = null;
         _error = error.toString();
       });
     }
@@ -182,13 +189,14 @@ class _PaymentScreenState extends State<PaymentScreen>
     if (orderId == null ||
         orderId.isEmpty ||
         paymentSessionId == null ||
-        paymentSessionId.isEmpty) {
+        paymentSessionId.isEmpty ||
+        _environment == null) {
       return null;
     }
 
     try {
       return CFSessionBuilder()
-          .setEnvironment(_environment)
+          .setEnvironment(_environment!)
           .setOrderId(orderId)
           .setPaymentSessionId(paymentSessionId)
           .build();
@@ -281,7 +289,12 @@ class _PaymentScreenState extends State<PaymentScreen>
     if (normalized == 'production' || normalized == 'prod') {
       return CFEnvironment.PRODUCTION;
     }
-    return CFEnvironment.SANDBOX;
+    if (normalized == 'sandbox' && !kReleaseMode) {
+      return CFEnvironment.SANDBOX;
+    }
+    throw StateError(
+      'Online payments are temporarily unavailable. Please contact support or use cash on delivery.',
+    );
   }
 
   String _readString(Map<String, dynamic> map, List<String> keys) {
@@ -317,7 +330,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'The official Cashfree SDK will open a UPI app and we will still verify the payment on the backend before confirming the order.',
+                'Choose a UPI app to pay securely. Your order will be confirmed once your payment is verified.',
                 style: TextStyle(
                   color: Colors.black.withValues(alpha: 0.6),
                   height: 1.5,
@@ -392,7 +405,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                'If the payment app returns before this screen updates, we re-check the order status on the server first.',
+                'After paying, return here and wait for your payment confirmation.',
                 style: TextStyle(
                   fontSize: 12.5,
                   color: Colors.black.withValues(alpha: 0.5),
@@ -424,7 +437,7 @@ class _StatusCard extends StatelessWidget {
   final String? error;
   final String? orderId;
   final String? paymentSessionId;
-  final CFEnvironment environment;
+  final CFEnvironment? environment;
 
   @override
   Widget build(BuildContext context) {
@@ -434,6 +447,8 @@ class _StatusCard extends StatelessWidget {
         ? 'Opening UPI app...'
         : verifyingPayment
         ? 'Verifying payment on the server...'
+        : error != null
+        ? 'Unable to prepare payment'
         : 'Ready to pay';
 
     return Container(
@@ -476,13 +491,19 @@ class _StatusCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          _metaRow(
-            'Environment',
-            environment == CFEnvironment.PRODUCTION ? 'Production' : 'Sandbox',
-          ),
-          _metaRow('Order ID', orderId ?? 'Not generated'),
-          _metaRow('Session ID', paymentSessionId ?? 'Not generated'),
+          if (!kReleaseMode) ...[
+            const SizedBox(height: 12),
+            _metaRow(
+              'Environment',
+              environment == null
+                  ? 'Not available'
+                  : environment == CFEnvironment.PRODUCTION
+                  ? 'Production'
+                  : 'Sandbox',
+            ),
+            _metaRow('Order ID', orderId ?? 'Not generated'),
+            _metaRow('Session ID', paymentSessionId ?? 'Not generated'),
+          ],
         ],
       ),
     );

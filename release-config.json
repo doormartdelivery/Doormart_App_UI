@@ -1,0 +1,5 @@
+{
+  "API_BASE_URL": "https://doormart-app-backend-1.onrender.com/api",
+  "SOCKET_URL": "https://doormart-app-backend-1.onrender.com",
+  "PUBLIC_BASE_URL": "https://doormart-app-backend-1.onrender.com"
+}

@@ -2,35 +2,26 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConstants {
-  static String get baseUrl {
-    final value = dotenv.env['API_BASE_URL'];
-    if (value == null || value.isEmpty) {
-      throw StateError('API_BASE_URL is missing from .env');
+  static String _url(String key, String buildValue) {
+    final value = (buildValue.isNotEmpty ? buildValue : dotenv.env[key] ?? '')
+        .trim();
+    if (value.isEmpty) throw StateError('$key is missing');
+    final uri = Uri.tryParse(value);
+    if (kReleaseMode &&
+        (uri == null || uri.scheme != 'https' || uri.host.isEmpty)) {
+      throw StateError(
+        '$key must use your deployed HTTPS server for release builds',
+      );
     }
     return value;
   }
 
-  static String get socketUrl {
-    final value = dotenv.env['SOCKET_URL'];
-    if (value == null || value.isEmpty) {
-      throw StateError('SOCKET_URL is missing from .env');
-    }
-    return value;
-  }
-
-  static String get frontendUrl {
-    final value = dotenv.env['FRONTEND_URL'];
-    if (value == null || value.isEmpty) {
-      throw StateError('FRONTEND_URL is missing from .env');
-    }
-    return value;
-  }
-
-  static String get publicBaseUrl {
-    final value = dotenv.env['PUBLIC_BASE_URL'];
-    if (value == null || value.isEmpty) {
-      throw StateError('PUBLIC_BASE_URL is missing from .env');
-    }
-    return value;
-  }
+  static String get baseUrl =>
+      _url('API_BASE_URL', const String.fromEnvironment('API_BASE_URL'));
+  static String get socketUrl =>
+      _url('SOCKET_URL', const String.fromEnvironment('SOCKET_URL'));
+  static String get frontendUrl =>
+      _url('FRONTEND_URL', const String.fromEnvironment('FRONTEND_URL'));
+  static String get publicBaseUrl =>
+      _url('PUBLIC_BASE_URL', const String.fromEnvironment('PUBLIC_BASE_URL'));
 }

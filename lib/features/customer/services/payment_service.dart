@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../services/api_service.dart';
 
 class PaymentService {
@@ -16,6 +18,7 @@ class PaymentService {
     final body = <String, dynamic>{
       'amount': amountInPaise,
       'currency': currency,
+      if (kReleaseMode) 'environment': 'production',
     };
     if (receipt != null) body['receipt'] = receipt;
     if (email != null) body['email'] = email;
