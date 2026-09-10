@@ -33,13 +33,15 @@ class AdminNotificationsScreen extends StatefulWidget {
   static const routeName = '/admin/notifications';
 
   @override
-  State<AdminNotificationsScreen> createState() => _AdminNotificationsScreenState();
+  State<AdminNotificationsScreen> createState() =>
+      _AdminNotificationsScreenState();
 }
 
 class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   static const _prefsKeyScheduleLater = 'admin_notifications_schedule_later';
   static const _prefsKeySelectedType = 'admin_notifications_selected_type';
-  static const _prefsKeySelectedAudience = 'admin_notifications_selected_audience';
+  static const _prefsKeySelectedAudience =
+      'admin_notifications_selected_audience';
   static const _prefsKeyScheduledAt = 'admin_notifications_scheduled_at';
   static const _prefsKeyScheduleLabel = 'admin_notifications_schedule_label';
 
@@ -78,7 +80,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     _messageController.addListener(_syncPreview);
     _loadAll();
     _restoreDraftState();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) => _loadHistory(silent: true));
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _loadHistory(silent: true),
+    );
   }
 
   @override
@@ -100,7 +105,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     if (!mounted) return;
     setState(() {
       _selectedType = prefs.getString(_prefsKeySelectedType) ?? _selectedType;
-      _selectedAudience = prefs.getString(_prefsKeySelectedAudience) ?? _selectedAudience;
+      _selectedAudience =
+          prefs.getString(_prefsKeySelectedAudience) ?? _selectedAudience;
       _scheduleLater = prefs.getBool(_prefsKeyScheduleLater) ?? _scheduleLater;
       final scheduledAtIso = prefs.getString(_prefsKeyScheduledAt);
       if (scheduledAtIso != null && scheduledAtIso.isNotEmpty) {
@@ -122,8 +128,14 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     await prefs.setString(_prefsKeySelectedAudience, _selectedAudience);
     await prefs.setBool(_prefsKeyScheduleLater, _scheduleLater);
     if (_scheduledAt != null) {
-      await prefs.setString(_prefsKeyScheduledAt, _scheduledAt!.toUtc().toIso8601String());
-      await prefs.setString(_prefsKeyScheduleLabel, _scheduleController.text.trim());
+      await prefs.setString(
+        _prefsKeyScheduledAt,
+        _scheduledAt!.toUtc().toIso8601String(),
+      );
+      await prefs.setString(
+        _prefsKeyScheduleLabel,
+        _scheduleController.text.trim(),
+      );
     } else {
       await prefs.remove(_prefsKeyScheduledAt);
       await prefs.remove(_prefsKeyScheduleLabel);
@@ -136,7 +148,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
   Future<void> _loadAnalytics() async {
     try {
-      final data = await _api.get('/admin/notifications/analytics', token: context.read<AppState>().token);
+      final data = await _api.get(
+        '/admin/notifications/analytics',
+        token: context.read<AppState>().token,
+      );
       if (!mounted) return;
       setState(() => _analytics = Map<String, dynamic>.from(data as Map));
     } catch (e) {
@@ -155,19 +170,25 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     try {
       final query = <String, String>{
         'limit': '100',
-        if (_searchController.text.trim().isNotEmpty) 'search': _searchController.text.trim(),
+        if (_searchController.text.trim().isNotEmpty)
+          'search': _searchController.text.trim(),
         if (_selectedTab != 'all') 'status': _selectedTab,
       };
-      final path = '/admin/notifications${query.isEmpty ? '' : '?${Uri(queryParameters: query).query}'}';
+      final path =
+          '/admin/notifications${query.isEmpty ? '' : '?${Uri(queryParameters: query).query}'}';
       final data = await _api.get(path, token: context.read<AppState>().token);
       final items = data is Map
-          ? (data['items'] as List<dynamic>? ?? data['notifications'] as List<dynamic>? ?? [])
+          ? (data['items'] as List<dynamic>? ??
+                data['notifications'] as List<dynamic>? ??
+                [])
           : data is List
-              ? data
-              : <dynamic>[];
+          ? data
+          : <dynamic>[];
       if (!mounted) return;
       setState(() {
-        _history = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _history = items
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -185,7 +206,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   }
 
   Future<void> _pickBanner() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (image == null) return;
     setState(() {
       _isUploading = true;
@@ -205,9 +229,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -215,21 +239,22 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
   Future<void> _submit(String mode) async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedAudience == 'specific_user' && _specificUserController.text.trim().isEmpty) {
+    if (_selectedAudience == 'specific_user' &&
+        _specificUserController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a specific user ID')),
       );
       return;
     }
-      final body = <String, dynamic>{
-        'title': _titleController.text.trim(),
-        'message': _messageController.text.trim(),
-        'type': _selectedType,
-        'targetAudience': _selectedAudience,
-        if (_selectedAudience == 'specific_user')
-          'specificUserId': _specificUserController.text.trim(),
-        'imageUrl': await _uploadBannerIfNeeded(),
-      };
+    final body = <String, dynamic>{
+      'title': _titleController.text.trim(),
+      'message': _messageController.text.trim(),
+      'type': _selectedType,
+      'targetAudience': _selectedAudience,
+      if (_selectedAudience == 'specific_user')
+        'specificUserId': _specificUserController.text.trim(),
+      'imageUrl': await _uploadBannerIfNeeded(),
+    };
     if (_scheduleLater && _scheduledAt != null) {
       body['scheduledAt'] = _scheduledAt!.toUtc().toIso8601String();
     }
@@ -245,11 +270,23 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         if (_scheduledAt == null) {
           throw StateError('Please choose a schedule time');
         }
-        await _api.post('/admin/notifications/schedule', token: token, body: body);
+        await _api.post(
+          '/admin/notifications/schedule',
+          token: token,
+          body: body,
+        );
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mode == 'send' ? 'Notification sent' : mode == 'draft' ? 'Draft saved' : 'Notification scheduled')),
+        SnackBar(
+          content: Text(
+            mode == 'send'
+                ? 'Notification sent'
+                : mode == 'draft'
+                ? 'Draft saved'
+                : 'Notification scheduled',
+          ),
+        ),
       );
       if (mode == 'send') {
         final prefs = await SharedPreferences.getInstance();
@@ -268,9 +305,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       await _loadAll();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Action failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Action failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -285,10 +322,19 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       initialDate: now,
     );
     if (date == null) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
     if (time == null) return;
     setState(() {
-      _scheduledAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _scheduledAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
       _scheduleController.text = _formatScheduleInput(_scheduledAt!);
       _scheduleLater = true;
     });
@@ -371,13 +417,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth > 1100;
-                final formWidth = wide ? constraints.maxWidth * 0.58 : constraints.maxWidth;
+                final formWidth = wide
+                    ? constraints.maxWidth * 0.58
+                    : constraints.maxWidth;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _NotificationHero(
-                      onRefresh: _loadAll,
-                    ),
+                    _NotificationHero(onRefresh: _loadAll),
                     const SizedBox(height: 16),
                     _AnalyticsRow(analytics: _analytics),
                     const SizedBox(height: 16),
@@ -385,7 +431,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(width: formWidth, child: _buildComposerCard()),
+                              SizedBox(
+                                width: formWidth,
+                                child: _buildComposerCard(),
+                              ),
                               const SizedBox(width: 16),
                               Expanded(child: _buildPreviewColumn()),
                             ],
@@ -424,11 +473,15 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               _SectionTitle(
                 icon: Icons.campaign_outlined,
                 title: 'Create Notification',
-                subtitle: 'Compose and send push notifications to selected users.',
+                subtitle:
+                    'Compose and send push notifications to selected users.',
               ),
               const SizedBox(height: 18),
               _FieldLabel('Notification Title'),
-              _InputField(controller: _titleController, hint: 'Weekend Feast 50% Off!'),
+              _InputField(
+                controller: _titleController,
+                hint: 'Weekend Feast 50% Off!',
+              ),
               const SizedBox(height: 14),
               _FieldLabel('Message Body'),
               _InputField(
@@ -447,13 +500,27 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                         _SelectField(
                           value: _selectedType,
                           items: const [
-                            DropdownMenuItem(value: 'promotion', child: Text('Promotion')),
-                            DropdownMenuItem(value: 'alert', child: Text('Alert')),
-                            DropdownMenuItem(value: 'update', child: Text('Update')),
-                            DropdownMenuItem(value: 'reminder', child: Text('Reminder')),
+                            DropdownMenuItem(
+                              value: 'promotion',
+                              child: Text('Promotion'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'alert',
+                              child: Text('Alert'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'update',
+                              child: Text('Update'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'reminder',
+                              child: Text('Reminder'),
+                            ),
                           ],
                           onChanged: (value) async {
-                            setState(() => _selectedType = value ?? 'promotion');
+                            setState(
+                              () => _selectedType = value ?? 'promotion',
+                            );
                             await _persistDraftState();
                           },
                         ),
@@ -472,7 +539,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF7F9FF),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFCED6E5), style: BorderStyle.solid),
+                    border: Border.all(
+                      color: const Color(0xFFCED6E5),
+                      style: BorderStyle.solid,
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -486,9 +556,14 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                         child: _isUploading
                             ? const Padding(
                                 padding: EdgeInsets.all(14),
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : const Icon(Icons.file_upload_outlined, color: _accent),
+                            : const Icon(
+                                Icons.file_upload_outlined,
+                                color: _accent,
+                              ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -496,8 +571,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _bannerUrl == null ? 'Drop image here or click to upload' : 'Uploaded successfully',
-                              style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark),
+                              _bannerUrl == null
+                                  ? 'Drop image here or click to upload'
+                                  : 'Uploaded successfully',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: _textDark,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -508,7 +588,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                         ),
                       ),
                       if (_bannerUrl != null)
-                        const Icon(Icons.check_circle, color: Color(0xFF0F9D58)),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF0F9D58),
+                        ),
                     ],
                   ),
                 ),
@@ -520,7 +603,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 runSpacing: 10,
                 children: [
                   _AudienceChip(
-                    label: 'All Users',
+                    label: 'All Users (Customer, Vendor, Delivery)',
                     selected: _selectedAudience == 'all_users',
                     onTap: () async {
                       setState(() => _selectedAudience = 'all_users');
@@ -560,7 +643,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                   controller: _specificUserController,
                   hint: 'Paste specific user id here',
                   validator: (value) {
-                    if (_selectedAudience == 'specific_user' && (value == null || value.trim().isEmpty)) {
+                    if (_selectedAudience == 'specific_user' &&
+                        (value == null || value.trim().isEmpty)) {
                       return 'User ID is required';
                     }
                     return null;
@@ -612,7 +696,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                       onPressed: _saving ? null : () => _submit('send'),
                       icon: const Icon(Icons.send_rounded),
                       label: const Text('Send Notification Now'),
-                      style: FilledButton.styleFrom(backgroundColor: _accent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                   OutlinedButton(
@@ -640,7 +727,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         Card(
           elevation: 0,
           color: _card,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -653,8 +742,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 ),
                 const SizedBox(height: 16),
                 _MobilePreview(
-                  title: _titleController.text.isEmpty ? 'Weekend Feast 50% Off!' : _titleController.text,
-                  body: _messageController.text.isEmpty ? 'Order your favorites now and enjoy huge savings.' : _messageController.text,
+                  title: _titleController.text.isEmpty
+                      ? 'Weekend Feast 50% Off!'
+                      : _titleController.text,
+                  body: _messageController.text.isEmpty
+                      ? 'Order your favorites now and enjoy huge savings.'
+                      : _messageController.text,
                   imageUrl: _bannerUrl,
                   type: _labelForType(_selectedType),
                 ),
@@ -666,7 +759,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         Card(
           elevation: 0,
           color: _card,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: const Padding(
             padding: EdgeInsets.all(18),
             child: Column(
@@ -675,7 +770,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 _SectionTitle(
                   icon: Icons.lightbulb_outline,
                   title: 'Pro Tip',
-                  subtitle: 'Notifications with images and targeted audience filters typically perform better.',
+                  subtitle:
+                      'Notifications with images and targeted audience filters typically perform better.',
                 ),
               ],
             ),
@@ -703,7 +799,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             const _SectionTitle(
               icon: Icons.history,
               title: 'Notification History',
-              subtitle: 'Search, filter and inspect the latest admin notifications.',
+              subtitle:
+                  'Search, filter and inspect the latest admin notifications.',
             ),
             const SizedBox(height: 12),
             TextField(
@@ -730,9 +827,30 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             Wrap(
               spacing: 10,
               children: [
-                _TabChip(label: 'All', selected: _selectedTab == 'all', onTap: () { setState(() => _selectedTab = 'all'); _loadHistory(); }),
-                _TabChip(label: 'Sent', selected: _selectedTab == 'sent', onTap: () { setState(() => _selectedTab = 'sent'); _loadHistory(); }),
-                _TabChip(label: 'Scheduled', selected: _selectedTab == 'scheduled', onTap: () { setState(() => _selectedTab = 'scheduled'); _loadHistory(); }),
+                _TabChip(
+                  label: 'All',
+                  selected: _selectedTab == 'all',
+                  onTap: () {
+                    setState(() => _selectedTab = 'all');
+                    _loadHistory();
+                  },
+                ),
+                _TabChip(
+                  label: 'Sent',
+                  selected: _selectedTab == 'sent',
+                  onTap: () {
+                    setState(() => _selectedTab = 'sent');
+                    _loadHistory();
+                  },
+                ),
+                _TabChip(
+                  label: 'Scheduled',
+                  selected: _selectedTab == 'scheduled',
+                  onTap: () {
+                    setState(() => _selectedTab = 'scheduled');
+                    _loadHistory();
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -750,7 +868,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-                  headingRowColor: MaterialStateProperty.all(const Color(0xFFF7F9FF)),
+                  headingRowColor: MaterialStateProperty.all(
+                    const Color(0xFFF7F9FF),
+                  ),
                   columns: const [
                     DataColumn(label: Text('Title')),
                     DataColumn(label: Text('Audience')),
@@ -765,19 +885,40 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                     return DataRow(
                       cells: [
                         DataCell(Text((item['title'] ?? '').toString())),
-                        DataCell(Text(_labelForAudience((item['targetAudience'] ?? '').toString()))),
-                        DataCell(Text((item['type'] ?? '').toString())),
-                        DataCell(Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _statusColor(status).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(999),
+                        DataCell(
+                          Text(
+                            _labelForAudience(
+                              (item['targetAudience'] ?? '').toString(),
+                            ),
                           ),
-                          child: Text(status, style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w700)),
-                        )),
+                        ),
+                        DataCell(Text((item['type'] ?? '').toString())),
+                        DataCell(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _statusColor(status).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              status,
+                              style: TextStyle(
+                                color: _statusColor(status),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                         DataCell(_RepeatBadge(text: _repeatLabel(item))),
                         DataCell(Text(_formatNotificationTimestamp(item))),
-                        DataCell(Text('${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed')),
+                        DataCell(
+                          Text(
+                            '${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed',
+                          ),
+                        ),
                       ],
                     );
                   }).toList(),
@@ -808,8 +949,18 @@ String _formatNotificationTimestamp(Map<String, dynamic> item) {
   final local = dt.toLocal();
   final day = local.day.toString().padLeft(2, '0');
   final monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final month = monthNames[local.month - 1];
   final year = local.year;
@@ -823,8 +974,18 @@ String _formatScheduleInput(DateTime dateTime) {
   final local = dateTime.toLocal();
   final day = local.day.toString().padLeft(2, '0');
   final monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final month = monthNames[local.month - 1];
   final year = local.year;
@@ -854,7 +1015,8 @@ class _RepeatBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: (isDaily ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6)).withOpacity(0.9),
+        color: (isDaily ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6))
+            .withOpacity(0.9),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -882,12 +1044,24 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Notifications',
+          Icons.notifications_active,
+          AdminNotificationsScreen.routeName,
+        ),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin)
+        ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin)
+        ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Delivery partners',
+          Icons.delivery_dining,
+          ManageDeliveryScreen.routeName,
+        ),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
 
@@ -911,9 +1085,18 @@ class _AdminDrawer extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: _textDark)),
+                          Text(
+                            'Admin menu',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: _textDark,
+                            ),
+                          ),
                           SizedBox(height: 4),
-                          Text('Navigate the control center', style: TextStyle(color: _textMid)),
+                          Text(
+                            'Navigate the control center',
+                            style: TextStyle(color: _textMid),
+                          ),
                         ],
                       ),
                     ),
@@ -928,17 +1111,17 @@ class _AdminDrawer extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final item = items[index];
-      final accentColors = const [
-        Color(0xFF0F766E),
-        Color(0xFFB45309),
-        Color(0xFF2563EB),
-        Color(0xFF059669),
-        Color(0xFFEA580C),
-        Color(0xFF7C3AED),
-        Color(0xFFDB2777),
-        Color(0xFFDC2626),
-      ];
-      final accent = accentColors[index % accentColors.length];
+                    final accentColors = const [
+                      Color(0xFF0F766E),
+                      Color(0xFFB45309),
+                      Color(0xFF2563EB),
+                      Color(0xFF059669),
+                      Color(0xFFEA580C),
+                      Color(0xFF7C3AED),
+                      Color(0xFFDB2777),
+                      Color(0xFFDC2626),
+                    ];
+                    final accent = accentColors[index % accentColors.length];
                     final selected = index == selectedIndex;
                     return Material(
                       color: _card,
@@ -959,7 +1142,9 @@ class _AdminDrawer extends StatelessWidget {
                                 width: 44,
                                 height: 44,
                                 decoration: BoxDecoration(
-                                  color: selected ? _accentSoft : const Color(0xFFF5F6FA),
+                                  color: selected
+                                      ? _accentSoft
+                                      : const Color(0xFFF5F6FA),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Icon(item.$2, color: _accent),
@@ -968,7 +1153,10 @@ class _AdminDrawer extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   item.$1,
-                                  style: TextStyle(fontWeight: FontWeight.w900, color: _accent),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: _accent,
+                                  ),
                                 ),
                               ),
                             ],
@@ -990,10 +1178,15 @@ class _AdminDrawer extends StatelessWidget {
                       side: const BorderSide(color: _accent),
                       backgroundColor: _accentSoft,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
                     icon: const Icon(Icons.logout),
-                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                    label: const Text(
+                      'Logout',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ),
@@ -1006,9 +1199,7 @@ class _AdminDrawer extends StatelessWidget {
 }
 
 class _NotificationHero extends StatelessWidget {
-  const _NotificationHero({
-    required this.onRefresh,
-  });
+  const _NotificationHero({required this.onRefresh});
 
   final Future<void> Function() onRefresh;
 
@@ -1100,26 +1291,50 @@ class _AnalyticsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      ('Total Sent', (analytics['totalSent'] ?? 0).toString(), Icons.send_rounded),
-      ('Delivered', (analytics['delivered'] ?? 0).toString(), Icons.done_all_rounded),
-      ('Failed', (analytics['failed'] ?? 0).toString(), Icons.error_outline_rounded),
-      ('Scheduled', (analytics['scheduled'] ?? 0).toString(), Icons.schedule_rounded),
+      (
+        'Total Sent',
+        (analytics['totalSent'] ?? 0).toString(),
+        Icons.send_rounded,
+      ),
+      (
+        'Delivered',
+        (analytics['delivered'] ?? 0).toString(),
+        Icons.done_all_rounded,
+      ),
+      (
+        'Failed',
+        (analytics['failed'] ?? 0).toString(),
+        Icons.error_outline_rounded,
+      ),
+      (
+        'Scheduled',
+        (analytics['scheduled'] ?? 0).toString(),
+        Icons.schedule_rounded,
+      ),
     ];
     return Wrap(
       spacing: 14,
       runSpacing: 14,
       children: cards
-          .map((card) => SizedBox(
-                width: MediaQuery.of(context).size.width > 700 ? 220 : double.infinity,
-                child: _StatCard(title: card.$1, value: card.$2, icon: card.$3),
-              ))
+          .map(
+            (card) => SizedBox(
+              width: MediaQuery.of(context).size.width > 700
+                  ? 220
+                  : double.infinity,
+              child: _StatCard(title: card.$1, value: card.$2, icon: card.$3),
+            ),
+          )
           .toList(),
     );
   }
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({required this.title, required this.value, required this.icon});
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
 
   final String title;
   final String value;
@@ -1138,7 +1353,10 @@ class _StatCard extends StatelessWidget {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: _accentSoft, borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(
+                color: _accentSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Icon(icon, color: _accent),
             ),
             const SizedBox(width: 14),
@@ -1146,9 +1364,22 @@ class _StatCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: _textMid, fontWeight: FontWeight.w700)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _textMid,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _textDark)),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: _textDark,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1160,7 +1391,11 @@ class _StatCard extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.icon, required this.title, required this.subtitle});
+  const _SectionTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   final IconData icon;
   final String title;
@@ -1174,7 +1409,10 @@ class _SectionTitle extends StatelessWidget {
         Container(
           width: 42,
           height: 42,
-          decoration: BoxDecoration(color: _accentSoft, borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(
+            color: _accentSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Icon(icon, color: _accent),
         ),
         const SizedBox(width: 12),
@@ -1182,7 +1420,14 @@ class _SectionTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _textDark)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: _textDark,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(subtitle, style: const TextStyle(color: _textMid)),
             ],
@@ -1200,7 +1445,10 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark)),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w800, color: _textDark),
+      ),
     );
   }
 }
@@ -1234,12 +1482,15 @@ class _InputField extends StatelessWidget {
       enabled: enabled,
       readOnly: readOnly,
       onTap: onTap,
-      validator: validator ??
+      validator:
+          validator ??
           (value) {
-            if (hint.contains('Title') && (value == null || value.trim().isEmpty)) {
+            if (hint.contains('Title') &&
+                (value == null || value.trim().isEmpty)) {
               return 'Title is required';
             }
-            if (hint.contains('Message') && (value == null || value.trim().isEmpty)) {
+            if (hint.contains('Message') &&
+                (value == null || value.trim().isEmpty)) {
               return 'Message is required';
             }
             return null;
@@ -1249,14 +1500,21 @@ class _InputField extends StatelessWidget {
         filled: true,
         fillColor: const Color(0xFFF7F9FF),
         suffixIcon: suffix,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
 }
 
 class _SelectField extends StatelessWidget {
-  const _SelectField({required this.value, required this.items, required this.onChanged});
+  const _SelectField({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
   final String value;
   final List<DropdownMenuItem<String>> items;
   final ValueChanged<String?> onChanged;
@@ -1269,14 +1527,21 @@ class _SelectField extends StatelessWidget {
       decoration: InputDecoration(
         filled: true,
         fillColor: const Color(0xFFF7F9FF),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
 }
 
 class _AudienceChip extends StatelessWidget {
-  const _AudienceChip({required this.label, required this.selected, required this.onTap});
+  const _AudienceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -1295,7 +1560,11 @@ class _AudienceChip extends StatelessWidget {
 }
 
 class _ToggleRow extends StatelessWidget {
-  const _ToggleRow({required this.label, required this.value, required this.onChanged});
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
   final String label;
   final bool? value;
   final ValueChanged<bool> onChanged;
@@ -1312,7 +1581,11 @@ class _ToggleRow extends StatelessWidget {
 }
 
 class _TabChip extends StatelessWidget {
-  const _TabChip({required this.label, required this.selected, required this.onTap});
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -1328,7 +1601,10 @@ class _TabChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: selected ? _accent : _border),
         ),
-        child: Text(label, style: TextStyle(fontWeight: FontWeight.w800, color: _accent)),
+        child: Text(
+          label,
+          style: TextStyle(fontWeight: FontWeight.w800, color: _accent),
+        ),
       ),
     );
   }
@@ -1352,7 +1628,9 @@ class _MobilePreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1F2937)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F172A), Color(0xFF1F2937)],
+        ),
         borderRadius: BorderRadius.circular(28),
       ),
       child: AspectRatio(
@@ -1370,21 +1648,51 @@ class _MobilePreview extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const CircleAvatar(radius: 10, backgroundColor: Color(0xFFFF6A00), child: Icon(Icons.notifications, size: 12, color: Colors.white)),
+                    const CircleAvatar(
+                      radius: 10,
+                      backgroundColor: Color(0xFFFF6A00),
+                      child: Icon(
+                        Icons.notifications,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    const Text('DOORMART', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                    const Text(
+                      'DOORMART',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
+                    ),
                     const Spacer(),
-                    Text(type, style: const TextStyle(color: Color(0xFFB8C2D3), fontSize: 11)),
+                    Text(
+                      type,
+                      style: const TextStyle(
+                        color: Color(0xFFB8C2D3),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Text(body, style: const TextStyle(color: Colors.black87)),
                     ],
@@ -1404,7 +1712,13 @@ class _MobilePreview extends StatelessWidget {
                       ),
                     ),
                     child: Center(
-                      child: Icon(imageUrl == null ? Icons.image_outlined : Icons.verified, color: Colors.white70, size: 42),
+                      child: Icon(
+                        imageUrl == null
+                            ? Icons.image_outlined
+                            : Icons.verified,
+                        color: Colors.white70,
+                        size: 42,
+                      ),
                     ),
                   ),
                 ),

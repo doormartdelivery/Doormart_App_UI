@@ -325,13 +325,22 @@ class _ProductSheetState extends State<_ProductSheet>
                         const SizedBox(height: 14),
                         _VendorSourceCard(product: product),
                         const SizedBox(height: 14),
+                        const Text(
+                          'Description',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
                         Text(
                           _descriptionFor(product),
-                          maxLines: 2,
+                          maxLines: 5,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF888888),
+                            color: Color(0xFF777777),
                             height: 1.5,
                           ),
                         ),
@@ -1669,6 +1678,8 @@ String _unitLabel(String value) {
 }
 
 String _descriptionFor(ProductModel product) {
+  final description = product.description.trim();
+  if (description.isNotEmpty) return description;
   return 'Fresh ${product.name.toLowerCase()} — sourced directly and '
       'delivered to your door in under 10 minutes.';
 }

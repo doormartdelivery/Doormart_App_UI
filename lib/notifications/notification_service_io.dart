@@ -12,9 +12,10 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  static const String channelId = 'delivery_orders_v5';
-  static const String channelName = 'Delivery Order Alerts';
-  static const String channelDescription = 'Alerts for new delivery requests';
+  static const String channelId = 'doormart_alerts_v1';
+  static const String channelName = 'Doormart Alerts';
+  static const String channelDescription =
+      'Sound alerts for orders and account notifications';
   static const String soundName = 'new_order';
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -45,15 +46,11 @@ class NotificationService {
     final androidImplementation = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await androidImplementation?.requestNotificationsPermission();
-    await androidImplementation?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'delivery_orders',
-        channelName,
-        description: channelDescription,
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound(soundName),
-      ),
+    await androidImplementation?.deleteNotificationChannel(
+      channelId: 'delivery_orders_v5',
+    );
+    await androidImplementation?.deleteNotificationChannel(
+      channelId: 'admin_notifications',
     );
     await androidImplementation?.deleteNotificationChannel(
       channelId: 'delivery_orders_v4',

@@ -2328,8 +2328,11 @@ class _EssentialsGrid extends StatelessWidget {
         }
         return LayoutBuilder(
           builder: (context, constraints) {
-            final cardWidth = (constraints.maxWidth - 14) / 2;
-            final cardHeight = (cardWidth * 1.92).clamp(300.0, 360.0);
+            final columns = constraints.maxWidth >= 600 ? 3 : 2;
+            const spacing = 14.0;
+            final cardWidth =
+                (constraints.maxWidth - (columns - 1) * spacing) / columns;
+            final cardHeight = (cardWidth * 1.72).clamp(270.0, 348.0);
 
             return GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2337,9 +2340,9 @@ class _EssentialsGrid extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: products.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
+                crossAxisCount: columns,
+                mainAxisSpacing: spacing,
+                crossAxisSpacing: spacing,
                 mainAxisExtent: cardHeight,
               ),
               itemBuilder: (ctx, i) {
@@ -2419,6 +2422,7 @@ class _PopularStyleProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 360;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -2469,7 +2473,12 @@ class _PopularStyleProductCard extends StatelessWidget {
             Expanded(
               flex: 55,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 9 : 12,
+                  compact ? 7 : 8,
+                  compact ? 9 : 12,
+                  compact ? 8 : 10,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2478,8 +2487,8 @@ class _PopularStyleProductCard extends StatelessWidget {
                       product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: compact ? 14 : 16,
                         fontWeight: FontWeight.w800,
                         color: _kTextDark,
                         height: 1.25,
@@ -2489,19 +2498,9 @@ class _PopularStyleProductCard extends StatelessWidget {
                       '${product.category} • ${_unitLabel(product.unit)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: _kTextMid),
-                    ),
-                    Text(
-                      product.description.isNotEmpty
-                          ? product.description
-                          : 'Fresh, handpicked and ready to add to your basket.',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        height: 1.2,
-                        color: Colors.black.withValues(alpha: 0.58),
-                        fontWeight: FontWeight.w600,
+                        fontSize: compact ? 10.5 : 12,
+                        color: _kTextMid,
                       ),
                     ),
                     Row(
@@ -2512,8 +2511,8 @@ class _PopularStyleProductCard extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               '₹ ${product.price.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 15,
+                              style: TextStyle(
+                                fontSize: compact ? 14 : 15,
                                 fontWeight: FontWeight.w900,
                                 color: _kTextDark,
                               ),
@@ -2527,7 +2526,7 @@ class _PopularStyleProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: compact ? 10.5 : 12,
                               fontWeight: FontWeight.w700,
                               color: _kTextMid,
                               decoration: TextDecoration.lineThrough,
@@ -2539,8 +2538,8 @@ class _PopularStyleProductCard extends StatelessWidget {
                         const Spacer(),
                         Text(
                           '${product.stock > 20 ? 10 : 18} min',
-                          style: const TextStyle(
-                            fontSize: 9,
+                          style: TextStyle(
+                            fontSize: compact ? 8 : 9,
                             fontWeight: FontWeight.w700,
                             color: _kTextMid,
                           ),
@@ -2548,7 +2547,7 @@ class _PopularStyleProductCard extends StatelessWidget {
                       ],
                     ),
                     Container(
-                      height: 38,
+                      height: compact ? 34 : 38,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: _kGreen,
@@ -2572,11 +2571,11 @@ class _PopularStyleProductCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Add to Cart',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            fontSize: 12,
+                            fontSize: compact ? 11 : 12,
                           ),
                         ),
                       ),
