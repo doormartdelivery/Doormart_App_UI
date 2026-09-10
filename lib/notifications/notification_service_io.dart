@@ -47,9 +47,6 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     await androidImplementation?.requestNotificationsPermission();
     await androidImplementation?.deleteNotificationChannel(
-      channelId: 'delivery_orders_v5',
-    );
-    await androidImplementation?.deleteNotificationChannel(
       channelId: 'admin_notifications',
     );
     await androidImplementation?.deleteNotificationChannel(
@@ -63,6 +60,16 @@ class NotificationService {
     );
     await androidImplementation?.deleteNotificationChannel(
       channelId: 'delivery_orders_v3',
+    );
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'delivery_orders_v5',
+        channelName,
+        description: channelDescription,
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound(soundName),
+      ),
     );
     await androidImplementation?.createNotificationChannel(
       const AndroidNotificationChannel(

@@ -34,9 +34,18 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _notificationReady) return;
-      await _messagingService.initialize(
-        onTap: _handleNotificationTap,
-      );
+      await _messagingService.initialize(onTap: _handleNotificationTap);
+      // AppState bootstraps in parallel with this widget. Retry token
+      // registration after Firebase is fully initialized so a startup race
+      // cannot leave logged-in users out of superadmin broadcasts.
+      final appState = context.read<AppState>();
+      if (appState.token != null && appState.token!.isNotEmpty) {
+        try {
+          await _messagingService.registerTokenSync(authToken: appState.token!);
+        } catch (error) {
+          debugPrint('FCM token sync skipped after Firebase init: $error');
+        }
+      }
       _notificationReady = true;
       _flushPendingNotification();
     });
@@ -50,20 +59,18 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     }
 
     final state = context.read<AppState>();
-    final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
-    final targetRoute = state.user?.role == 'delivery_person' &&
-            approvalStatus != 'approved'
+    final approvalStatus = (state.user?.approvalStatus ?? 'approved')
+        .toLowerCase();
+    final targetRoute =
+        state.user?.role == 'delivery_person' && approvalStatus != 'approved'
         ? DeliveryStatusScreen.routeName
         : RoleAccess.dashboardForRole(state.user?.role);
-    navigator.pushNamedAndRemoveUntil(
-      switch (targetRoute) {
-        DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
-        DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
-        VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
-        _ => UserHomeScreen.routeName,
-      },
-      (route) => route.isFirst,
-    );
+    navigator.pushNamedAndRemoveUntil(switch (targetRoute) {
+      DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+      DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
+      VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
+      _ => UserHomeScreen.routeName,
+    }, (route) => route.isFirst);
   }
 
   void _flushPendingNotification() {
@@ -74,20 +81,18 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     if (navigator == null) return;
 
     final state = context.read<AppState>();
-    final approvalStatus = (state.user?.approvalStatus ?? 'approved').toLowerCase();
-    final targetRoute = state.user?.role == 'delivery_person' &&
-            approvalStatus != 'approved'
+    final approvalStatus = (state.user?.approvalStatus ?? 'approved')
+        .toLowerCase();
+    final targetRoute =
+        state.user?.role == 'delivery_person' && approvalStatus != 'approved'
         ? DeliveryStatusScreen.routeName
         : RoleAccess.dashboardForRole(state.user?.role);
-    navigator.pushNamedAndRemoveUntil(
-      switch (targetRoute) {
-        DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
-        DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
-        VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
-        _ => UserHomeScreen.routeName,
-      },
-      (route) => route.isFirst,
-    );
+    navigator.pushNamedAndRemoveUntil(switch (targetRoute) {
+      DeliveryHomeScreen.routeName => DeliveryHomeScreen.routeName,
+      DeliveryStatusScreen.routeName => DeliveryStatusScreen.routeName,
+      VendorDashboardScreen.routeName => VendorDashboardScreen.routeName,
+      _ => UserHomeScreen.routeName,
+    }, (route) => route.isFirst);
   }
 
   @override

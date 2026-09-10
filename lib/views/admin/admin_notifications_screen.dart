@@ -262,8 +262,15 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     try {
       setState(() => _saving = true);
       final token = context.read<AppState>().token;
+      Map<String, dynamic>? sendResult;
       if (mode == 'send') {
-        await _api.post('/admin/notifications/send', token: token, body: body);
+        sendResult =
+            await _api.post(
+                  '/admin/notifications/send',
+                  token: token,
+                  body: body,
+                )
+                as Map<String, dynamic>;
       } else if (mode == 'draft') {
         await _api.post('/admin/notifications/draft', token: token, body: body);
       } else {
@@ -281,7 +288,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
         SnackBar(
           content: Text(
             mode == 'send'
-                ? 'Notification sent'
+                ? sendResult == null
+                      ? 'Notification sent'
+                      : sendResult['totalTargets'] == 0
+                      ? 'No recipients have registered notifications yet'
+                      : 'Notification sent to ${sendResult['successCount'] ?? 0} of ${sendResult['totalTargets']} devices'
                 : mode == 'draft'
                 ? 'Draft saved'
                 : 'Notification scheduled',

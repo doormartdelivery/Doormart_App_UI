@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/api_service.dart';
 import '../firebase_options.dart';
@@ -10,9 +11,8 @@ import 'notification_payload.dart';
 import 'notification_service.dart';
 
 class FirebaseMessagingService {
-  FirebaseMessagingService({
-    ApiService? apiService,
-  }) : apiService = apiService ?? ApiService();
+  FirebaseMessagingService({ApiService? apiService})
+    : apiService = apiService ?? ApiService();
 
   final ApiService apiService;
   bool _initialized = false;
@@ -23,9 +23,12 @@ class FirebaseMessagingService {
   }) async {
     if (_initialized) return;
 
+    debugPrint('[FCM] initialize started');
+
     final messaging = FirebaseMessaging.instance;
     await messaging.setAutoInitEnabled(true);
     await messaging.requestPermission(alert: true, badge: true, sound: true);
+    debugPrint('[FCM] permission request completed');
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -34,10 +37,14 @@ class FirebaseMessagingService {
     );
 
     FirebaseMessaging.onMessage.listen((message) async {
+      debugPrint(
+        '[FCM] foreground message received id=${message.messageId} data=${message.data}',
+      );
       final payload = _payloadFromMessage(message);
       if (payload != null) {
         await NotificationService.instance.showNotification(
-          id: (payload.orderId.isNotEmpty ? payload.orderId : payload.title).hashCode,
+          id: (payload.orderId.isNotEmpty ? payload.orderId : payload.title)
+              .hashCode,
           payload: payload,
         );
         return;
@@ -46,7 +53,9 @@ class FirebaseMessagingService {
       final fallbackTitle = message.notification?.title ?? 'Notification';
       final fallbackBody = message.notification?.body ?? '';
       await NotificationService.instance.showNotification(
-        id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
+        id:
+            message.messageId?.hashCode ??
+            DateTime.now().millisecondsSinceEpoch,
         payload: NotificationPayload(
           orderId: '',
           title: fallbackTitle,
@@ -73,6 +82,7 @@ class FirebaseMessagingService {
     }
 
     _initialized = true;
+    debugPrint('[FCM] initialize completed');
   }
 
   Future<String?> getToken() => FirebaseMessaging.instance.getToken();
@@ -84,10 +94,7 @@ class FirebaseMessagingService {
     }
   }
 
-  Future<void> removeToken({
-    required String token,
-    required String authToken,
-  }) {
+  Future<void> removeToken({required String token, required String authToken}) {
     return apiService.post(
       '/notifications/remove-token',
       token: authToken,
@@ -95,10 +102,7 @@ class FirebaseMessagingService {
     );
   }
 
-  Future<void> saveToken({
-    required String token,
-    required String authToken,
-  }) {
+  Future<void> saveToken({required String token, required String authToken}) {
     return apiService.post(
       '/notifications/save-token',
       token: authToken,
@@ -107,18 +111,27 @@ class FirebaseMessagingService {
         'deviceType': Platform.isAndroid
             ? 'android'
             : Platform.isIOS
-                ? 'ios'
-                : 'web',
+            ? 'ios'
+            : 'web',
       },
     );
   }
 
-  Future<void> registerTokenSync({
-    required String authToken,
-  }) async {
+  Future<void> registerTokenSync({required String authToken}) async {
+    debugPrint('[FCM] registering device token');
     final token = await getToken();
+    debugPrint(
+      '[FCM] token available=${token != null && token.isNotEmpty} '
+      'suffix=${token == null || token.isEmpty ? '' : token.substring(token.length - 8)}',
+    );
     if (token != null && token.isNotEmpty) {
-      await saveToken(token: token, authToken: authToken);
+      try {
+        await saveToken(token: token, authToken: authToken);
+        debugPrint('[FCM] device token saved');
+      } catch (error) {
+        debugPrint('[FCM] device token save failed: $error');
+        rethrow;
+      }
     }
 
     if (_tokenListenerRegistered) return;
@@ -131,12 +144,14 @@ class FirebaseMessagingService {
   NotificationPayload? _payloadFromMessage(RemoteMessage message) {
     final data = message.data;
     final orderId = data['orderId']?.toString();
-    final title = data['title']?.toString() ?? message.notification?.title ?? '';
+    final title =
+        data['title']?.toString() ?? message.notification?.title ?? '';
     final body = data['body']?.toString() ?? message.notification?.body ?? '';
     final type = data['type']?.toString() ?? 'ADMIN_NOTIFICATION';
     final entityId = data['entityId']?.toString();
 
-    if ((orderId == null || orderId.isEmpty) && title.isEmpty && body.isEmpty) return null;
+    if ((orderId == null || orderId.isEmpty) && title.isEmpty && body.isEmpty)
+      return null;
 
     return NotificationPayload(
       orderId: orderId ?? '',
@@ -150,7 +165,5 @@ class FirebaseMessagingService {
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
