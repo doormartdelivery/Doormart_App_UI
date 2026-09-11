@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class LocationService {
@@ -7,7 +8,12 @@ class LocationService {
 
   Future<({double latitude, double longitude})> currentLocation() async {
     if (kIsWeb) {
-      throw UnsupportedError('Location capture is not supported on web');
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      );
+      return (latitude: position.latitude, longitude: position.longitude);
     }
 
     final permission = await Permission.locationWhenInUse.request();
