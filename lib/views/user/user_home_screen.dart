@@ -14,6 +14,7 @@ import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
+import '../../features/operations/services/location_service.dart';
 import 'cart_screen.dart';
 import 'product_list_screen.dart';
 import 'search_screen.dart';
@@ -166,7 +167,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     const SliverToBoxAdapter(child: _GroceryComboSection()),
                     const SliverToBoxAdapter(child: SizedBox(height: 14)),
                     const SliverToBoxAdapter(
-                      child: _SectionTitle('Popular Products'),
+                      child: _SectionTitle('Shops near you'),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 10)),
                     SliverToBoxAdapter(
@@ -178,14 +179,9 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: _PopularProductsGrid(
+                      child: _NearbyShopsList(
                         sort: _popularSort,
                         selectedCategory: _popularSelectedCategory,
-                        onFavoriteToggle: (product) => _toggleFavoriteGuarded(
-                          context.read<AppState>(),
-                          context,
-                          product,
-                        ),
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 170)),
@@ -240,13 +236,18 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   }
 
   void _showPopularFilterSheet() {
-    final categories = context.read<AppState>().categoryCatalog;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) => _PremiumCategorySheet(
-        categories: categories.map((category) => category.name).toList(),
+        title: 'Filter shops',
+        subtitle: 'Choose how you want to browse nearby shops.',
+        categories: const [
+          'Open now',
+          'Fastest delivery',
+          'Lowest delivery fee',
+        ],
         selectedCategory: _popularSelectedCategory,
         onApply: (category) {
           setState(() => _popularSelectedCategory = category);
@@ -263,6 +264,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) => _PremiumSortSheet(
         selected: _popularSort,
+        shopMode: true,
         onApply: (sort) {
           setState(() => _popularSort = sort);
           Navigator.pop(sheetCtx);
@@ -292,11 +294,15 @@ class _PremiumCategorySheet extends StatefulWidget {
     required this.categories,
     required this.selectedCategory,
     required this.onApply,
+    this.title = 'Filter products',
+    this.subtitle = 'Choose a category to refine your essentials.',
   });
 
   final List<String> categories;
   final String selectedCategory;
   final ValueChanged<String> onApply;
+  final String title;
+  final String subtitle;
 
   @override
   State<_PremiumCategorySheet> createState() => _PremiumCategorySheetState();
@@ -310,8 +316,8 @@ class _PremiumCategorySheetState extends State<_PremiumCategorySheet> {
     final options = ['All', ...widget.categories];
     return _PremiumSheetFrame(
       icon: Icons.tune_rounded,
-      title: 'Filter products',
-      subtitle: 'Choose a category to refine your essentials.',
+      title: widget.title,
+      subtitle: widget.subtitle,
       actionLabel: 'Apply Filters',
       onAction: () => widget.onApply(_selected),
       child: Wrap(
@@ -401,10 +407,15 @@ class _PremiumCategoryOption extends StatelessWidget {
 }
 
 class _PremiumSortSheet extends StatefulWidget {
-  const _PremiumSortSheet({required this.selected, required this.onApply});
+  const _PremiumSortSheet({
+    required this.selected,
+    required this.onApply,
+    this.shopMode = false,
+  });
 
   final _EssentialsSort selected;
   final ValueChanged<_EssentialsSort> onApply;
+  final bool shopMode;
 
   @override
   State<_PremiumSortSheet> createState() => _PremiumSortSheetState();
@@ -415,18 +426,28 @@ class _PremiumSortSheetState extends State<_PremiumSortSheet> {
 
   @override
   Widget build(BuildContext context) {
-    const options = [
-      ('Relevance', _EssentialsSort.relevance),
-      ('Price: Low to High', _EssentialsSort.priceLowHigh),
-      ('Price: High to Low', _EssentialsSort.priceHighLow),
-      ('Rating: High to Low', _EssentialsSort.ratingHighLow),
-      ('Name: A to Z', _EssentialsSort.nameAZ),
-    ];
+    final options = widget.shopMode
+        ? [
+            ('Distance', _EssentialsSort.relevance),
+            ('Delivery fee: Low to High', _EssentialsSort.priceLowHigh),
+            ('Fastest delivery', _EssentialsSort.priceHighLow),
+            ('Rating: High to Low', _EssentialsSort.ratingHighLow),
+            ('Name: A to Z', _EssentialsSort.nameAZ),
+          ]
+        : [
+            ('Relevance', _EssentialsSort.relevance),
+            ('Price: Low to High', _EssentialsSort.priceLowHigh),
+            ('Price: High to Low', _EssentialsSort.priceHighLow),
+            ('Rating: High to Low', _EssentialsSort.ratingHighLow),
+            ('Name: A to Z', _EssentialsSort.nameAZ),
+          ];
 
     return _PremiumSheetFrame(
       icon: Icons.swap_vert_rounded,
-      title: 'Sort products',
-      subtitle: 'Choose how products should appear on this page.',
+      title: widget.shopMode ? 'Sort shops' : 'Sort products',
+      subtitle: widget.shopMode
+          ? 'Choose how nearby shops should appear.'
+          : 'Choose how products should appear on this page.',
       actionLabel: 'Apply Sort',
       onAction: () => widget.onApply(_selected),
       child: Column(
@@ -2402,6 +2423,196 @@ class _EssentialsGrid extends StatelessWidget {
   }
 }
 
+class _NearbyShop {
+  _NearbyShop({
+    required this.id,
+    required this.name,
+    required this.city,
+    required this.logo,
+    required this.productCount,
+    required this.rating,
+    required this.etaMinutes,
+    required this.deliveryFee,
+    this.distanceKm,
+  });
+  final String id;
+  final String name;
+  final String city;
+  final String logo;
+  int productCount;
+  final double rating;
+  final int etaMinutes;
+  final double deliveryFee;
+  final double? distanceKm;
+
+  factory _NearbyShop.fromVendor(Map<String, dynamic> json) {
+    return _NearbyShop(
+      id: json['vendorId']?.toString() ?? '',
+      name: json['name']?.toString().trim().isNotEmpty == true
+          ? json['name'].toString()
+          : 'Local grocery shop',
+      city: json['city']?.toString().trim().isNotEmpty == true
+          ? json['city'].toString()
+          : 'Nearby',
+      logo: json['logoUrl']?.toString() ?? '',
+      productCount: 0,
+      rating: 4.5,
+      etaMinutes: 25,
+      deliveryFee: 30,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+    );
+  }
+
+  factory _NearbyShop.fromProducts(String id, List<ProductModel> products) {
+    final first = products.first;
+    final ratings = products
+        .where((p) => p.rating > 0)
+        .map((p) => p.rating)
+        .toList();
+    final rating = ratings.isEmpty
+        ? 4.5
+        : ratings.reduce((a, b) => a + b) / ratings.length;
+    return _NearbyShop(
+      id: id,
+      name: first.supplierName.trim().isNotEmpty
+          ? first.supplierName.trim()
+          : (id == 'main' ? 'Doormart Fresh' : 'Local grocery shop'),
+      city: first.supplierCity.trim().isNotEmpty
+          ? first.supplierCity.trim()
+          : 'Nearby',
+      logo: first.supplierLogo,
+      productCount: products.length,
+      rating: rating,
+      etaMinutes: id == 'main' ? 25 : 30,
+      deliveryFee: id == 'main' ? 30 : 30,
+      distanceKm: null,
+    );
+  }
+}
+
+class _NearbyShopCard extends StatelessWidget {
+  const _NearbyShopCard({required this.shop});
+  final _NearbyShop shop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: shop.logo.isNotEmpty
+                ? Image.network(
+                    shop.logo,
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _shopIcon(),
+                  )
+                : _shopIcon(),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shop.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: _kTextDark,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Open now · ${shop.distanceKm != null ? '${shop.distanceKm!.toStringAsFixed(1)} km · ' : ''}${shop.city}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _kTextMid,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 16,
+                      color: Color(0xFFF5A623),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      shop.rating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Text(
+                      '${shop.etaMinutes}–${shop.etaMinutes + 5} min',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _kTextMid,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Text(
+                      '${shop.productCount} items',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _kTextMid,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Delivery ₹${shop.deliveryFee.toStringAsFixed(0)} · Min order ₹199',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _kTextDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, color: _kGreen, size: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _shopIcon() => Container(
+    width: 72,
+    height: 72,
+    color: _kGreenLight,
+    child: const Icon(Icons.storefront_rounded, color: _kGreen, size: 34),
+  );
+}
+
 class _PopularStyleProductCard extends StatelessWidget {
   const _PopularStyleProductCard({
     required this.product,
@@ -2727,7 +2938,7 @@ class _TopOffersFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = _sectionProducts(state.products, 'popular_products');
+        final products = state.products;
         if (products.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -3533,44 +3744,86 @@ class _SipTile {
   final String backgroundImage;
 }
 
-class _PopularProductsGrid extends StatelessWidget {
-  const _PopularProductsGrid({
+class _NearbyShopsList extends StatefulWidget {
+  const _NearbyShopsList({
     required this.sort,
     required this.selectedCategory,
-    required this.onFavoriteToggle,
   });
   final _EssentialsSort sort;
   final String selectedCategory;
-  final Future<void> Function(ProductModel product) onFavoriteToggle;
+
+  @override
+  State<_NearbyShopsList> createState() => _NearbyShopsListState();
+}
+
+class _NearbyShopsListState extends State<_NearbyShopsList> {
+  List<_NearbyShop> _shops = const [];
+  bool _loading = true;
+  bool _locationUnavailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNearbyShops();
+  }
+
+  Future<void> _loadNearbyShops() async {
+    try {
+      final location = await LocationService().currentLocation();
+      final state = context.read<AppState>();
+      final response = await state.apiService.get(
+        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=25',
+        token: state.token,
+      );
+      final vendors = response is List ? response : const [];
+      if (!mounted) return;
+      setState(() {
+        _shops = vendors.whereType<Map<String, dynamic>>().map(_NearbyShop.fromVendor).toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _locationUnavailable = true;
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Center(child: CircularProgressIndicator(color: _kGreen)),
+      );
+    }
+    if (_locationUnavailable) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Text('Allow location access to see shops near you.', style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600)),
+      );
+    }
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        var products = _sectionProducts(state.products, 'popular_products');
-        if (selectedCategory != 'All') {
-          products = products
-              .where(
-                (p) =>
-                    p.category.toLowerCase() == selectedCategory.toLowerCase(),
-              )
-              .toList();
+        final shops = [..._shops];
+        final products = _sectionProducts(state.products, 'popular_products');
+        for (final shop in shops) {
+          shop.productCount = products.where((product) => product.vendorId == shop.id).length;
         }
-        switch (sort) {
-          case _EssentialsSort.priceLowHigh:
-            products.sort((a, b) => a.price.compareTo(b.price));
-          case _EssentialsSort.priceHighLow:
-            products.sort((a, b) => b.price.compareTo(a.price));
-          case _EssentialsSort.ratingHighLow:
-            products.sort((a, b) => b.rating.compareTo(a.rating));
-          case _EssentialsSort.nameAZ:
-            products.sort(
-              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-            );
-          default:
-            break;
+        if (shops.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _EmptyProductsCard(height: 220, icon: Icons.storefront_rounded),
+          );
         }
-        if (products.isEmpty) {
+        if (widget.selectedCategory == 'Fastest delivery') {
+          shops.removeWhere((shop) => shop.etaMinutes > 25);
+        } else if (widget.selectedCategory == 'Lowest delivery fee' && shops.isNotEmpty) {
+          final lowestFee = shops.map((shop) => shop.deliveryFee).reduce((a, b) => a < b ? a : b);
+          shops.removeWhere((shop) => shop.deliveryFee != lowestFee);
+        }
+        if (shops.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: _EmptyProductsCard(
@@ -3579,55 +3832,22 @@ class _PopularProductsGrid extends StatelessWidget {
             ),
           );
         }
+        if (widget.sort == _EssentialsSort.ratingHighLow)
+          shops.sort((a, b) => b.rating.compareTo(a.rating));
+        if (widget.sort == _EssentialsSort.priceLowHigh)
+          shops.sort((a, b) => a.deliveryFee.compareTo(b.deliveryFee));
+        if (widget.sort == _EssentialsSort.priceHighLow)
+          shops.sort((a, b) => a.etaMinutes.compareTo(b.etaMinutes));
+        if (widget.sort == _EssentialsSort.nameAZ)
+          shops.sort((a, b) => a.name.compareTo(b.name));
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: products.length,
+          itemCount: shops.length,
           separatorBuilder: (_, __) => const SizedBox(height: 18),
           itemBuilder: (ctx, i) {
-            final product = products[i];
-            return FutureBuilder<List<ProductReviewModel>>(
-              future: state.loadProductReviews(product.id),
-              builder: (context, snapshot) {
-                final reviews = snapshot.data ?? const <ProductReviewModel>[];
-                final summary = _reviewSummaryFor(product, reviews);
-                return _HomeFeedCard(
-                  product: product,
-                  isFavorite: state.isFavorite(product),
-                  imageFallbackBuilder: _funnyMissingImageFallback,
-                  ratingSummary: summary,
-                  ratingLoading:
-                      snapshot.connectionState == ConnectionState.waiting &&
-                      reviews.isEmpty,
-                  onFavoriteToggle: () => onFavoriteToggle(product),
-                  onTap: () => showProductBottomSheet(
-                    ctx,
-                    product,
-                    onAddToCart: (qty, variant) async {
-                      final ok = await state.addToCart(product, quantity: qty);
-                      if (!ctx.mounted) return;
-                      showToast(
-                        ctx,
-                        ok
-                            ? '${product.name} added to cart'
-                            : state.error ?? 'Please login first',
-                      );
-                    },
-                  ),
-                  onAdd: () async {
-                    final ok = await state.addToCart(product);
-                    if (!ctx.mounted) return;
-                    showToast(
-                      ctx,
-                      ok
-                          ? '${product.name} added to cart'
-                          : state.error ?? 'Please login first',
-                    );
-                  },
-                );
-              },
-            );
+            return _NearbyShopCard(shop: shops[i]);
           },
         );
       },
