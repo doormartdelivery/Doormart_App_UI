@@ -740,8 +740,11 @@ class _SectionCard extends StatelessWidget {
 }
 
 String _pickupSummary(VendorModel vendor) {
+  final pickupAddress = vendor.pickupAddress.trim();
+  if (pickupAddress.isNotEmpty) {
+    return pickupAddress;
+  }
   final parts = <String>[
-    vendor.pickupAddress.trim(),
     vendor.city.trim(),
     vendor.state.trim(),
     vendor.pincode.trim(),
