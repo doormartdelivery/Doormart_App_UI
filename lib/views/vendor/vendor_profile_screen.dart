@@ -1115,11 +1115,19 @@ class _PickupAddressEditorSheetState extends State<_PickupAddressEditorSheet> {
       _pickupLongitude = location.longitude;
       _latController.text = _pickupLatitude!.toStringAsFixed(6);
       _lngController.text = _pickupLongitude!.toStringAsFixed(6);
+      final address = await LocationService().addressFromCoordinates(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      if (!mounted) return;
+      if (address != null && address.isNotEmpty) {
+        _addressController.text = address;
+      }
       setState(() {});
       _showMessage(
-        'Current location captured: '
-        '${_pickupLatitude!.toStringAsFixed(6)}, '
-        '${_pickupLongitude!.toStringAsFixed(6)}',
+        address == null || address.isEmpty
+            ? 'Current location captured. Address could not be resolved.'
+            : 'Current location and address filled.',
       );
     } catch (error) {
       if (!mounted) return;
@@ -1179,9 +1187,7 @@ class _PickupAddressEditorSheetState extends State<_PickupAddressEditorSheet> {
           hintText: hint,
           hintStyle: const TextStyle(color: _textMid),
           isDense: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           filled: true,
           fillColor: const Color(0xFFFCFCFC),
         ),
