@@ -29,6 +29,13 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
   bool _notificationReady = false;
   NotificationPayload? _pendingNotification;
 
+  AppState? get _appState {
+    final navigatorContext = DoormartDeliveryApp.navigatorKey.currentContext;
+    return navigatorContext == null
+        ? null
+        : Provider.of<AppState>(navigatorContext, listen: false);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -38,8 +45,8 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
       // AppState bootstraps in parallel with this widget. Retry token
       // registration after Firebase is fully initialized so a startup race
       // cannot leave logged-in users out of superadmin broadcasts.
-      final appState = context.read<AppState>();
-      if (appState.token != null && appState.token!.isNotEmpty) {
+      final appState = _appState;
+      if (appState?.token != null && appState!.token!.isNotEmpty) {
         try {
           await _messagingService.registerTokenSync(authToken: appState.token!);
         } catch (error) {
@@ -58,7 +65,11 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
       return;
     }
 
-    final state = context.read<AppState>();
+    final state = _appState;
+    if (state == null) {
+      _pendingNotification = payload;
+      return;
+    }
     final approvalStatus = (state.user?.approvalStatus ?? 'approved')
         .toLowerCase();
     final targetRoute =
@@ -80,7 +91,8 @@ class _DoormartDeliveryAppState extends State<DoormartDeliveryApp> {
     final navigator = DoormartDeliveryApp.navigatorKey.currentState;
     if (navigator == null) return;
 
-    final state = context.read<AppState>();
+    final state = _appState;
+    if (state == null) return;
     final approvalStatus = (state.user?.approvalStatus ?? 'approved')
         .toLowerCase();
     final targetRoute =
