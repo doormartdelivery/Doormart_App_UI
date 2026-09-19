@@ -2301,7 +2301,7 @@ enum _EssentialsSort {
   nameAZ,
 }
 
-class _EssentialsGrid extends StatelessWidget {
+class _EssentialsGrid extends StatefulWidget {
   const _EssentialsGrid({
     required this.sort,
     required this.selectedCategory,
@@ -2312,19 +2312,37 @@ class _EssentialsGrid extends StatelessWidget {
   final Future<void> Function(ProductModel product) onFavoriteToggle;
 
   @override
+  State<_EssentialsGrid> createState() => _EssentialsGridState();
+}
+
+class _EssentialsGridState extends State<_EssentialsGrid> {
+  static const _pageSize = 30;
+  int _visibleCount = _pageSize;
+
+  @override
+  void didUpdateWidget(covariant _EssentialsGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sort != widget.sort ||
+        oldWidget.selectedCategory != widget.selectedCategory) {
+      _visibleCount = _pageSize;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
         var products = _sectionProducts(state.products, 'daily_essentials');
-        if (selectedCategory != 'All') {
+        if (widget.selectedCategory != 'All') {
           products = products
               .where(
                 (p) =>
-                    p.category.toLowerCase() == selectedCategory.toLowerCase(),
+                    p.category.toLowerCase() ==
+                    widget.selectedCategory.toLowerCase(),
               )
               .toList();
         }
-        switch (sort) {
+        switch (widget.sort) {
           case _EssentialsSort.priceLowHigh:
             products.sort((a, b) => a.price.compareTo(b.price));
           case _EssentialsSort.priceHighLow:
@@ -2355,66 +2373,100 @@ class _EssentialsGrid extends StatelessWidget {
                 (constraints.maxWidth - (columns - 1) * spacing) / columns;
             final cardHeight = (cardWidth * 1.72).clamp(270.0, 348.0);
 
-            return GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: products.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                mainAxisSpacing: spacing,
-                crossAxisSpacing: spacing,
-                mainAxisExtent: cardHeight,
-              ),
-              itemBuilder: (ctx, i) {
-                final product = products[i];
-                return Selector<AppState, bool>(
-                  selector: (_, appState) => appState.isFavorite(product),
-                  builder: (ctx, isFavorite, _) {
-                    return _PopularStyleProductCard(
-                      product: product,
-                      isFavorite: isFavorite,
-                      imageFallbackBuilder: _funnyMissingImageFallback,
-                      onFavoriteToggle: () => onFavoriteToggle(product),
-                      onTap: () => showProductBottomSheet(
-                        ctx,
-                        product,
-                        onAddToCart: (qty, variant) async {
-                          final tapSw = Stopwatch()..start();
-                          final ok = await state.addToCart(
-                            product,
-                            quantity: qty,
-                            unit: variant.unit,
-                            price: variant.price,
-                            discountCost: variant.discountCost,
-                            stock: variant.stock,
-                          );
-                          if (!ctx.mounted) return;
-                          showToast(
+            final displayedProducts = products.take(_visibleCount).toList();
+            final hasMore = displayedProducts.length < products.length;
+            return Column(
+              children: [
+                GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: displayedProducts.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: spacing,
+                    crossAxisSpacing: spacing,
+                    mainAxisExtent: cardHeight,
+                  ),
+                  itemBuilder: (ctx, i) {
+                    final product = displayedProducts[i];
+                    return Selector<AppState, bool>(
+                      selector: (_, appState) => appState.isFavorite(product),
+                      builder: (ctx, isFavorite, _) {
+                        return _PopularStyleProductCard(
+                          product: product,
+                          isFavorite: isFavorite,
+                          imageFallbackBuilder: _funnyMissingImageFallback,
+                          onFavoriteToggle: () =>
+                              widget.onFavoriteToggle(product),
+                          onTap: () => showProductBottomSheet(
                             ctx,
-                            ok
-                                ? '${product.name} added to cart'
-                                : state.error ?? 'Please login first',
-                          );
-                          _logNextFrame('cart:popular', tapSw);
-                        },
-                      ),
-                      onAdd: () async {
-                        final tapSw = Stopwatch()..start();
-                        final ok = await state.addToCart(product);
-                        if (!ctx.mounted) return;
-                        showToast(
-                          ctx,
-                          ok
-                              ? '${product.name} added to cart'
-                              : state.error ?? 'Please login first',
+                            product,
+                            onAddToCart: (qty, variant) async {
+                              final tapSw = Stopwatch()..start();
+                              final ok = await state.addToCart(
+                                product,
+                                quantity: qty,
+                                unit: variant.unit,
+                                price: variant.price,
+                                discountCost: variant.discountCost,
+                                stock: variant.stock,
+                              );
+                              if (!ctx.mounted) return;
+                              showToast(
+                                ctx,
+                                ok
+                                    ? '${product.name} added to cart'
+                                    : state.error ?? 'Please login first',
+                              );
+                              _logNextFrame('cart:popular', tapSw);
+                            },
+                          ),
+                          onAdd: () async {
+                            final tapSw = Stopwatch()..start();
+                            final ok = await state.addToCart(product);
+                            if (!ctx.mounted) return;
+                            showToast(
+                              ctx,
+                              ok
+                                  ? '${product.name} added to cart'
+                                  : state.error ?? 'Please login first',
+                            );
+                            _logNextFrame('cart:popular', tapSw);
+                          },
                         );
-                        _logNextFrame('cart:popular', tapSw);
                       },
                     );
                   },
-                );
-              },
+                ),
+                if (hasMore)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: () => setState(() {
+                          _visibleCount += _pageSize;
+                        }),
+                        icon: const Icon(Icons.expand_more_rounded),
+                        label: Text(
+                          'Load more (${products.length - displayedProducts.length} left)',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kGreen,
+                          side: const BorderSide(color: _kGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             );
           },
         );
@@ -3745,10 +3797,7 @@ class _SipTile {
 }
 
 class _NearbyShopsList extends StatefulWidget {
-  const _NearbyShopsList({
-    required this.sort,
-    required this.selectedCategory,
-  });
+  const _NearbyShopsList({required this.sort, required this.selectedCategory});
   final _EssentialsSort sort;
   final String selectedCategory;
 
@@ -3778,7 +3827,10 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
       final vendors = response is List ? response : const [];
       if (!mounted) return;
       setState(() {
-        _shops = vendors.whereType<Map<String, dynamic>>().map(_NearbyShop.fromVendor).toList();
+        _shops = vendors
+            .whereType<Map<String, dynamic>>()
+            .map(_NearbyShop.fromVendor)
+            .toList();
         _loading = false;
       });
     } catch (_) {
@@ -3801,7 +3853,10 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
     if (_locationUnavailable) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Text('Allow location access to see shops near you.', style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600)),
+        child: Text(
+          'Allow location access to see shops near you.',
+          style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
+        ),
       );
     }
     return Consumer<AppState>(
@@ -3809,18 +3864,26 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
         final shops = [..._shops];
         final products = _sectionProducts(state.products, 'popular_products');
         for (final shop in shops) {
-          shop.productCount = products.where((product) => product.vendorId == shop.id).length;
+          shop.productCount = products
+              .where((product) => product.vendorId == shop.id)
+              .length;
         }
         if (shops.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _EmptyProductsCard(height: 220, icon: Icons.storefront_rounded),
+            child: _EmptyProductsCard(
+              height: 220,
+              icon: Icons.storefront_rounded,
+            ),
           );
         }
         if (widget.selectedCategory == 'Fastest delivery') {
           shops.removeWhere((shop) => shop.etaMinutes > 25);
-        } else if (widget.selectedCategory == 'Lowest delivery fee' && shops.isNotEmpty) {
-          final lowestFee = shops.map((shop) => shop.deliveryFee).reduce((a, b) => a < b ? a : b);
+        } else if (widget.selectedCategory == 'Lowest delivery fee' &&
+            shops.isNotEmpty) {
+          final lowestFee = shops
+              .map((shop) => shop.deliveryFee)
+              .reduce((a, b) => a < b ? a : b);
           shops.removeWhere((shop) => shop.deliveryFee != lowestFee);
         }
         if (shops.isEmpty) {
