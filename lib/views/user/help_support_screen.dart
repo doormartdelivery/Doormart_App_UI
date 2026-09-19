@@ -930,6 +930,8 @@ class _TicketTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   ticket['subject']?.toString() ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
@@ -968,12 +970,17 @@ class _TicketTile extends StatelessWidget {
                                 color: Color(0xFF1D4ED8),
                               ),
                             ),
-                            const Spacer(),
-                            Text(
-                              replyDate,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF6B7280),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                replyDate,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF6B7280),
+                                ),
                               ),
                             ),
                           ],
@@ -981,6 +988,8 @@ class _TicketTile extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text(
                           replyMessage,
+                          maxLines: 8,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             height: 1.35,
                             color: Color(0xFF1F2937),
