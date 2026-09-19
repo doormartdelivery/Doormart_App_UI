@@ -398,6 +398,9 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                         controller: _pickupAddressCtrl,
                         label: 'Pickup Address',
                         icon: Icons.local_shipping_rounded,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter pickup address or use current location'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       _PickupLocationCard(
@@ -405,7 +408,8 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                         longitude: _pickupLongitude,
                         loading: _capturingPickupLocation,
                         onUseCurrentLocation: _capturePickupLocation,
-                        onClear: _pickupLatitude != null || _pickupLongitude != null
+                        onClear:
+                            _pickupLatitude != null || _pickupLongitude != null
                             ? () => setState(() {
                                 _pickupLatitude = null;
                                 _pickupLongitude = null;
@@ -589,10 +593,27 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
     try {
       final location = await LocationService().currentLocation();
       if (!mounted) return;
+      final details = await LocationService().reverseGeocode(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      if (!mounted) return;
       setState(() {
         _pickupLatitude = location.latitude;
         _pickupLongitude = location.longitude;
+        if (details != null) {
+          _pickupAddressCtrl.text = details.address;
+          if (details.city.isNotEmpty) _cityCtrl.text = details.city;
+          if (details.state.isNotEmpty) _stateCtrl.text = details.state;
+          if (details.pincode.isNotEmpty) _pincodeCtrl.text = details.pincode;
+        }
       });
+      showToast(
+        context,
+        details == null
+            ? 'Location captured. Enter the pickup address manually.'
+            : 'Pickup address and location filled. Add a door number if needed.',
+      );
     } catch (e) {
       if (!mounted) return;
       showToast(context, e.toString());
