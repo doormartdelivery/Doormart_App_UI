@@ -38,7 +38,11 @@ class LocationService {
   Future<String?> addressFromCoordinates({
     required double latitude,
     required double longitude,
-  }) async {
+  }) async =>
+      (await reverseGeocode(latitude: latitude, longitude: longitude))?.address;
+
+  Future<({String address, String city, String state, String pincode})?>
+  reverseGeocode({required double latitude, required double longitude}) async {
     if (kIsWeb) {
       final response = await http.get(
         Uri.https('nominatim.openstreetmap.org', '/reverse', {
@@ -53,13 +57,22 @@ class LocationService {
       if (response.statusCode != 200) return null;
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final address = data['display_name']?.toString().trim();
-      return address == null || address.isEmpty ? null : address;
+      final raw = data['address'];
+      final parts = raw is Map ? raw : const <String, dynamic>{};
+      if (address == null || address.isEmpty) return null;
+      return (
+        address: address,
+        city: (parts['city'] ?? parts['town'] ?? parts['village'] ?? '')
+            .toString(),
+        state: (parts['state'] ?? '').toString(),
+        pincode: (parts['postcode'] ?? '').toString(),
+      );
     }
 
     final placemarks = await placemarkFromCoordinates(latitude, longitude);
     if (placemarks.isEmpty) return null;
     final place = placemarks.first;
-    final parts =
+    final addressParts =
         [
               place.name,
               place.street,
@@ -73,7 +86,13 @@ class LocationService {
             .where((part) => part.isNotEmpty)
             .toSet()
             .toList();
-    return parts.isEmpty ? null : parts.join(', ');
+    if (addressParts.isEmpty) return null;
+    return (
+      address: addressParts.join(', '),
+      city: (place.locality ?? place.subAdministrativeArea ?? '').trim(),
+      state: (place.administrativeArea ?? '').trim(),
+      pincode: (place.postalCode ?? '').trim(),
+    );
   }
 
   double? _asDouble(dynamic value) {

@@ -1115,19 +1115,28 @@ class _PickupAddressEditorSheetState extends State<_PickupAddressEditorSheet> {
       _pickupLongitude = location.longitude;
       _latController.text = _pickupLatitude!.toStringAsFixed(6);
       _lngController.text = _pickupLongitude!.toStringAsFixed(6);
-      final address = await LocationService().addressFromCoordinates(
+      final locationDetails = await LocationService().reverseGeocode(
         latitude: location.latitude,
         longitude: location.longitude,
       );
       if (!mounted) return;
-      if (address != null && address.isNotEmpty) {
-        _addressController.text = address;
+      if (locationDetails != null) {
+        _addressController.text = locationDetails.address;
+        if (locationDetails.city.isNotEmpty) {
+          _cityController.text = locationDetails.city;
+        }
+        if (locationDetails.state.isNotEmpty) {
+          _stateController.text = locationDetails.state;
+        }
+        if (locationDetails.pincode.isNotEmpty) {
+          _pincodeController.text = locationDetails.pincode;
+        }
       }
       setState(() {});
       _showMessage(
-        address == null || address.isEmpty
+        locationDetails == null
             ? 'Current location captured. Address could not be resolved.'
-            : 'Current location and address filled.',
+            : 'Current address, city, state, and pincode filled.',
       );
     } catch (error) {
       if (!mounted) return;
