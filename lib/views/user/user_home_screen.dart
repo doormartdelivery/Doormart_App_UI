@@ -3806,9 +3806,11 @@ class _NearbyShopsList extends StatefulWidget {
 }
 
 class _NearbyShopsListState extends State<_NearbyShopsList> {
+  static const _defaultRadiusKm = 5.0;
   List<_NearbyShop> _shops = const [];
   bool _loading = true;
   bool _locationUnavailable = false;
+  double _radiusKm = _defaultRadiusKm;
 
   @override
   void initState() {
@@ -3816,12 +3818,18 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
     _loadNearbyShops();
   }
 
-  Future<void> _loadNearbyShops() async {
+  Future<void> _loadNearbyShops({double radiusKm = _defaultRadiusKm}) async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _radiusKm = radiusKm;
+      });
+    }
     try {
       final location = await LocationService().currentLocation();
       final state = context.read<AppState>();
       final response = await state.apiService.get(
-        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=25',
+        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$radiusKm',
         token: state.token,
       );
       final vendors = response is List ? response : const [];
@@ -3832,6 +3840,7 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
             .map(_NearbyShop.fromVendor)
             .toList();
         _loading = false;
+        _locationUnavailable = false;
       });
     } catch (_) {
       if (!mounted) return;
@@ -3869,11 +3878,11 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
               .length;
         }
         if (shops.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _EmptyProductsCard(
-              height: 220,
-              icon: Icons.storefront_rounded,
+            child: _NearbyEmptyState(
+              radiusKm: _radiusKm,
+              onExpand: _expandSearch,
             ),
           );
         }
@@ -3914,6 +3923,56 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
           },
         );
       },
+    );
+  }
+
+  void _expandSearch() => _loadNearbyShops(radiusKm: 10);
+}
+
+class _NearbyEmptyState extends StatelessWidget {
+  const _NearbyEmptyState({required this.radiusKm, required this.onExpand});
+  final double radiusKm;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.storefront_outlined, color: _kGreen, size: 34),
+          const SizedBox(height: 10),
+          Text(
+            'No shops within ${radiusKm.toStringAsFixed(0)} km',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: _kTextDark,
+            ),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Try expanding your search area to find more stores.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: onExpand,
+            icon: const Icon(Icons.expand_more_rounded),
+            label: const Text('Search within 10 km'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _kGreen,
+              side: const BorderSide(color: _kGreen),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
