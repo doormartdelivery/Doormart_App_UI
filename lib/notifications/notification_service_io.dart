@@ -34,7 +34,9 @@ class NotificationService {
 
     _onTap = onTap;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings(
+      'ic_notification',
+    );
     const initSettings = InitializationSettings(android: androidInit);
 
     await _plugin.initialize(
@@ -43,8 +45,10 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
-    final androidImplementation = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidImplementation = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidImplementation?.requestNotificationsPermission();
     await androidImplementation?.deleteNotificationChannel(
       channelId: 'admin_notifications',
@@ -92,11 +96,7 @@ class NotificationService {
   }) async {
     await showNotification(
       id: orderId.hashCode,
-      payload: NotificationPayload(
-        orderId: orderId,
-        title: title,
-        body: body,
-      ),
+      payload: NotificationPayload(orderId: orderId, title: title, body: body),
     );
   }
 
@@ -116,6 +116,7 @@ class NotificationService {
       category: AndroidNotificationCategory.message,
       visibility: NotificationVisibility.public,
       enableVibration: true,
+      icon: 'ic_notification',
       largeIcon: largeIcon,
     );
 

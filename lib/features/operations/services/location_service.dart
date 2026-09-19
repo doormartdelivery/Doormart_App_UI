@@ -1,38 +1,31 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:permission_handler/permission_handler.dart';
 
 class LocationService {
-  static const MethodChannel _channel = MethodChannel('doormart/location');
-
   Future<({double latitude, double longitude})> currentLocation() async {
-    if (kIsWeb) {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-        ),
-      );
-      return (latitude: position.latitude, longitude: position.longitude);
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw StateError('Location services are disabled');
     }
 
-    final permission = await Permission.locationWhenInUse.request();
-    if (!permission.isGranted && !permission.isLimited) {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       throw StateError('Location permission is required');
     }
 
-    final result = await _channel.invokeMapMethod<String, dynamic>(
-      'getCurrentLocation',
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: LocationSettings(
+        accuracy: kIsWeb ? LocationAccuracy.medium : LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
+      ),
     );
-    final latitude = _asDouble(result?['latitude']);
-    final longitude = _asDouble(result?['longitude']);
-    if (latitude == null || longitude == null) {
-      throw StateError('Unable to read current location');
-    }
-    return (latitude: latitude, longitude: longitude);
+    return (latitude: position.latitude, longitude: position.longitude);
   }
 
   Future<String?> addressFromCoordinates({
@@ -58,7 +51,9 @@ class LocationService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final address = data['display_name']?.toString().trim();
       final raw = data['address'];
-      final parts = raw is Map ? raw : const <String, dynamic>{};
+      final parts = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : const <String, dynamic>{};
       if (address == null || address.isEmpty) return null;
       return (
         address: address,
@@ -69,7 +64,10 @@ class LocationService {
       );
     }
 
-    final placemarks = await placemarkFromCoordinates(latitude, longitude);
+    final placemarks = await Geocoding().placemarkFromCoordinates(
+      latitude,
+      longitude,
+    );
     if (placemarks.isEmpty) return null;
     final place = placemarks.first;
     final addressParts =
@@ -93,11 +91,5 @@ class LocationService {
       state: (place.administrativeArea ?? '').trim(),
       pincode: (place.postalCode ?? '').trim(),
     );
-  }
-
-  double? _asDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value);
-    return null;
   }
 }
