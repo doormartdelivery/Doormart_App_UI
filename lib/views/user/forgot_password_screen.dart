@@ -101,159 +101,290 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kBg,
-        foregroundColor: _kTextDark,
-        elevation: 0,
-        title: const Text('Forgot Password'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: _kCard,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _kBorder),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reset your password',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: _kTextDark,
-                      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ForgotPasswordAppBar(),
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6A2A), Color(0xFFE8541A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Enter your registered email address or phone number and we will send a 6 digit OTP to the contact email linked with your account.',
-                      style: TextStyle(
-                        fontSize: 13,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kOrange.withValues(alpha: 0.2),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 27,
+                        backgroundColor: Colors.white24,
+                        child: Icon(
+                          Icons.lock_reset_rounded,
+                          color: Colors.white,
+                          size: 29,
+                        ),
+                      ),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Reset your password',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'We’ll email you a secure OTP to continue.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _StepCard(otpSent: _otpSent),
+                const SizedBox(height: 20),
+                _FieldLabel('Registered email address'),
+                const SizedBox(height: 8),
+                _Field(
+                  controller: _identifierCtrl,
+                  hint: 'Enter your email address',
+                  icon: Icons.alternate_email_rounded,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => Validators.email(v),
+                ),
+                const SizedBox(height: 16),
+                if (_otpSent) ...[
+                  _FieldLabel('OTP'),
+                  const SizedBox(height: 8),
+                  _Field(
+                    controller: _otpCtrl,
+                    hint: 'Enter the OTP sent to your registered email',
+                    icon: Icons.pin_rounded,
+                    keyboardType: TextInputType.number,
+                    validator: (v) =>
+                        Validators.requiredText(v, message: 'Enter the OTP'),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel('New password'),
+                  const SizedBox(height: 8),
+                  _Field(
+                    controller: _passCtrl,
+                    hint: 'Create a new password',
+                    icon: Icons.lock_rounded,
+                    obscure: _obscurePass,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscurePass
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
                         color: _kTextMid,
-                        height: 1.4,
                       ),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              _FieldLabel('Email address or phone number'),
-              const SizedBox(height: 8),
-              _Field(
-                controller: _identifierCtrl,
-                hint: 'you@example.com or 9876543210',
-                icon: Icons.alternate_email_rounded,
-                keyboardType: TextInputType.text,
-                validator: (v) => Validators.emailOrPhone(v),
-              ),
-              const SizedBox(height: 16),
-              if (_otpSent) ...[
-                _FieldLabel('OTP'),
-                const SizedBox(height: 8),
-                _Field(
-                  controller: _otpCtrl,
-                  hint: 'Enter the OTP sent to your registered email',
-                  icon: Icons.pin_rounded,
-                  keyboardType: TextInputType.number,
-                  validator: (v) =>
-                      Validators.requiredText(v, message: 'Enter the OTP'),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('New password'),
-                const SizedBox(height: 8),
-                _Field(
-                  controller: _passCtrl,
-                  hint: 'Create a new password',
-                  icon: Icons.lock_rounded,
-                  obscure: _obscurePass,
-                  suffix: IconButton(
-                    icon: Icon(
-                      _obscurePass
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: _kTextMid,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePass = !_obscurePass),
-                  ),
-                  validator: (v) => Validators.password(
-                    v,
-                    minLength: 6,
-                    message: 'Enter a new password',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel('Confirm password'),
-                const SizedBox(height: 8),
-                _Field(
-                  controller: _confirmCtrl,
-                  hint: 'Re-enter your new password',
-                  icon: Icons.lock_outline_rounded,
-                  obscure: _obscureConfirm,
-                  suffix: IconButton(
-                    icon: Icon(
-                      _obscureConfirm
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: _kTextMid,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscureConfirm = !_obscureConfirm),
-                  ),
-                  validator: (v) {
-                    final required = Validators.requiredText(
+                    validator: (v) => Validators.password(
                       v,
-                      message: 'Confirm your password',
-                    );
-                    if (required != null) return required;
-                    if (v != _passCtrl.text) return 'Passwords do not match';
-                    return null;
-                  },
+                      minLength: 6,
+                      message: 'Enter a new password',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel('Confirm password'),
+                  const SizedBox(height: 8),
+                  _Field(
+                    controller: _confirmCtrl,
+                    hint: 'Re-enter your new password',
+                    icon: Icons.lock_outline_rounded,
+                    obscure: _obscureConfirm,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                        color: _kTextMid,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                    validator: (v) {
+                      final required = Validators.requiredText(
+                        v,
+                        message: 'Confirm your password',
+                      );
+                      if (required != null) return required;
+                      if (v != _passCtrl.text) return 'Passwords do not match';
+                      return null;
+                    },
+                  ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  _ErrorBanner(message: _error!),
+                ],
+                const SizedBox(height: 24),
+                _PrimaryBtn(
+                  label: _otpSent ? 'Reset Password' : 'Send OTP',
+                  icon: _otpSent
+                      ? Icons.lock_reset_rounded
+                      : Icons.send_rounded,
+                  loading: _loading,
+                  onTap: _otpSent ? _resetPassword : _sendOtp,
                 ),
+                if (_otpSent) ...[
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () {
+                            setState(() {
+                              _otpSent = false;
+                              _otpCtrl.clear();
+                              _passCtrl.clear();
+                              _confirmCtrl.clear();
+                              _error = null;
+                            });
+                          },
+                    child: const Text('Change email / resend OTP'),
+                  ),
+                ],
               ],
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                _ErrorBanner(message: _error!),
-              ],
-              const SizedBox(height: 24),
-              _PrimaryBtn(
-                label: _otpSent ? 'Reset Password' : 'Send OTP',
-                icon: _otpSent ? Icons.lock_reset_rounded : Icons.send_rounded,
-                loading: _loading,
-                onTap: _otpSent ? _resetPassword : _sendOtp,
-              ),
-              if (_otpSent) ...[
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _loading
-                      ? null
-                      : () {
-                          setState(() {
-                            _otpSent = false;
-                            _otpCtrl.clear();
-                            _passCtrl.clear();
-                            _confirmCtrl.clear();
-                            _error = null;
-                          });
-                        },
-                  child: const Text('Change email / resend OTP'),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _ForgotPasswordAppBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.maybePop(context),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: _kCard,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .07),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.chevron_left_rounded,
+              size: 26,
+              color: _kTextDark,
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Text(
+          'Forgot password',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: _kTextDark,
+            letterSpacing: -.4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StepCard extends StatelessWidget {
+  const _StepCard({required this.otpSent});
+  final bool otpSent;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    decoration: BoxDecoration(
+      color: _kCard,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: _kBorder),
+    ),
+    child: Row(
+      children: [
+        _Step(number: '1', label: 'Email', active: !otpSent),
+        Expanded(
+          child: Container(height: 2, color: otpSent ? _kOrange : _kBorder),
+        ),
+        _Step(number: '2', label: 'Verify & reset', active: otpSent),
+      ],
+    ),
+  );
+}
+
+class _Step extends StatelessWidget {
+  const _Step({
+    required this.number,
+    required this.label,
+    required this.active,
+  });
+  final String number;
+  final String label;
+  final bool active;
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      CircleAvatar(
+        radius: 15,
+        backgroundColor: active ? _kOrange : _kBorder,
+        child: Text(
+          number,
+          style: TextStyle(
+            color: active ? Colors.white : _kTextMid,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      const SizedBox(height: 5),
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: active ? _kOrange : _kTextMid,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ],
+  );
 }
 
 class _FieldLabel extends StatelessWidget {
