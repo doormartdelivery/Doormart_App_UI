@@ -16,6 +16,7 @@ class VoiceSearchWidget extends StatefulWidget {
     this.autofocus = false,
     this.readOnly = false,
     this.onTap,
+    this.showSearchAction = true,
   });
 
   final TextEditingController? controller;
@@ -25,6 +26,7 @@ class VoiceSearchWidget extends StatefulWidget {
   final bool autofocus;
   final bool readOnly;
   final VoidCallback? onTap;
+  final bool showSearchAction;
 
   @override
   State<VoiceSearchWidget> createState() => _VoiceSearchWidgetState();
@@ -37,15 +39,30 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _disposed = false;
   bool _isListening = false;
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasText = _controller.text.trim().isNotEmpty;
+    _controller.addListener(_syncTextState);
+  }
 
   @override
   void dispose() {
     _disposed = true;
     _debounce?.cancel();
+    _controller.removeListener(_syncTextState);
     if (widget.controller == null) {
       _controller.dispose();
     }
     super.dispose();
+  }
+
+  void _syncTextState() {
+    final hasText = _controller.text.trim().isNotEmpty;
+    if (hasText == _hasText || !mounted) return;
+    setState(() => _hasText = hasText);
   }
 
   void _triggerSearch(String query) {
@@ -110,6 +127,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
         if (result.finalResult) {
           _triggerSearch(words);
         }
+        if (mounted) setState(() => _hasText = words.isNotEmpty);
       },
       listenOptions: stt.SpeechListenOptions(
         listenFor: const Duration(seconds: 20),
@@ -157,26 +175,34 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
             onPressed: _toggleVoiceSearch,
             icon: Icon(
               _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-              color: _isListening
-                  ? const Color(0xFFE8541A)
-                  : const Color(0xFF14532D),
+              color: const Color(0xFFE8541A),
             ),
           ),
-          IconButton(
-            tooltip: 'Search',
-            onPressed: () {
-              final query = _controller.text.trim();
-              _triggerSearch(query);
-              if (query.isEmpty) {
-                showToast(context, 'Type something to search');
-              }
-            },
-            icon: const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Color(0xFF14532D),
-              size: 18,
+          if (_hasText)
+            IconButton(
+              tooltip: 'Clear search',
+              onPressed: () {
+                _controller.clear();
+                _triggerSearch('');
+              },
+              icon: const Icon(Icons.close_rounded, color: Color(0xFFE8541A)),
             ),
-          ),
+          if (widget.showSearchAction)
+            IconButton(
+              tooltip: 'Search',
+              onPressed: () {
+                final query = _controller.text.trim();
+                _triggerSearch(query);
+                if (query.isEmpty) {
+                  showToast(context, 'Type something to search');
+                }
+              },
+              icon: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Color(0xFF14532D),
+                size: 18,
+              ),
+            ),
         ],
       ),
     );

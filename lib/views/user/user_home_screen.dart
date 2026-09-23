@@ -715,9 +715,13 @@ class _SearchBarDelegate extends SliverPersistentHeaderDelegate {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: VoiceSearchWidget(
         controller: _ctrl,
-        readOnly: true,
         hintText: 'Search atta, milk, fruits…',
-        onTap: () => Navigator.pushNamed(ctx, SearchScreen.routeName),
+        showSearchAction: false,
+        onSubmitted: (q) {
+          final query = q.trim();
+          if (query.isEmpty) return;
+          Navigator.pushNamed(ctx, SearchScreen.routeName, arguments: query);
+        },
         onSearchChanged: (q) {
           if (q.trim().isEmpty) return;
           Navigator.pushNamed(ctx, SearchScreen.routeName, arguments: q.trim());

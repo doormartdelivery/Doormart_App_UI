@@ -487,6 +487,7 @@ class _ShopSearchDelegate extends SliverPersistentHeaderDelegate {
       child: VoiceSearchWidget(
         controller: controller,
         hintText: 'Search products in $shopName',
+        showSearchAction: false,
         onSearchChanged: onChanged,
         onSubmitted: onChanged,
       ),
