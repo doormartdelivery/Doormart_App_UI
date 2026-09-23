@@ -295,4 +295,24 @@ class DeliveryApiService {
       (response['order'] as Map<String, dynamic>?) ?? response,
     );
   }
+
+  Future<void> updateLiveLocation({
+    required String orderId,
+    required double latitude,
+    required double longitude,
+    String? address,
+    String? token,
+  }) async {
+    await _apiService.post(
+      '/delivery/location',
+      token: token,
+      body: {
+        'orderId': orderId,
+        'latitude': latitude,
+        'longitude': longitude,
+        if (address != null && address.trim().isNotEmpty)
+          'address': address.trim(),
+      },
+    );
+  }
 }

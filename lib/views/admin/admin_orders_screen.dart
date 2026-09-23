@@ -2149,6 +2149,7 @@ _OrderAction? _nextAction(OrderStatus status) {
     OrderStatus.assigned => const _OrderAction('Pickup', 'picked_up'),
     OrderStatus.deliveryAccepted => const _OrderAction('Pickup', 'picked_up'),
     OrderStatus.pickedUp => const _OrderAction('Deliver', 'delivered'),
+    OrderStatus.outForDelivery => const _OrderAction('Deliver', 'delivered'),
     OrderStatus.delivered || OrderStatus.cancelled => null,
   };
 }
@@ -2179,6 +2180,10 @@ _BadgeStyle _statusStyle(OrderStatus status) {
       Color(0xFFECFEFF),
       Color(0xFF0E7490),
     ),
+    OrderStatus.outForDelivery => const _BadgeStyle(
+      Color(0xFFECFEFF),
+      Color(0xFF0E7490),
+    ),
     OrderStatus.delivered => const _BadgeStyle(
       Color(0xFFEAF7EF),
       Color(0xFF0F766E),
@@ -2198,6 +2203,7 @@ String _statusLabel(OrderStatus status) {
     OrderStatus.assigned => 'ASSIGNED',
     OrderStatus.deliveryAccepted => 'DELIVERY ACCEPTED',
     OrderStatus.pickedUp => 'PICKED UP',
+    OrderStatus.outForDelivery => 'OUT FOR DELIVERY',
     OrderStatus.delivered => 'DELIVERED',
     OrderStatus.cancelled => 'CANCELLED',
   };

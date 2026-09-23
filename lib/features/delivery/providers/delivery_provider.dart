@@ -9,6 +9,7 @@ import '../../../services/api_service.dart';
 import '../../../notifications/firebase_messaging_service.dart';
 import '../../../models/user_model.dart';
 import '../../../services/session_service.dart';
+import '../../operations/services/location_service.dart';
 import '../models/delivery_order_model.dart';
 import '../models/delivery_person_model.dart';
 import '../services/delivery_api_service.dart';
@@ -37,6 +38,7 @@ class DeliveryProvider extends ChangeNotifier {
   List<Map<String, dynamic>> statusDetails = [];
   bool online = false;
   Timer? _requestRefreshTimer;
+  Timer? _locationPublishTimer;
   static const _deliveryTokenKey = 'delivery_auth_token';
   static const _deliveryUserKey = 'delivery_auth_user';
 
@@ -180,6 +182,8 @@ class DeliveryProvider extends ChangeNotifier {
             .timeout(const Duration(seconds: 8));
         if (fetchedActive != null) {
           activeOrder = _forceAccepted(fetchedActive);
+        } else {
+          activeOrder = null;
         }
         history
           ..clear()
@@ -220,6 +224,7 @@ class DeliveryProvider extends ChangeNotifier {
           licenseCardUrl: deliveryPerson!.licenseCardUrl,
         );
       });
+      _syncLiveLocationTracking();
     } catch (e) {
       debugPrint('Delivery dashboard load skipped: $e');
     }
@@ -458,6 +463,7 @@ class DeliveryProvider extends ChangeNotifier {
       socketService.disconnect();
       pendingRequests.clear();
       _stopRequestRefresh();
+      _stopLiveLocationTracking();
       online = false;
       deliveryPerson = DeliveryPersonModel(
         id: deliveryPerson!.id,
@@ -534,6 +540,7 @@ class DeliveryProvider extends ChangeNotifier {
         token: authToken,
       );
       await loadDashboard();
+      _syncLiveLocationTracking();
       notifyListeners();
       return null;
     } catch (e) {
@@ -550,6 +557,7 @@ class DeliveryProvider extends ChangeNotifier {
         otp: otp.trim(),
         token: authToken,
       );
+      _stopLiveLocationTracking();
       await loadDashboard();
       notifyListeners();
       return null;
@@ -588,6 +596,7 @@ class DeliveryProvider extends ChangeNotifier {
     authUser = null;
     online = false;
     _stopRequestRefresh();
+    _stopLiveLocationTracking();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -652,6 +661,43 @@ class DeliveryProvider extends ChangeNotifier {
   void _stopRequestRefresh() {
     _requestRefreshTimer?.cancel();
     _requestRefreshTimer = null;
+  }
+
+  bool get _hasTrackableActiveOrder =>
+      activeOrder?.status == DeliveryOrderStatus.pickedUp ||
+      activeOrder?.status == DeliveryOrderStatus.outForDelivery;
+
+  void _syncLiveLocationTracking() {
+    if (!_hasTrackableActiveOrder) {
+      _stopLiveLocationTracking();
+      return;
+    }
+    if (_locationPublishTimer != null) return;
+    unawaited(_publishLiveLocation());
+    _locationPublishTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      unawaited(_publishLiveLocation());
+    });
+  }
+
+  void _stopLiveLocationTracking() {
+    _locationPublishTimer?.cancel();
+    _locationPublishTimer = null;
+  }
+
+  Future<void> _publishLiveLocation() async {
+    final order = activeOrder;
+    if (order == null || !_hasTrackableActiveOrder || authToken == null) return;
+    try {
+      final location = await LocationService().currentLocation();
+      await apiService.updateLiveLocation(
+        orderId: order.id,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        token: authToken,
+      );
+    } catch (e) {
+      debugPrint('Live delivery location update skipped: $e');
+    }
   }
 
   void _connectRealtimeChannel() {
@@ -723,6 +769,7 @@ class DeliveryProvider extends ChangeNotifier {
     if (map == null) return;
     if (!_isMyOrder(map)) return;
     activeOrder = DeliveryOrderModel.fromJson(map);
+    _syncLiveLocationTracking();
     notifyListeners();
   }
 
@@ -734,6 +781,7 @@ class DeliveryProvider extends ChangeNotifier {
     history.insert(0, deliveredOrder);
     if (activeOrder?.id == deliveredOrder.id) {
       activeOrder = null;
+      _stopLiveLocationTracking();
     }
     notifyListeners();
   }
@@ -807,5 +855,13 @@ class DeliveryProvider extends ChangeNotifier {
               : null);
     }
     return null;
+  }
+
+  @override
+  void dispose() {
+    _stopRequestRefresh();
+    _stopLiveLocationTracking();
+    socketService.disconnect();
+    super.dispose();
   }
 }

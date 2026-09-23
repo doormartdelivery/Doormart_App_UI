@@ -43,7 +43,10 @@ class _DeliveryOrderScreenState extends State<DeliveryOrderScreen> {
       final updated = await action(context.read<AppState>(), order.id);
       if (!mounted) return;
       if (successMessage == 'marked as delivered') {
-        showToast(context, 'Order #${_shortId(updated.id)} delivered successfully');
+        showToast(
+          context,
+          'Order #${_shortId(updated.id)} delivered successfully',
+        );
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -221,9 +224,7 @@ class _DeliveryOrdersHeader extends StatelessWidget {
                         children: [
                           Text(
                             '$count orders ready',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
@@ -233,11 +234,10 @@ class _DeliveryOrdersHeader extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             'Review, pickup, and complete deliveries',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color:
-                                          Colors.white.withValues(alpha: .72),
-                                    ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: .72),
+                                ),
                           ),
                         ],
                       ),
@@ -306,17 +306,17 @@ class _HeaderStat extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
                 ),
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.white.withValues(alpha: .66),
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white.withValues(alpha: .66),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -498,11 +498,11 @@ class _DeliveryOrderCard extends StatelessWidget {
                     children: [
                       Text(
                         'Order #${order.displayOrderId}',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: const Color(0xFF16231F),
-                                  fontWeight: FontWeight.w900,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: const Color(0xFF16231F),
+                              fontWeight: FontWeight.w900,
+                            ),
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -535,9 +535,9 @@ class _DeliveryOrderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF66706B),
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: const Color(0xFF66706B),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -556,7 +556,11 @@ class _DeliveryOrderCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.verified, size: 16, color: Color(0xFF0F766E)),
+                  const Icon(
+                    Icons.verified,
+                    size: 16,
+                    color: Color(0xFF0F766E),
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -609,9 +613,9 @@ class _DeliveryStatusBadge extends StatelessWidget {
           child: Text(
             _statusLabel(status),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: style.foreground,
-                  fontWeight: FontWeight.w900,
-                ),
+              color: style.foreground,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ),
@@ -750,6 +754,7 @@ _DeliveryAction _deliveryActionFor(OrderModel order) {
   return switch (order.status) {
     OrderStatus.deliveryAccepted => _DeliveryAction.pickup,
     OrderStatus.pickedUp => _DeliveryAction.deliver,
+    OrderStatus.outForDelivery => _DeliveryAction.deliver,
     OrderStatus.delivered => _DeliveryAction.done,
     _ => _DeliveryAction.accept,
   };
@@ -808,6 +813,10 @@ _BadgeStyle _statusStyle(OrderStatus status) {
       Color(0xFFECFEFF),
       Color(0xFF0E7490),
     ),
+    OrderStatus.outForDelivery => const _BadgeStyle(
+      Color(0xFFECFEFF),
+      Color(0xFF0E7490),
+    ),
     OrderStatus.delivered => const _BadgeStyle(
       Color(0xFFEAF7EF),
       Color(0xFF0F766E),
@@ -827,6 +836,7 @@ String _statusLabel(OrderStatus status) {
     OrderStatus.assigned => 'READY TO ACCEPT',
     OrderStatus.deliveryAccepted => 'ACCEPTED',
     OrderStatus.pickedUp => 'PICKED UP',
+    OrderStatus.outForDelivery => 'OUT FOR DELIVERY',
     OrderStatus.delivered => 'DELIVERED',
     OrderStatus.cancelled => 'CANCELLED',
   };
@@ -836,17 +846,19 @@ List<OrderModel> _filteredOrders(List<OrderModel> orders, _OrderFilter filter) {
   return switch (filter) {
     _OrderFilter.all => orders,
     _OrderFilter.newOrders => orders.where((order) {
-        return order.status != OrderStatus.deliveryAccepted &&
-            order.status != OrderStatus.pickedUp &&
-            order.status != OrderStatus.delivered;
-      }).toList(),
+      return order.status != OrderStatus.deliveryAccepted &&
+          order.status != OrderStatus.pickedUp &&
+          order.status != OrderStatus.outForDelivery &&
+          order.status != OrderStatus.delivered;
+    }).toList(),
     _OrderFilter.active => orders.where(_isInProgress).toList(),
   };
 }
 
 bool _isInProgress(OrderModel order) {
   return order.status == OrderStatus.deliveryAccepted ||
-      order.status == OrderStatus.pickedUp;
+      order.status == OrderStatus.pickedUp ||
+      order.status == OrderStatus.outForDelivery;
 }
 
 String _filterLabel(_OrderFilter filter) {
@@ -865,6 +877,7 @@ double _statusProgress(OrderStatus status) {
     OrderStatus.assigned => .58,
     OrderStatus.deliveryAccepted => .68,
     OrderStatus.pickedUp => .84,
+    OrderStatus.outForDelivery => .9,
     OrderStatus.delivered => 1,
     OrderStatus.cancelled => .08,
   };

@@ -6,6 +6,7 @@ import '../../views/user/checkout_screen.dart';
 import '../../views/user/forgot_password_screen.dart';
 import '../../views/user/help_support_screen.dart';
 import '../../views/user/login_screen.dart';
+import '../../views/user/live_order_tracking_screen.dart';
 import '../../views/user/my_orders_screen.dart';
 import '../../views/user/notification_screen.dart';
 import '../../views/user/order_success_screen.dart';
@@ -39,6 +40,7 @@ class CustomerRoutes {
     OrderSuccessScreen.routeName: (_) => const OrderSuccessScreen(),
     ScheduledOrderScreen.routeName: (_) => const ScheduledOrderScreen(),
     MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
+    LiveOrderTrackingScreen.routeName: (_) => const LiveOrderTrackingScreen(),
     AddressScreen.routeName: (_) => const AddressScreen(),
     HelpSupportScreen.routeName: (_) => const HelpSupportScreen(),
     NotificationScreen.routeName: (_) => const NotificationScreen(),

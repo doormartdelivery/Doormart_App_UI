@@ -7,6 +7,7 @@ enum OrderStatus {
   assigned,
   deliveryAccepted,
   pickedUp,
+  outForDelivery,
   delivered,
   cancelled,
 }
@@ -86,8 +87,14 @@ class OrderModel {
     final productsJson = (json['products'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
     final deliveryPerson = json['deliveryPerson'];
-    final deliveryPersonMap = deliveryPerson is Map<String, dynamic>
+    final assignedDeliveryPerson = json['assignedDeliveryPerson'];
+    final rawDeliveryPerson = deliveryPerson is Map<String, dynamic>
         ? deliveryPerson
+        : assignedDeliveryPerson is Map<String, dynamic>
+        ? assignedDeliveryPerson
+        : deliveryPerson ?? assignedDeliveryPerson;
+    final deliveryPersonMap = rawDeliveryPerson is Map<String, dynamic>
+        ? rawDeliveryPerson
         : null;
     final rawId = json['_id'] ?? json['id'] ?? '';
     final rawAddress = json['address'];
@@ -139,7 +146,7 @@ class OrderModel {
       customerAddress: json['customerAddress']?.toString() ?? '',
       customerPhone: json['customerPhone']?.toString() ?? '',
       deliveryPersonId: deliveryPersonMap == null
-          ? deliveryPerson?.toString()
+          ? rawDeliveryPerson?.toString()
           : deliveryPersonMap['_id']?.toString() ??
                 deliveryPersonMap['id']?.toString(),
       deliveryPersonName: deliveryPersonMap?['name']?.toString(),
@@ -168,6 +175,7 @@ OrderStatus _statusFromJson(String? status) {
     'ASSIGNED' || 'assigned' => OrderStatus.assigned,
     'DELIVERY_ACCEPTED' || 'delivery_accepted' => OrderStatus.deliveryAccepted,
     'PICKED_UP' || 'picked_up' => OrderStatus.pickedUp,
+    'OUT_FOR_DELIVERY' || 'out_for_delivery' => OrderStatus.outForDelivery,
     'DELIVERED' || 'delivered' => OrderStatus.delivered,
     'CANCELLED' || 'cancelled' => OrderStatus.cancelled,
     _ => OrderStatus.placed,

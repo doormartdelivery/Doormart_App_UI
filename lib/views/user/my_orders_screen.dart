@@ -8,6 +8,7 @@ import '../../models/product_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
 import '../app_page.dart';
+import 'live_order_tracking_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -214,7 +215,27 @@ bool _isActive(OrderStatus status) {
       status == OrderStatus.packed ||
       status == OrderStatus.assigned ||
       status == OrderStatus.deliveryAccepted ||
-      status == OrderStatus.pickedUp;
+      status == OrderStatus.pickedUp ||
+      status == OrderStatus.outForDelivery;
+}
+
+bool _canTrackDelivery(OrderModel order) {
+  return order.status != OrderStatus.delivered &&
+      order.status != OrderStatus.cancelled;
+}
+
+String _statusLabel(OrderStatus status) {
+  return switch (status) {
+    OrderStatus.placed => 'PLACED',
+    OrderStatus.accepted => 'ACCEPTED',
+    OrderStatus.packed => 'PACKED',
+    OrderStatus.assigned => 'ASSIGNED',
+    OrderStatus.deliveryAccepted => 'DELIVERY ACCEPTED',
+    OrderStatus.pickedUp => 'PICKED UP',
+    OrderStatus.outForDelivery => 'OUT FOR DELIVERY',
+    OrderStatus.delivered => 'DELIVERED',
+    OrderStatus.cancelled => 'CANCELLED',
+  };
 }
 
 List<OrderModel> _currentOrdersFrom(List<OrderModel> orders) {
@@ -235,7 +256,7 @@ class _CurrentOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = order.status.name.toUpperCase();
+    final status = _statusLabel(order.status);
     final timeline = _timelineFor(order.status);
     return Container(
       decoration: BoxDecoration(
@@ -363,6 +384,29 @@ class _CurrentOrderCard extends StatelessWidget {
                     )
                     .toList(),
               ),
+            if (_canTrackDelivery(order)) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    LiveOrderTrackingScreen.routeName,
+                    arguments: order,
+                  ),
+                  icon: const Icon(Icons.location_searching_rounded),
+                  label: const Text('Track delivery'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE8541A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -422,7 +466,7 @@ class _PreviousOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final status = order.status.name.toUpperCase();
+    final status = _statusLabel(order.status);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -880,6 +924,7 @@ List<_TimelineStep> _timelineFor(OrderStatus status) {
         status == OrderStatus.assigned ||
         status == OrderStatus.deliveryAccepted ||
         status == OrderStatus.pickedUp ||
+        status == OrderStatus.outForDelivery ||
         status == OrderStatus.delivered,
     isLive: status != OrderStatus.delivered && status != OrderStatus.cancelled,
   );
@@ -888,6 +933,7 @@ List<_TimelineStep> _timelineFor(OrderStatus status) {
     subtitle: 'Delivery is on the way',
     done:
         status == OrderStatus.pickedUp ||
+        status == OrderStatus.outForDelivery ||
         status == OrderStatus.deliveryAccepted ||
         status == OrderStatus.delivered,
   );
@@ -986,7 +1032,7 @@ class _ItemRow extends StatelessWidget {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
+                      errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.shopping_bag_outlined,
                         color: Color(0xFFE8541A),
                       ),
@@ -1307,8 +1353,8 @@ Future<void> _openProductReviewDialog({
                                               onTap: submitting
                                                   ? null
                                                   : () => setModalState(
-                                                      () => rating =
-                                                          starValue.toDouble(),
+                                                      () => rating = starValue
+                                                          .toDouble(),
                                                     ),
                                               child: AnimatedContainer(
                                                 duration: const Duration(
@@ -1316,8 +1362,8 @@ Future<void> _openProductReviewDialog({
                                                 ),
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  vertical: 10,
-                                                ),
+                                                      vertical: 10,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: filled
                                                       ? const Color(0xFFFFF0EB)
@@ -1326,7 +1372,9 @@ Future<void> _openProductReviewDialog({
                                                       BorderRadius.circular(18),
                                                   border: Border.all(
                                                     color: filled
-                                                        ? const Color(0xFFFFC7AF)
+                                                        ? const Color(
+                                                            0xFFFFC7AF,
+                                                          )
                                                         : const Color(
                                                             0xFFE5E7EB,
                                                           ),
@@ -1338,7 +1386,7 @@ Future<void> _openProductReviewDialog({
                                                       filled
                                                           ? Icons.star_rounded
                                                           : Icons
-                                                              .star_border_rounded,
+                                                                .star_border_rounded,
                                                       color: filled
                                                           ? const Color(
                                                               0xFFE8541A,
@@ -1398,8 +1446,7 @@ Future<void> _openProductReviewDialog({
                                       'Share what you liked or what could improve',
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 16,
                                   ),
@@ -1433,7 +1480,9 @@ Future<void> _openProductReviewDialog({
                                           ? null
                                           : () => Navigator.pop(dialogContext),
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(0xFF374151),
+                                        foregroundColor: const Color(
+                                          0xFF374151,
+                                        ),
                                         side: const BorderSide(
                                           color: Color(0xFFD1D5DB),
                                         ),
@@ -1441,8 +1490,9 @@ Future<void> _openProductReviewDialog({
                                           vertical: 14,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: const Text(
@@ -1456,27 +1506,30 @@ Future<void> _openProductReviewDialog({
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: FilledButton(
-                                      onPressed:
-                                          submitting || rating <= 0
-                                              ? null
-                                              : submit,
+                                      onPressed: submitting || rating <= 0
+                                          ? null
+                                          : submit,
                                       style: FilledButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFFE8541A),
-                                        disabledBackgroundColor:
-                                            const Color(0xFFF0B69E),
+                                        backgroundColor: const Color(
+                                          0xFFE8541A,
+                                        ),
+                                        disabledBackgroundColor: const Color(
+                                          0xFFF0B69E,
+                                        ),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 14,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                       ),
                                       child: AnimatedSwitcher(
-                                        duration:
-                                            const Duration(milliseconds: 180),
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
                                         child: submitting
                                             ? const SizedBox(
                                                 key: ValueKey('loading'),
@@ -1484,9 +1537,9 @@ Future<void> _openProductReviewDialog({
                                                 height: 18,
                                                 child:
                                                     CircularProgressIndicator(
-                                                  strokeWidth: 2.2,
-                                                  color: Colors.white,
-                                                ),
+                                                      strokeWidth: 2.2,
+                                                      color: Colors.white,
+                                                    ),
                                               )
                                             : const Text(
                                                 'Submit review',
@@ -1536,10 +1589,7 @@ String _ratingPromptLabel(double rating) {
 }
 
 class _ReviewInfoChip extends StatelessWidget {
-  const _ReviewInfoChip({
-    required this.icon,
-    required this.label,
-  });
+  const _ReviewInfoChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
