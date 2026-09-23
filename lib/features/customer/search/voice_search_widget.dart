@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../widgets/toast_widget.dart';
 
@@ -32,7 +34,9 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
   late final TextEditingController _controller =
       widget.controller ?? TextEditingController();
   Timer? _debounce;
+  final stt.SpeechToText _speech = stt.SpeechToText();
   bool _disposed = false;
+  bool _isListening = false;
 
   @override
   void dispose() {
@@ -50,6 +54,68 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
       if (_disposed) return;
       widget.onSearchChanged(query.trim());
     });
+  }
+
+  Future<void> _toggleVoiceSearch() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    final microphonePermission = await Permission.microphone.request();
+    if (!microphonePermission.isGranted) {
+      if (mounted) {
+        showToast(
+          context,
+          'Allow microphone access in Settings to use voice search',
+        );
+      }
+      return;
+    }
+
+    final available = await _speech.initialize(
+      onStatus: (status) {
+        if (mounted && (status == 'done' || status == 'notListening')) {
+          setState(() => _isListening = false);
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          setState(() => _isListening = false);
+          showToast(context, 'Voice search could not start: ${error.errorMsg}');
+        }
+      },
+    );
+    if (!available) {
+      if (mounted) {
+        showToast(context, 'Voice search is unavailable on this device');
+      }
+      return;
+    }
+
+    setState(() => _isListening = true);
+    if (mounted) {
+      showToast(context, 'Listening… say a product name');
+    }
+    await _speech.listen(
+      onResult: (result) {
+        final words = result.recognizedWords.trim();
+        if (words.isEmpty) return;
+        _controller.value = _controller.value.copyWith(
+          text: words,
+          selection: TextSelection.collapsed(offset: words.length),
+          composing: TextRange.empty,
+        );
+        if (result.finalResult) {
+          _triggerSearch(words);
+        }
+      },
+      listenOptions: stt.SpeechListenOptions(
+        listenFor: const Duration(seconds: 20),
+        pauseFor: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -84,6 +150,16 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
                 border: InputBorder.none,
                 hintStyle: const TextStyle(color: Color(0xFF667064)),
               ),
+            ),
+          ),
+          IconButton(
+            tooltip: _isListening ? 'Stop voice search' : 'Search by voice',
+            onPressed: _toggleVoiceSearch,
+            icon: Icon(
+              _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+              color: _isListening
+                  ? const Color(0xFFE8541A)
+                  : const Color(0xFF14532D),
             ),
           ),
           IconButton(
