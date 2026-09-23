@@ -2481,6 +2481,7 @@ class _NearbyShop {
     required this.name,
     required this.city,
     required this.logo,
+    required this.shopImageUrl,
     required this.productCount,
     required this.rating,
     required this.etaMinutes,
@@ -2491,6 +2492,7 @@ class _NearbyShop {
   final String name;
   final String city;
   final String logo;
+  final String shopImageUrl;
   int productCount;
   final double rating;
   final int etaMinutes;
@@ -2507,6 +2509,7 @@ class _NearbyShop {
           ? json['city'].toString()
           : 'Nearby',
       logo: json['logoUrl']?.toString() ?? '',
+      shopImageUrl: json['shopImageUrl']?.toString() ?? '',
       productCount: 0,
       rating: 4.5,
       etaMinutes: 25,
@@ -2533,6 +2536,7 @@ class _NearbyShop {
           ? first.supplierCity.trim()
           : 'Nearby',
       logo: first.supplierLogo,
+      shopImageUrl: '',
       productCount: products.length,
       rating: rating,
       etaMinutes: id == 'main' ? 25 : 30,
@@ -2548,111 +2552,128 @@ class _NearbyShopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _kBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 14,
-            offset: Offset(0, 5),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(
+        context,
+        ProductListScreen.routeName,
+        arguments: ProductListArgs(
+          vendorId: shop.id,
+          shopName: shop.name,
+          shopCity: shop.city,
+          shopLogo: shop.logo,
+          shopImageUrl: shop.shopImageUrl,
+          distanceKm: shop.distanceKm,
+          rating: shop.rating,
+          etaMinutes: shop.etaMinutes,
+          deliveryFee: shop.deliveryFee,
+        ),
       ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: shop.logo.isNotEmpty
-                ? Image.network(
-                    shop.logo,
-                    width: 72,
-                    height: 72,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _shopIcon(),
-                  )
-                : _shopIcon(),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  shop.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: _kTextDark,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Open now · ${shop.distanceKm != null ? '${shop.distanceKm!.toStringAsFixed(1)} km · ' : ''}${shop.city}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _kTextMid,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 16,
-                      color: Color(0xFFF5A623),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      shop.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Text(
-                      '${shop.etaMinutes}–${shop.etaMinutes + 5} min',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: _kTextMid,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Text(
-                      '${shop.productCount} items',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: _kTextMid,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Delivery ₹${shop.deliveryFee.toStringAsFixed(0)} · Min order ₹199',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _kTextDark,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _kBorder),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 14,
+              offset: Offset(0, 5),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, color: _kGreen, size: 24),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: shop.logo.isNotEmpty
+                  ? Image.network(
+                      shop.logo,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _shopIcon(),
+                    )
+                  : _shopIcon(),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    shop.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Open now · ${shop.distanceKm != null ? '${shop.distanceKm!.toStringAsFixed(1)} km · ' : ''}${shop.city}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _kTextMid,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: Color(0xFFF5A623),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        shop.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Text(
+                        '${shop.etaMinutes}–${shop.etaMinutes + 5} min',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _kTextMid,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Text(
+                        '${shop.productCount} items',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _kTextMid,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Delivery ₹${shop.deliveryFee.toStringAsFixed(0)} · Min order ₹199',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _kTextDark,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: _kGreen, size: 24),
+          ],
+        ),
       ),
     );
   }

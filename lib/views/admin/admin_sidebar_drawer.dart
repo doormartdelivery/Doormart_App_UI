@@ -220,7 +220,7 @@ class AdminSidebarDrawer extends StatelessWidget {
                                           : item.$1 == 'My Products'
                                           ? 'Manage your catalog'
                                           : item.$1 == 'Profile'
-                                          ? 'Business identity and documents'
+                                          ? 'Shop banner and business details'
                                           : 'Open section',
                                       style: const TextStyle(
                                         color: _kTextMid,

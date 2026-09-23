@@ -1,3 +1,5 @@
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../../features/operations/services/location_service.dart';
+import '../../widgets/toast_widget.dart';
 import '../admin/admin_sidebar_drawer.dart';
 
 const _bg = Color(0xFFF6F7FB);
@@ -263,6 +266,26 @@ class VendorProfileScreen extends StatelessWidget {
                             style: TextStyle(fontWeight: FontWeight.w800),
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
+                    title: 'Shop Page Banner',
+                    subtitle:
+                        'This banner appears on your shop page in the customer app.',
+                    children: [
+                      _DocumentCard(
+                        title: 'Customer shop banner',
+                        url: vendor.shopImageUrl.isNotEmpty
+                            ? vendor.shopImageUrl
+                            : vendor.logoUrl,
+                        fallbackLabel: 'Upload the banner for your shop page',
+                      ),
+                      _ActionButton(
+                        icon: Icons.image_outlined,
+                        label: 'Upload Shop Page Banner',
+                        onTap: () => _uploadShopImage(context),
                       ),
                     ],
                   ),
@@ -962,6 +985,50 @@ String _formatVendorDisplayId(String? vendorId, String? id) {
       ? source.substring(source.length - 4)
       : source.padLeft(4, '0');
   return 'DMD-VENDOR-${suffix.toUpperCase()}';
+}
+
+Future<void> _uploadShopImage(BuildContext context) async {
+  try {
+    final state = context.read<AppState>();
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Images',
+          extensions: ['jpg', 'jpeg', 'png', 'webp'],
+          mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        ),
+      ],
+    );
+    if (file == null) return;
+    final dynamic uploaded = kIsWeb
+        ? await state.apiService.uploadImage(
+            '/auth/vendor/upload-image',
+            bytes: await file.readAsBytes(),
+            fileName: file.name,
+            fieldName: 'image',
+            token: state.token,
+          )
+        : await state.apiService.uploadImage(
+            '/auth/vendor/upload-image',
+            filePath: file.path,
+            fileName: file.name,
+            fieldName: 'image',
+            token: state.token,
+          );
+    final url = uploaded is Map ? uploaded['url']?.toString() : null;
+    if (url == null || url.trim().isEmpty) {
+      throw StateError('Image upload failed');
+    }
+    await state.updateVendorShopImage(url);
+    if (!context.mounted) return;
+    showToast(context, 'Shop image updated');
+  } catch (error) {
+    if (!context.mounted) return;
+    showToast(
+      context,
+      'Upload failed: ${error.toString().replaceFirst('Exception: ', '')}',
+    );
+  }
 }
 
 Color _statusColor(String status) {

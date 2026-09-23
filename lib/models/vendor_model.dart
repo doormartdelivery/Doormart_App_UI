@@ -19,6 +19,7 @@ class VendorModel {
     this.pickupLatitude,
     this.pickupLongitude,
     this.logoUrl = '',
+    this.shopImageUrl = '',
     this.gstCertificateUrl = '',
     this.panCardUrl = '',
     this.cancelledChequeUrl = '',
@@ -55,6 +56,7 @@ class VendorModel {
   final double? pickupLatitude;
   final double? pickupLongitude;
   final String logoUrl;
+  final String shopImageUrl;
   final String gstCertificateUrl;
   final String panCardUrl;
   final String cancelledChequeUrl;
@@ -92,6 +94,7 @@ class VendorModel {
       pickupLatitude: _asDouble(json['pickupLatitude'] ?? json['latitude']),
       pickupLongitude: _asDouble(json['pickupLongitude'] ?? json['longitude']),
       logoUrl: json['logoUrl'] as String? ?? '',
+      shopImageUrl: json['shopImageUrl'] as String? ?? '',
       gstCertificateUrl: json['gstCertificateUrl'] as String? ?? '',
       panCardUrl: json['panCardUrl'] as String? ?? '',
       cancelledChequeUrl: json['cancelledChequeUrl'] as String? ?? '',
@@ -129,6 +132,7 @@ class VendorModel {
     'pickupLatitude': pickupLatitude,
     'pickupLongitude': pickupLongitude,
     'logoUrl': logoUrl,
+    'shopImageUrl': shopImageUrl,
     'gstCertificateUrl': gstCertificateUrl,
     'panCardUrl': panCardUrl,
     'cancelledChequeUrl': cancelledChequeUrl,

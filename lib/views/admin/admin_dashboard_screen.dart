@@ -148,7 +148,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!isSuperAdmin)
         _AdminSection(
           title: 'Profile',
-          subtitle: 'Business identity and documents',
+          subtitle: 'Shop banner and business details',
           icon: Icons.badge_outlined,
           accent: const Color(0xFF7C3AED),
           builder: (_) => const VendorProfileScreen(),
@@ -326,7 +326,7 @@ class _AdminDrawer extends StatelessWidget {
                                   ),
                                   SizedBox(height: 2),
                                   Text(
-                                    'Business identity and documents',
+                                    'Shop banner and business details',
                                     style: TextStyle(color: _kTextMid),
                                   ),
                                 ],

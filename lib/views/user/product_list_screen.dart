@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/utils/network_image_url.dart';
+import '../../features/customer/search/voice_search_widget.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -24,12 +25,41 @@ class ProductListScreen extends StatefulWidget {
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
+class ProductListArgs {
+  const ProductListArgs({
+    this.category,
+    this.vendorId,
+    this.shopName,
+    this.shopCity,
+    this.shopLogo,
+    this.shopImageUrl,
+    this.distanceKm,
+    this.rating,
+    this.etaMinutes,
+    this.deliveryFee,
+  });
+
+  final String? category;
+  final String? vendorId;
+  final String? shopName;
+  final String? shopCity;
+  final String? shopLogo;
+  final String? shopImageUrl;
+  final double? distanceKm;
+  final double? rating;
+  final int? etaMinutes;
+  final double? deliveryFee;
+
+  bool get isShopMode => vendorId != null && vendorId!.trim().isNotEmpty;
+}
+
 class _ProductListScreenState extends State<ProductListScreen> {
   late final TextEditingController _searchController;
   String _query = '';
   String _selectedCategory = 'All';
   _ProductListSort _sort = _ProductListSort.relevance;
   bool _categoryInitialized = false;
+  ProductListArgs? _args;
 
   @override
   void initState() {
@@ -42,7 +72,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
     super.didChangeDependencies();
     if (_categoryInitialized) return;
     _categoryInitialized = true;
-    final category = ModalRoute.of(context)?.settings.arguments as String?;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final category = switch (routeArgs) {
+      ProductListArgs args => args.category,
+      String value => value,
+      _ => null,
+    };
+    if (routeArgs is ProductListArgs) _args = routeArgs;
     if (category != null && category.isNotEmpty && category != 'All') {
       _selectedCategory = category;
     }
@@ -65,11 +101,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
             final products = _filteredProducts(state.products);
 
             return CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: _Header(
+                      title: _args?.isShopMode == true
+                          ? _args!.shopName ?? 'Shop products'
+                          : 'Product List',
                       controller: _searchController,
                       onChanged: (value) {
                         setState(() => _query = value.trim());
@@ -79,6 +121,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                if (_args?.isShopMode == true)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: _ShopHero(
+                        args: _args!,
+                        itemCount: products.length,
+                      ),
+                    ),
+                  ),
+                if (_args?.isShopMode == true)
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _ShopSearchDelegate(
+                      controller: _searchController,
+                      shopName: _args!.shopName ?? 'this shop',
+                      onChanged: (value) {
+                        setState(() => _query = value.trim());
+                      },
+                    ),
+                  ),
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 54,
@@ -220,6 +283,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
   List<dynamic> _filteredProducts(List<dynamic> input) {
     var items = List<dynamic>.from(input);
 
+    final vendorId = _args?.vendorId?.trim();
+    if (vendorId != null && vendorId.isNotEmpty) {
+      items = items
+          .where((item) => (item.vendorId as String?)?.trim() == vendorId)
+          .toList();
+    }
+
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
       items = items.where((item) {
@@ -339,11 +409,13 @@ _ProductListSort _productSortFromLabel(String label) {
 
 class _Header extends StatelessWidget {
   const _Header({
+    required this.title,
     required this.controller,
     required this.onChanged,
     required this.onBack,
   });
 
+  final String title;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onBack;
@@ -354,11 +426,13 @@ class _Header extends StatelessWidget {
       children: [
         _CircleIconButton(icon: Icons.arrow_back_rounded, onTap: onBack),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Product List',
+            title,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
               color: _kTextDark,
@@ -367,6 +441,267 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: 44),
       ],
+    );
+  }
+}
+
+class _ShopSearchDelegate extends SliverPersistentHeaderDelegate {
+  const _ShopSearchDelegate({
+    required this.controller,
+    required this.shopName,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String shopName;
+  final ValueChanged<String> onChanged;
+
+  @override
+  double get minExtent => 72;
+
+  @override
+  double get maxExtent => 72;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: _kBg,
+        boxShadow: overlapsContent
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : [],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: VoiceSearchWidget(
+        controller: controller,
+        hintText: 'Search products in $shopName',
+        onSearchChanged: onChanged,
+        onSubmitted: onChanged,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _ShopSearchDelegate oldDelegate) {
+    return oldDelegate.controller != controller ||
+        oldDelegate.shopName != shopName;
+  }
+}
+
+class _ShopHero extends StatelessWidget {
+  const _ShopHero({required this.args, required this.itemCount});
+
+  final ProductListArgs args;
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = NetworkImageUrl.normalize(args.shopLogo ?? '');
+    final coverImage = NetworkImageUrl.normalize(
+      (args.shopImageUrl ?? '').trim().isNotEmpty
+          ? args.shopImageUrl
+          : args.shopLogo,
+    );
+    final distance = args.distanceKm == null
+        ? args.shopCity ?? 'Nearby'
+        : '${args.distanceKm!.toStringAsFixed(1)} km · ${args.shopCity ?? 'Nearby'}';
+    final eta = args.etaMinutes ?? 25;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: coverImage.startsWith('http')
+                  ? Image.network(
+                      coverImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const _ShopHeroBackdrop(),
+                    )
+                  : const _ShopHeroBackdrop(),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.18),
+                      Colors.black.withValues(alpha: 0.74),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: logo.startsWith('http')
+                            ? Image.network(
+                                logo,
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _ShopHeroIcon(),
+                              )
+                            : _ShopHeroIcon(),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              args.shopName ?? 'Nearby shop',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Open now · $distance',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.88),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ShopHeroChip(
+                        icon: Icons.star_rounded,
+                        label:
+                            '${(args.rating ?? 4.5).toStringAsFixed(1)} rating',
+                      ),
+                      _ShopHeroChip(
+                        icon: Icons.timer_rounded,
+                        label: '$eta-${eta + 5} min',
+                      ),
+                      _ShopHeroChip(
+                        icon: Icons.shopping_bag_rounded,
+                        label: '$itemCount items',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopHeroBackdrop extends StatelessWidget {
+  const _ShopHeroBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFF7A34), Color(0xFFE8541A)],
+        ),
+      ),
+      child: Center(
+        child: Icon(Icons.storefront_rounded, color: Colors.white, size: 56),
+      ),
+    );
+  }
+}
+
+class _ShopHeroIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 70,
+      height: 70,
+      color: Colors.white.withValues(alpha: 0.20),
+      child: const Icon(
+        Icons.storefront_rounded,
+        color: Colors.white,
+        size: 34,
+      ),
+    );
+  }
+}
+
+class _ShopHeroChip extends StatelessWidget {
+  const _ShopHeroChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 15),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
