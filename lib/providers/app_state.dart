@@ -18,6 +18,18 @@ import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/session_service.dart';
 
+class ReorderCartResult {
+  const ReorderCartResult({
+    required this.addedCount,
+    required this.skippedCount,
+  });
+
+  final int addedCount;
+  final int skippedCount;
+
+  bool get hasAddedItems => addedCount > 0;
+}
+
 class CartLine {
   CartLine({
     required this.product,
@@ -84,6 +96,7 @@ class AppState extends ChangeNotifier {
   List<CategoryModel> categoryCatalog = [];
   List<BannerModel> banners = [];
   List<ProductModel> favorites = [];
+  List<ProductModel> buyAgainProducts = [];
   List<OrderModel> orders = [];
   List<OrderModel> adminOrders = [];
   List<AddressModel> savedAddresses = [];
@@ -147,6 +160,7 @@ class AppState extends ChangeNotifier {
         }
         if (user?.role == UserRoles.user) {
           await loadFavorites();
+          await loadBuyAgainProducts();
         }
         if ((user?.role == UserRoles.admin ||
                 user?.role == UserRoles.vendor ||
@@ -621,6 +635,7 @@ class AppState extends ChangeNotifier {
         _safeCall(loadAddresses),
         _safeCall(loadFavorites),
         _safeCall(loadOrders),
+        _safeCall(loadBuyAgainProducts),
       ]);
       await loadReviewedProductKeys();
       return;
@@ -814,6 +829,7 @@ class AppState extends ChangeNotifier {
     vendor = null;
     orders = [];
     adminOrders = [];
+    buyAgainProducts = [];
     savedAddresses = [];
     selectedAddress = null;
     reviewedProductKeys = {};
@@ -1300,6 +1316,29 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadBuyAgainProducts() async {
+    if (token == null || user?.role != UserRoles.user) {
+      buyAgainProducts = [];
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final data =
+          await apiService
+                  .get('/orders/buy-again', token: token)
+                  .timeout(const Duration(seconds: 8))
+              as List<dynamic>;
+      buyAgainProducts = data
+          .cast<Map<String, dynamic>>()
+          .map(ProductModel.fromJson)
+          .toList();
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Buy again products load skipped: $error');
+    }
+  }
+
   Future<void> loadFavorites() async {
     if (token == null) {
       favorites = [];
@@ -1334,6 +1373,92 @@ class AppState extends ChangeNotifier {
       discountCost: discountCost,
       stock: stock,
     );
+  }
+
+  Future<ReorderCartResult> addOrderToCart(OrderModel order) async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return const ReorderCartResult(addedCount: 0, skippedCount: 0);
+    }
+
+    final items = <({ProductModel product, int quantity})>[];
+    for (var i = 0; i < order.products.length; i++) {
+      final product = order.products[i];
+      final productId = product.id.trim();
+      if (productId.isEmpty) continue;
+      final quantity = i < order.quantities.length ? order.quantities[i] : 1;
+      items.add((product: product, quantity: quantity <= 0 ? 1 : quantity));
+    }
+
+    if (items.isEmpty) {
+      error = 'No items available to reorder';
+      notifyListeners();
+      return const ReorderCartResult(addedCount: 0, skippedCount: 0);
+    }
+
+    final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
+    for (final item in items) {
+      _setCartQuantity(
+        item.product,
+        (cart
+                .firstWhere(
+                  (line) =>
+                      line.key ==
+                      '${item.product.id}::${item.product.unit.trim().toLowerCase()}',
+                  orElse: () => CartLine(
+                    product: item.product,
+                    quantity: 0,
+                    unit: item.product.unit,
+                  ),
+                )
+                .quantity) +
+            item.quantity,
+        unit: item.product.unit,
+      );
+    }
+    error = null;
+    notifyListeners();
+
+    var addedCount = 0;
+    var skippedCount = 0;
+    try {
+      for (final item in items) {
+        try {
+          await apiService.post(
+            '/cart/add',
+            token: token,
+            body: {
+              'productId': item.product.id,
+              'quantity': item.quantity,
+              if (item.product.unit.trim().isNotEmpty)
+                'unit': item.product.unit.trim(),
+            },
+          );
+          addedCount++;
+        } catch (e) {
+          skippedCount++;
+          debugPrint('Reorder item skipped: $e');
+        }
+      }
+      await loadCart();
+      if (addedCount == 0 && skippedCount > 0) {
+        error = 'Previous order items are currently unavailable';
+        _restoreCartSnapshot(snapshot);
+      }
+      return ReorderCartResult(
+        addedCount: addedCount,
+        skippedCount: skippedCount,
+      );
+    } catch (e) {
+      if (mutationToken == _cartMutationToken) {
+        _restoreCartSnapshot(snapshot);
+      }
+      error = e.toString();
+      notifyListeners();
+      return ReorderCartResult(addedCount: 0, skippedCount: items.length);
+    }
   }
 
   Future<bool> decrement(ProductModel product, {String? unit}) async {
@@ -1465,6 +1590,7 @@ class AppState extends ChangeNotifier {
     }
     orders.insertAll(0, createdOrders.reversed.toList());
     await clearCart();
+    await loadBuyAgainProducts();
     return createdOrders.first;
   }
 

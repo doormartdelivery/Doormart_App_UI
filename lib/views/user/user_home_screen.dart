@@ -68,6 +68,18 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   ).animate(CurvedAnimation(parent: _pageCtrl, curve: Curves.easeOut));
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<AppState>();
+      if (state.signedIn && state.buyAgainProducts.isEmpty) {
+        state.loadBuyAgainProducts();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _pageCtrl.dispose();
     super.dispose();
@@ -128,6 +140,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
 
                     const SliverToBoxAdapter(child: SizedBox(height: 10)),
                     const SliverToBoxAdapter(child: _OfferBanners()),
+                    const SliverToBoxAdapter(child: _BuyAgainSection()),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
                     if (categoryCount > 0)
                       SliverPersistentHeader(
@@ -1862,6 +1875,396 @@ class _CategoryPill extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _BuyAgainSection extends StatelessWidget {
+  const _BuyAgainSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final products = state.buyAgainProducts;
+        if (!state.signedIn || products.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Buy again',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: _kTextDark,
+                              letterSpacing: -0.45,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Your previous favourites, ready in one tap',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _kTextMid,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _kGreenLight,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _kGreen.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.replay_rounded, color: _kGreen, size: 15),
+                          SizedBox(width: 5),
+                          Text(
+                            'Reorder',
+                            style: TextStyle(
+                              color: _kGreen,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 218,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: products.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return _BuyAgainProductCard(product: product, index: index);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BuyAgainProductCard extends StatelessWidget {
+  const _BuyAgainProductCard({required this.product, required this.index});
+
+  final ProductModel product;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 360 + index * 45),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 18 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: SizedBox(
+        height: 214,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => showProductBottomSheet(
+              context,
+              product,
+              onAddToCart: (qty, variant) async {
+                final state = context.read<AppState>();
+                final ok = await state.addToCart(
+                  product,
+                  quantity: qty,
+                  unit: variant.unit,
+                  price: variant.price,
+                  discountCost: variant.discountCost,
+                  stock: variant.stock,
+                );
+                if (!context.mounted) return;
+                showToast(
+                  context,
+                  ok
+                      ? '${product.name} added to cart'
+                      : state.error ?? 'Please login first',
+                );
+              },
+            ),
+            child: Container(
+              width: 156,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFFFD7C7)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kGreen.withValues(alpha: 0.10),
+                    blurRadius: 22,
+                    offset: const Offset(0, 12),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 110,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                            child: _BuyAgainProductImage(product: product),
+                          ),
+                        ),
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Bought',
+                              style: TextStyle(
+                                color: _kGreen,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: const TextStyle(
+                            color: _kTextDark,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _unitLabel(product.unit),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: const TextStyle(
+                            color: _kTextMid,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '₹${product.price.toStringAsFixed(0)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: _kTextDark,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            _BuyAgainAddButton(product: product),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BuyAgainProductImage extends StatelessWidget {
+  const _BuyAgainProductImage({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = NetworkImageUrl.normalize(product.imageUrl);
+    Widget image;
+    if (normalized.startsWith('http')) {
+      image = Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => _BuyAgainImageFallback(product: product),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      );
+    } else if (normalized.startsWith('assets/')) {
+      image = Image.asset(
+        normalized,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => _BuyAgainImageFallback(product: product),
+      );
+    } else {
+      image = _BuyAgainImageFallback(product: product);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox.expand(child: image),
+    );
+  }
+}
+
+class _BuyAgainImageFallback extends StatelessWidget {
+  const _BuyAgainImageFallback({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _categoryAccent(product.category);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFFFFF0EB)],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.shopping_basket_rounded, color: accent, size: 28),
+        ),
+      ),
+    );
+  }
+}
+
+class _BuyAgainAddButton extends StatelessWidget {
+  const _BuyAgainAddButton({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () async {
+        HapticFeedback.selectionClick();
+        final state = context.read<AppState>();
+        final ok = await state.addToCart(product);
+        if (!context.mounted) return;
+        showToast(
+          context,
+          ok
+              ? '${product.name} added to cart'
+              : state.error ?? 'Please login first',
+        );
+      },
+      child: Container(
+        width: 38,
+        height: 34,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF6A2A), Color(0xFFE84012)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: _kGreen.withValues(alpha: 0.28),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
       ),
     );
   }

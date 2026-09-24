@@ -277,18 +277,18 @@ class _CartItemCard extends StatelessWidget {
               left: Radius.circular(22),
             ),
             child: SizedBox(
-              width: 120,
-              height: 130,
+              width: 96,
+              height: 124,
               child: _ProductImage(imageUrl: line.product.imageUrl ?? ''),
             ),
           ),
 
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
 
           // ── Details ───────────────────────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 14, 14, 14),
+              padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -301,10 +301,11 @@ class _CartItemCard extends StatelessWidget {
                           children: [
                             Text(
                               line.product.name,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                              softWrap: false,
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 color: _kTextDark,
                                 height: 1.25,
@@ -313,8 +314,11 @@ class _CartItemCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               line.product.category ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: _kTextMid,
                               ),
                             ),
@@ -322,17 +326,19 @@ class _CartItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _UnitSwitcher(
-                        line: line,
-                        onUnitChanged: onUnitChanged,
-                      ),
+                      _UnitSwitcher(line: line, onUnitChanged: onUnitChanged),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _descriptionText(line.product.description),
+                    _descriptionText(
+                      line.product.description,
+                      name: line.product.name,
+                      category: line.product.category ?? '',
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: const TextStyle(
                       fontSize: 12,
                       color: _kTextMid,
@@ -343,22 +349,27 @@ class _CartItemCard extends StatelessWidget {
                   Row(
                     children: [
                       // Price
-                      Text(
-                        'Rs ${line.unitPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color: _kTextDark,
+                      Expanded(
+                        child: Text(
+                          'Rs ${line.unitPrice.toStringAsFixed(2)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: _kTextDark,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       // ── Quantity pill ──────────────────────────────
                       _QuantityPill(
                         quantity: line.quantity,
                         onDecrement: onDecrement,
                         onIncrement: onIncrement,
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 2),
                     ],
                   ),
                 ],
@@ -379,7 +390,8 @@ class _UnitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: const BoxConstraints(maxWidth: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: _kOrangeLight,
         borderRadius: BorderRadius.circular(999),
@@ -387,9 +399,13 @@ class _UnitChip extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        textAlign: TextAlign.center,
         style: const TextStyle(
           color: _kOrange,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -398,10 +414,7 @@ class _UnitChip extends StatelessWidget {
 }
 
 class _UnitSwitcher extends StatelessWidget {
-  const _UnitSwitcher({
-    required this.line,
-    required this.onUnitChanged,
-  });
+  const _UnitSwitcher({required this.line, required this.onUnitChanged});
 
   final dynamic line;
   final ValueChanged<String> onUnitChanged;
@@ -430,7 +443,8 @@ class _UnitSwitcher extends StatelessWidget {
           final price = (entry.value['price'] as num?)?.toDouble() ?? 0;
           final stock = (entry.value['stock'] as num?)?.toInt() ?? 0;
           final isSelected =
-              unit.trim().toLowerCase() == line.selectedUnit.trim().toLowerCase();
+              unit.trim().toLowerCase() ==
+              line.selectedUnit.trim().toLowerCase();
           return PopupMenuItem<String>(
             value: unit,
             child: Row(
@@ -439,7 +453,9 @@ class _UnitSwitcher extends StatelessWidget {
                   child: Text(
                     _unitLabel(unit),
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -454,19 +470,14 @@ class _UnitSwitcher extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   stock > 0 ? '$stock' : '0',
-                  style: const TextStyle(
-                    color: _kTextMid,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: _kTextMid, fontSize: 12),
                 ),
               ],
             ),
           );
         }).toList();
       },
-      child: _UnitChip(
-        label: '${_unitLabel(line.selectedUnit)}  ▾',
-      ),
+      child: _UnitChip(label: '${_unitLabel(line.selectedUnit)}  ▾'),
     );
   }
 }
@@ -668,9 +679,27 @@ String _unitLabel(String value) {
   return '1 $unit';
 }
 
-String _descriptionText(String value) {
+String _descriptionText(
+  String value, {
+  required String name,
+  required String category,
+}) {
   final description = value.trim();
-  return description.isEmpty ? 'No description available' : description;
+  if (description.isNotEmpty) return description;
+
+  final seed =
+      (name.codeUnits.fold<int>(0, (sum, unit) => sum + unit) +
+              category.codeUnits.fold<int>(0, (sum, unit) => sum + unit))
+          .abs();
+  final fallbackDescriptions = [
+    'Fresh pick for your daily needs',
+    'Quality choice for every home',
+    'Handpicked for quick everyday use',
+    'Popular essential with trusted quality',
+    'Perfect addition to your grocery basket',
+    'Carefully selected for DoorMart customers',
+  ];
+  return fallbackDescriptions[seed % fallbackDescriptions.length];
 }
 
 // ─── Bottom Bar ───────────────────────────────────────────────────────────────

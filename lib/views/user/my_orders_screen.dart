@@ -7,7 +7,9 @@ import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
+import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
+import 'cart_screen.dart';
 import 'live_order_tracking_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -597,6 +599,10 @@ class _PreviousOrderCard extends StatelessWidget {
                   );
                 }).toList(),
               ),
+            if (order.products.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _ReorderOrderButton(order: order),
+            ],
           ],
         ),
       ),
@@ -643,6 +649,96 @@ class _PreviousOrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ReorderOrderButton extends StatefulWidget {
+  const _ReorderOrderButton({required this.order});
+
+  final OrderModel order;
+
+  @override
+  State<_ReorderOrderButton> createState() => _ReorderOrderButtonState();
+}
+
+class _ReorderOrderButtonState extends State<_ReorderOrderButton> {
+  bool _loading = false;
+
+  Future<void> _reorder() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final state = context.read<AppState>();
+    final result = await state.addOrderToCart(widget.order);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (!result.hasAddedItems) {
+      showToast(
+        context,
+        state.error ?? 'These items are currently unavailable',
+      );
+      return;
+    }
+
+    final message = result.skippedCount > 0
+        ? '${result.addedCount} items added, ${result.skippedCount} unavailable'
+        : '${result.addedCount} items added to cart';
+    showToast(context, message);
+    Navigator.pushNamed(context, CartScreen.routeName);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF6A2A), Color(0xFFE8541A)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE8541A).withValues(alpha: 0.22),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: ElevatedButton.icon(
+          onPressed: _loading ? null : _reorder,
+          icon: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.replay_rounded),
+          label: Text(_loading ? 'Adding items...' : 'Reorder this order'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white.withValues(alpha: 0.78),
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ),
     );
   }
