@@ -3848,11 +3848,23 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
       setState(() {
         _loading = true;
         _radiusKm = radiusKm;
+        _locationUnavailable = false;
       });
     }
+
+    final state = context.read<AppState>();
+    final location = await _resolveNearbyLocation(state);
+    if (location == null) {
+      if (!mounted) return;
+      setState(() {
+        _shops = const [];
+        _locationUnavailable = true;
+        _loading = false;
+      });
+      return;
+    }
+
     try {
-      final location = await LocationService().currentLocation();
-      final state = context.read<AppState>();
       final response = await state.apiService.get(
         '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$radiusKm',
         token: state.token,
@@ -3867,13 +3879,69 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
         _loading = false;
         _locationUnavailable = false;
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Nearby shops load failed: $error');
       if (!mounted) return;
       setState(() {
-        _locationUnavailable = true;
+        _shops = const [];
+        _locationUnavailable = false;
         _loading = false;
       });
     }
+  }
+
+  Future<({double latitude, double longitude})?> _resolveNearbyLocation(
+    AppState state,
+  ) async {
+    final addressLocation = await _deliveryAddressLocation(state);
+    if (addressLocation != null) {
+      debugPrint(
+        'Nearby location source=address lat=${addressLocation.latitude} lng=${addressLocation.longitude}',
+      );
+      return addressLocation;
+    }
+
+    try {
+      final gpsLocation = await LocationService().nearbyLocation();
+      debugPrint(
+        'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
+      );
+      return gpsLocation;
+    } catch (error) {
+      debugPrint('Nearby location unavailable: $error');
+      return null;
+    }
+  }
+
+  Future<({double latitude, double longitude})?> _deliveryAddressLocation(
+    AppState state,
+  ) async {
+    final selected = _addressLocation(state);
+    if (selected != null) return selected;
+
+    if (!state.signedIn || state.savedAddresses.isNotEmpty) return null;
+
+    try {
+      await state.loadAddresses().timeout(const Duration(seconds: 4));
+      return _addressLocation(state);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ({double latitude, double longitude})? _addressLocation(AppState state) {
+    final addresses = [
+      if (state.selectedAddress != null) state.selectedAddress!,
+      ...state.savedAddresses,
+    ];
+    for (final address in addresses) {
+      final latitude = address.latitude;
+      final longitude = address.longitude;
+      if (latitude != null && longitude != null) {
+        return (latitude: latitude, longitude: longitude);
+      }
+    }
+    return null;
   }
 
   @override

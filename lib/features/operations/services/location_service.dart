@@ -28,6 +28,36 @@ class LocationService {
     return (latitude: position.latitude, longitude: position.longitude);
   }
 
+  Future<({double latitude, double longitude})> nearbyLocation() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw StateError('Location services are disabled');
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw StateError('Location permission is required');
+    }
+
+    if (!kIsWeb) {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        return (latitude: lastKnown.latitude, longitude: lastKnown.longitude);
+      }
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: LocationSettings(
+        accuracy: kIsWeb ? LocationAccuracy.high : LocationAccuracy.low,
+        timeLimit: Duration(seconds: kIsWeb ? 10 : 4),
+      ),
+    );
+    return (latitude: position.latitude, longitude: position.longitude);
+  }
+
   Future<String?> addressFromCoordinates({
     required double latitude,
     required double longitude,
