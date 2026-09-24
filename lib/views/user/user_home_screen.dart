@@ -1710,14 +1710,21 @@ class _CategoryCollapsingDelegate extends SliverPersistentHeaderDelegate {
                 alignment: Alignment.topCenter,
                 child: Opacity(
                   opacity: 1 - progress,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      _SectionTitle('Shop by category'),
-                      SizedBox(height: 12),
-                      _CategoryGrid(),
-                    ],
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: maxExtent,
+                    maxHeight: maxExtent,
+                    child: SizedBox(
+                      height: maxExtent,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          _SectionTitle('Shop by category'),
+                          SizedBox(height: 12),
+                          Expanded(child: _CategoryGrid()),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1786,7 +1793,8 @@ class _CategoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tint = _categoryTint(index);
-    final soft = Color.lerp(tint, Colors.white, 0.85)!;
+    final soft = Color.lerp(tint, Colors.white, 0.88)!;
+    final glow = Color.lerp(tint, _kGreen, 0.25)!;
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
@@ -1797,33 +1805,58 @@ class _CategoryPill extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        height: 42,
+        padding: const EdgeInsets.fromLTRB(6, 5, 14, 5),
         decoration: BoxDecoration(
-          color: soft,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: tint.withValues(alpha: 0.28)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, soft],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: tint.withValues(alpha: 0.34)),
+          boxShadow: [
+            BoxShadow(
+              color: glow.withValues(alpha: 0.14),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipOval(
-              child: SizedBox(
-                width: 24,
-                height: 24,
+            Container(
+              width: 32,
+              height: 32,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: tint.withValues(alpha: 0.18),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipOval(
                 child: _CategoryImage(imageUrl: category.imageUrl),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 9),
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 92),
+              constraints: const BoxConstraints(maxWidth: 104),
               child: Text(
                 category.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   color: _kTextDark,
+                  letterSpacing: -0.1,
                 ),
               ),
             ),
