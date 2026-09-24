@@ -95,6 +95,13 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final categoryCount = context.select<AppState, int>(
+      (s) => s.categoryCatalog.length,
+    );
+    final categorySectionExtent = _categorySectionExtent(
+      categoryCount,
+      MediaQuery.of(context).size.width,
+    );
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -122,11 +129,15 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     const SliverToBoxAdapter(child: SizedBox(height: 10)),
                     const SliverToBoxAdapter(child: _OfferBanners()),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
-                    const SliverToBoxAdapter(
-                      child: _SectionTitle('Shop by category'),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    const SliverToBoxAdapter(child: _CategoryGrid()),
+                    if (categoryCount > 0)
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _CategoryCollapsingDelegate(
+                          maxExtent: categorySectionExtent,
+                        ),
+                      )
+                    else
+                      const SliverToBoxAdapter(child: SizedBox(height: 2)),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
                     const SliverToBoxAdapter(child: _AnimeVideoBanner()),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
@@ -1332,11 +1343,14 @@ class _AnimeVideoBannerState extends State<_AnimeVideoBanner> {
       ..setLooping(true)
       ..setVolume(0.0)
       ..addListener(_onControllerUpdate);
-    _controller.initialize().then((_) {
-      if (mounted) _controller.play();
-    }).catchError((Object error) {
-      debugPrint('[AnimeVideoBanner] failed to load video: $error');
-    });
+    _controller
+        .initialize()
+        .then((_) {
+          if (mounted) _controller.play();
+        })
+        .catchError((Object error) {
+          debugPrint('[AnimeVideoBanner] failed to load video: $error');
+        });
   }
 
   void _onControllerUpdate() {
@@ -1432,9 +1446,9 @@ class _CategoryGrid extends StatelessWidget {
           itemCount: cats.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4,
-            mainAxisSpacing: 12,
+            mainAxisSpacing: 14,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.76,
+            childAspectRatio: 0.64,
           ),
           itemBuilder: (ctx, i) =>
               _CategoryTile(category: cats[i], index: i, delay: i * 55),
@@ -1553,16 +1567,19 @@ class _CategoryTileState extends State<_CategoryTile>
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              widget.category.name,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: _kTextDark,
-                height: 1.2,
+            SizedBox(
+              height: 30,
+              child: Text(
+                widget.category.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: _kTextDark,
+                  height: 1.18,
+                ),
               ),
             ),
           ],
@@ -1639,6 +1656,182 @@ Color _categoryTint(int i) {
     Color(0xFFFFCA2C),
   ];
   return t[i % t.length];
+}
+
+// ─── Collapsing Category Section ─────────────────────────────────────────────
+
+double _categorySectionExtent(int count, double screenWidth) {
+  if (count <= 0) return 0;
+  const cols = 4;
+  const titleH = 54.0;
+  const titleGap = 12.0;
+  const padBottom = 8.0;
+  const crossGap = 14.0;
+  const imageAspect = 1.0;
+  const labelGap = 6.0;
+  const labelH = 30.0;
+  final tileW = (screenWidth - 16 * 2 - crossGap * (cols - 1)) / cols;
+  final tileH = (tileW / imageAspect) + labelGap + labelH;
+  final rows = (count / cols).ceil();
+  final gridH = rows * tileH + (rows - 1) * crossGap + padBottom;
+  return titleH + titleGap + gridH + 8;
+}
+
+class _CategoryCollapsingDelegate extends SliverPersistentHeaderDelegate {
+  _CategoryCollapsingDelegate({required double maxExtent})
+    : _maxExtent = maxExtent;
+
+  static const double pillBarHeight = 56.0;
+
+  final double _maxExtent;
+
+  @override
+  double get minExtent => pillBarHeight;
+
+  @override
+  double get maxExtent => _maxExtent;
+
+  @override
+  bool shouldRebuild(_CategoryCollapsingDelegate old) =>
+      old.maxExtent != _maxExtent;
+
+  @override
+  Widget build(BuildContext ctx, double shrinkOffset, bool overlaps) {
+    final range = maxExtent - pillBarHeight;
+    final shrink = shrinkOffset.clamp(0.0, range);
+    final progress = range <= 0 ? 1.0 : (shrink / range).clamp(0.0, 1.0);
+    return SizedBox(
+      height: maxExtent - shrink,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Opacity(
+                  opacity: 1 - progress,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      _SectionTitle('Shop by category'),
+                      SizedBox(height: 12),
+                      _CategoryGrid(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: IgnorePointer(
+              ignoring: progress < 1.0,
+              child: Opacity(
+                opacity: progress,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _kBg,
+                    boxShadow: overlaps
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: const _CategoryPillsBar(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryPillsBar extends StatelessWidget {
+  const _CategoryPillsBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (ctx, state, _) {
+        final cats = state.categoryCatalog;
+        if (cats.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+          height: _CategoryCollapsingDelegate.pillBarHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: cats.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (ctx, i) => _CategoryPill(category: cats[i], index: i),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill({required this.category, required this.index});
+  final dynamic category;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = _categoryTint(index);
+    final soft = Color.lerp(tint, Colors.white, 0.85)!;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.pushNamed(
+          context,
+          ProductListScreen.routeName,
+          arguments: category.name,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: soft,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: tint.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipOval(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: _CategoryImage(imageUrl: category.imageUrl),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 92),
+              child: Text(
+                category.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: _kTextDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ─── Product Rail ─────────────────────────────────────────────────────────────
@@ -2690,9 +2883,7 @@ class _NearbyShopCard extends StatelessWidget {
               SizedBox(
                 width: 112,
                 height: double.infinity,
-                child: isClosed
-                    ? const _AnimatedClosedShopImage()
-                    : _shopImage(),
+                child: isClosed ? _shopImage() : _shopImage(),
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -2921,131 +3112,6 @@ class _ShopFallbackBubble extends StatelessWidget {
         shape: BoxShape.circle,
         color: Colors.white.withValues(alpha: opacity),
       ),
-    );
-  }
-}
-
-class _AnimatedClosedShopImage extends StatefulWidget {
-  const _AnimatedClosedShopImage();
-
-  @override
-  State<_AnimatedClosedShopImage> createState() =>
-      _AnimatedClosedShopImageState();
-}
-
-class _AnimatedClosedShopImageState extends State<_AnimatedClosedShopImage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1600),
-  )..repeat(reverse: true);
-  late final Animation<double> _pulse = Tween<double>(
-    begin: 0.96,
-    end: 1.06,
-  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
-  late final Animation<double> _opacity = Tween<double>(
-    begin: 0.42,
-    end: 0.72,
-  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFF3F4F6), Color(0xFFFFE3D6)],
-                ),
-              ),
-            ),
-            Positioned(
-              top: -20,
-              right: -20,
-              child: _ShopFallbackBubble(size: 72, opacity: _opacity.value),
-            ),
-            Positioned(
-              left: -18,
-              bottom: -22,
-              child: _ShopFallbackBubble(
-                size: 78,
-                opacity: _opacity.value * 0.8,
-              ),
-            ),
-            Center(
-              child: Transform.scale(
-                scale: _pulse.value,
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.storefront_outlined,
-                    color: _kTextMid,
-                    size: 30,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 9,
-              right: 9,
-              bottom: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _kTextDark.withValues(alpha: 0.82),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_clock_rounded,
-                      color: Colors.white,
-                      size: 13,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Closed',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
