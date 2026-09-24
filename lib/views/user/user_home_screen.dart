@@ -2728,29 +2728,12 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
                 ),
                 if (hasMore)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: () => setState(() {
-                          _visibleCount += _pageSize;
-                        }),
-                        icon: const Icon(Icons.expand_more_rounded),
-                        label: Text(
-                          'Load more (${products.length - displayedProducts.length} left)',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kGreen,
-                          side: const BorderSide(color: _kGreen),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
+                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 6),
+                    child: _LoadMoreEssentialsButton(
+                      remaining: products.length - displayedProducts.length,
+                      onTap: () => setState(() {
+                        _visibleCount += _pageSize;
+                      }),
                     ),
                   ),
               ],
@@ -2758,6 +2741,95 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
           },
         );
       },
+    );
+  }
+}
+
+class _LoadMoreEssentialsButton extends StatelessWidget {
+  const _LoadMoreEssentialsButton({
+    required this.remaining,
+    required this.onTap,
+  });
+
+  final int remaining;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFFFB89D)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D000000),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: _kGreenLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add_rounded, color: _kGreen, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Show more essentials',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kTextDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Browse the next 30 products',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kTextMid,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$remaining left',
+                style: const TextStyle(
+                  color: _kGreen,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
