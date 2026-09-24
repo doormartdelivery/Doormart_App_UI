@@ -271,6 +271,29 @@ class VendorProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _SectionCard(
+                    title: 'Business Hours',
+                    subtitle:
+                        'Choose the opening time, closing time, and working days shown to customers.',
+                    children: [
+                      Text(
+                        _businessHoursSummary(vendor.businessHours),
+                        style: const TextStyle(
+                          height: 1.4,
+                          color: _textDark,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _ActionButton(
+                        icon: Icons.schedule_rounded,
+                        label: 'Edit Business Hours',
+                        onTap: () => _showBusinessHoursEditor(context, vendor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _SectionCard(
                     title: 'Shop Page Banner',
                     subtitle:
                         'This banner appears on your shop page in the customer app.',
@@ -1083,6 +1106,81 @@ bool _matchesVendor(String? value, VendorModel? vendor) {
   return (value ?? '').trim() == vendorId;
 }
 
+const _weekdayLabels = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+List<VendorBusinessHour> _normalizedBusinessHours(
+  List<VendorBusinessHour> source,
+) {
+  final byDay = {for (final hour in source) hour.day: hour};
+  return List.generate(
+    7,
+    (day) =>
+        byDay[day] ??
+        VendorBusinessHour(
+          day: day,
+          isOpen: day != 0,
+          openTime: '09:00',
+          closeTime: '21:00',
+        ),
+  );
+}
+
+String _formatBusinessTime(String value) {
+  final parts = value.split(':');
+  if (parts.length != 2) return value;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return value;
+  final suffix = hour >= 12 ? 'PM' : 'AM';
+  final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+  return '$displayHour:${minute.toString().padLeft(2, '0')} $suffix';
+}
+
+String _businessHoursSummary(List<VendorBusinessHour> hours) {
+  final normalized = _normalizedBusinessHours(hours);
+  final openDays = normalized.where((hour) => hour.isOpen).toList();
+  if (openDays.isEmpty) {
+    return 'Closed on all days. Customers will see this shop as closed.';
+  }
+  final first = openDays.first;
+  final sameTime = openDays.every(
+    (hour) =>
+        hour.openTime == first.openTime && hour.closeTime == first.closeTime,
+  );
+  final dayText = openDays.length == 7
+      ? 'Open all days'
+      : openDays
+            .map((hour) => _weekdayLabels[hour.day].substring(0, 3))
+            .join(', ');
+  final timeText = sameTime
+      ? '${_formatBusinessTime(first.openTime)} - ${_formatBusinessTime(first.closeTime)}'
+      : 'Different timings by day';
+  return '$dayText · $timeText';
+}
+
+Future<void> _showBusinessHoursEditor(
+  BuildContext context,
+  VendorModel vendor,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _BusinessHoursEditorSheet(
+      vendor: vendor,
+      messenger: ScaffoldMessenger.of(context),
+    ),
+  );
+}
+
 Future<void> _showPickupAddressEditor(
   BuildContext context,
   VendorModel vendor,
@@ -1096,6 +1194,217 @@ Future<void> _showPickupAddressEditor(
       messenger: ScaffoldMessenger.of(context),
     ),
   );
+}
+
+class _BusinessHoursEditorSheet extends StatefulWidget {
+  const _BusinessHoursEditorSheet({
+    required this.vendor,
+    required this.messenger,
+  });
+
+  final VendorModel vendor;
+  final ScaffoldMessengerState messenger;
+
+  @override
+  State<_BusinessHoursEditorSheet> createState() =>
+      _BusinessHoursEditorSheetState();
+}
+
+class _BusinessHoursEditorSheetState extends State<_BusinessHoursEditorSheet> {
+  late List<VendorBusinessHour> _hours;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hours = _normalizedBusinessHours(widget.vendor.businessHours);
+  }
+
+  Future<void> _pickTime(int index, bool opening) async {
+    final current = opening ? _hours[index].openTime : _hours[index].closeTime;
+    final parts = current.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? 9,
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null || !mounted) return;
+    final value =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    setState(() {
+      _hours[index] = opening
+          ? _hours[index].copyWith(openTime: value)
+          : _hours[index].copyWith(closeTime: value);
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await context.read<AppState>().updateVendorBusinessHours(_hours);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      widget.messenger.showSnackBar(
+        const SnackBar(content: Text('Business hours updated')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      widget.messenger.showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 54,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Edit Business Hours',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: _textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Select which weekdays your shop is open and set opening and closing time for each day.',
+                style: TextStyle(color: _textMid, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              ...List.generate(_hours.length, (index) {
+                final hour = _hours[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCFCFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _border),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _weekdayLabels[hour.day],
+                              style: const TextStyle(
+                                color: _textDark,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: hour.isOpen,
+                            activeThumbColor: _accent,
+                            onChanged: (value) {
+                              setState(
+                                () => _hours[index] = hour.copyWith(
+                                  isOpen: value,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      if (hour.isOpen) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _pickTime(index, true),
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'Open ${_formatBusinessTime(hour.openTime)}',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _pickTime(index, false),
+                                icon: const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'Close ${_formatBusinessTime(hour.closeTime)}',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Save Business Hours',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PickupAddressEditorSheet extends StatefulWidget {

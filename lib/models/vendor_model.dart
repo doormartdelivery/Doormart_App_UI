@@ -1,5 +1,48 @@
 import 'dart:convert';
 
+class VendorBusinessHour {
+  const VendorBusinessHour({
+    required this.day,
+    required this.isOpen,
+    required this.openTime,
+    required this.closeTime,
+  });
+
+  final int day;
+  final bool isOpen;
+  final String openTime;
+  final String closeTime;
+
+  factory VendorBusinessHour.fromJson(Map<String, dynamic> json) {
+    return VendorBusinessHour(
+      day: (json['day'] as num?)?.toInt() ?? 0,
+      isOpen: json['isOpen'] as bool? ?? false,
+      openTime: json['openTime'] as String? ?? '09:00',
+      closeTime: json['closeTime'] as String? ?? '21:00',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'day': day,
+    'isOpen': isOpen,
+    'openTime': openTime,
+    'closeTime': closeTime,
+  };
+
+  VendorBusinessHour copyWith({
+    bool? isOpen,
+    String? openTime,
+    String? closeTime,
+  }) {
+    return VendorBusinessHour(
+      day: day,
+      isOpen: isOpen ?? this.isOpen,
+      openTime: openTime ?? this.openTime,
+      closeTime: closeTime ?? this.closeTime,
+    );
+  }
+}
+
 class VendorModel {
   const VendorModel({
     required this.id,
@@ -20,6 +63,7 @@ class VendorModel {
     this.pickupLongitude,
     this.logoUrl = '',
     this.shopImageUrl = '',
+    this.businessHours = const [],
     this.gstCertificateUrl = '',
     this.panCardUrl = '',
     this.cancelledChequeUrl = '',
@@ -57,6 +101,7 @@ class VendorModel {
   final double? pickupLongitude;
   final String logoUrl;
   final String shopImageUrl;
+  final List<VendorBusinessHour> businessHours;
   final String gstCertificateUrl;
   final String panCardUrl;
   final String cancelledChequeUrl;
@@ -95,6 +140,10 @@ class VendorModel {
       pickupLongitude: _asDouble(json['pickupLongitude'] ?? json['longitude']),
       logoUrl: json['logoUrl'] as String? ?? '',
       shopImageUrl: json['shopImageUrl'] as String? ?? '',
+      businessHours: (json['businessHours'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(VendorBusinessHour.fromJson)
+          .toList(),
       gstCertificateUrl: json['gstCertificateUrl'] as String? ?? '',
       panCardUrl: json['panCardUrl'] as String? ?? '',
       cancelledChequeUrl: json['cancelledChequeUrl'] as String? ?? '',
@@ -133,6 +182,7 @@ class VendorModel {
     'pickupLongitude': pickupLongitude,
     'logoUrl': logoUrl,
     'shopImageUrl': shopImageUrl,
+    'businessHours': businessHours.map((hour) => hour.toJson()).toList(),
     'gstCertificateUrl': gstCertificateUrl,
     'panCardUrl': panCardUrl,
     'cancelledChequeUrl': cancelledChequeUrl,

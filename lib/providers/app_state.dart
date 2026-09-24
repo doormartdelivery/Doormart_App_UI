@@ -573,6 +573,36 @@ class AppState extends ChangeNotifier {
     return vendor!;
   }
 
+  Future<VendorModel> updateVendorBusinessHours(
+    List<VendorBusinessHour> businessHours,
+  ) async {
+    if (token == null || user?.role != UserRoles.vendor) {
+      throw StateError('Vendor login required');
+    }
+    final data =
+        await apiService.put(
+              '/auth/vendor/business-hours',
+              token: token,
+              body: {
+                'businessHours': businessHours
+                    .map((hour) => hour.toJson())
+                    .toList(),
+              },
+            )
+            as Map<String, dynamic>;
+    final vendorJson = data['vendor'];
+    if (vendorJson is Map<String, dynamic>) {
+      vendor = VendorModel.fromJson(vendorJson);
+      notifyListeners();
+      return vendor!;
+    }
+    await refreshProfile();
+    if (vendor == null) {
+      throw StateError('Unable to refresh vendor profile');
+    }
+    return vendor!;
+  }
+
   Future<void> _refreshCurrentProfileSafely() async {
     if (token == null) return;
     if (user?.role == UserRoles.deliveryPerson) return;

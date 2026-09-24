@@ -2488,8 +2488,14 @@ class _NearbyShop {
     required this.shopImageUrl,
     required this.productCount,
     required this.rating,
-    required this.etaMinutes,
-    required this.deliveryFee,
+    required this.reviewCount,
+    this.etaMinMinutes,
+    this.etaMaxMinutes,
+    this.deliveryFee,
+    this.minOrderAmount,
+    this.isOpen,
+    this.todayOpenTime,
+    this.todayCloseTime,
     this.distanceKm,
   });
   final String id;
@@ -2499,9 +2505,39 @@ class _NearbyShop {
   final String shopImageUrl;
   int productCount;
   final double rating;
-  final int etaMinutes;
-  final double deliveryFee;
+  final int reviewCount;
+  final int? etaMinMinutes;
+  final int? etaMaxMinutes;
+  final double? deliveryFee;
+  final double? minOrderAmount;
+  final bool? isOpen;
+  final String? todayOpenTime;
+  final String? todayCloseTime;
   final double? distanceKm;
+
+  String get subtitle {
+    final parts = <String>[
+      if (isOpen != null) _openStatusLabel,
+      if (distanceKm != null) '${distanceKm!.toStringAsFixed(1)} km',
+      if (city.trim().isNotEmpty) city,
+    ];
+    return parts.join(' · ');
+  }
+
+  String get _openStatusLabel {
+    if (isOpen == true) return 'Open now';
+    return 'Closed';
+  }
+
+  String? get etaLabel {
+    final min = etaMinMinutes;
+    final max = etaMaxMinutes;
+    if (min == null && max == null) return null;
+    if (min != null && max != null && max > min) return '$min–$max min';
+    return '${min ?? max} min';
+  }
+
+  String get ratingLabel => rating > 0 ? rating.toStringAsFixed(1) : 'New';
 
   factory _NearbyShop.fromVendor(Map<String, dynamic> json) {
     return _NearbyShop(
@@ -2514,40 +2550,40 @@ class _NearbyShop {
           : 'Nearby',
       logo: json['logoUrl']?.toString() ?? '',
       shopImageUrl: json['shopImageUrl']?.toString() ?? '',
-      productCount: 0,
-      rating: 4.5,
-      etaMinutes: 25,
-      deliveryFee: 30,
-      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      productCount: _nearbyInt(json['productCount']),
+      rating: _nearbyDouble(json['rating']),
+      reviewCount: _nearbyInt(json['reviewCount']),
+      etaMinMinutes: _nearbyNullableInt(
+        json['etaMinMinutes'] ?? json['etaMinutes'],
+      ),
+      etaMaxMinutes: _nearbyNullableInt(json['etaMaxMinutes']),
+      deliveryFee: _nearbyNullableDouble(json['deliveryFee']),
+      minOrderAmount: _nearbyNullableDouble(json['minOrderAmount']),
+      isOpen: json['isOpen'] is bool ? json['isOpen'] as bool : null,
+      todayOpenTime: json['todayOpenTime']?.toString(),
+      todayCloseTime: json['todayCloseTime']?.toString(),
+      distanceKm: _nearbyNullableDouble(json['distanceKm']),
     );
   }
+}
 
-  factory _NearbyShop.fromProducts(String id, List<ProductModel> products) {
-    final first = products.first;
-    final ratings = products
-        .where((p) => p.rating > 0)
-        .map((p) => p.rating)
-        .toList();
-    final rating = ratings.isEmpty
-        ? 4.5
-        : ratings.reduce((a, b) => a + b) / ratings.length;
-    return _NearbyShop(
-      id: id,
-      name: first.supplierName.trim().isNotEmpty
-          ? first.supplierName.trim()
-          : (id == 'main' ? 'Doormart Fresh' : 'Local grocery shop'),
-      city: first.supplierCity.trim().isNotEmpty
-          ? first.supplierCity.trim()
-          : 'Nearby',
-      logo: first.supplierLogo,
-      shopImageUrl: '',
-      productCount: products.length,
-      rating: rating,
-      etaMinutes: id == 'main' ? 25 : 30,
-      deliveryFee: id == 'main' ? 30 : 30,
-      distanceKm: null,
-    );
-  }
+double _nearbyDouble(dynamic value, {double fallback = 0}) {
+  final number = value is num ? value.toDouble() : double.tryParse('$value');
+  return number?.isFinite == true ? number! : fallback;
+}
+
+int _nearbyInt(dynamic value, {int fallback = 0}) {
+  final number = value is num ? value.toInt() : int.tryParse('$value');
+  return number ?? fallback;
+}
+
+int? _nearbyNullableInt(dynamic value) {
+  return value is num ? value.toInt() : int.tryParse('$value');
+}
+
+double? _nearbyNullableDouble(dynamic value) {
+  final number = value is num ? value.toDouble() : double.tryParse('$value');
+  return number?.isFinite == true ? number : null;
 }
 
 class _NearbyShopCard extends StatelessWidget {
@@ -2556,138 +2592,405 @@ class _NearbyShopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isClosed = shop.isOpen == false;
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(
-        context,
-        ProductListScreen.routeName,
-        arguments: ProductListArgs(
-          vendorId: shop.id,
-          shopName: shop.name,
-          shopCity: shop.city,
-          shopLogo: shop.logo,
-          shopImageUrl: shop.shopImageUrl,
-          distanceKm: shop.distanceKm,
-          rating: shop.rating,
-          etaMinutes: shop.etaMinutes,
-          deliveryFee: shop.deliveryFee,
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _kBorder),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 14,
-              offset: Offset(0, 5),
+      onTap: isClosed
+          ? null
+          : () => Navigator.pushNamed(
+              context,
+              ProductListScreen.routeName,
+              arguments: ProductListArgs(
+                vendorId: shop.id,
+                shopName: shop.name,
+                shopCity: shop.city,
+                shopLogo: shop.logo,
+                shopImageUrl: shop.shopImageUrl,
+                distanceKm: shop.distanceKm,
+                rating: shop.rating,
+                etaMinutes: shop.etaMinMinutes,
+                deliveryFee: shop.deliveryFee,
+              ),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: shop.logo.isNotEmpty
-                  ? Image.network(
-                      shop.logo,
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _shopIcon(),
-                    )
-                  : _shopIcon(),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    shop.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: _kTextDark,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    'Open now · ${shop.distanceKm != null ? '${shop.distanceKm!.toStringAsFixed(1)} km · ' : ''}${shop.city}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kTextMid,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Row(
+      child: Opacity(
+        opacity: isClosed ? 0.62 : 1,
+        child: Container(
+          height: 124,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: isClosed ? const Color(0xFFF9FAFB) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _kBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 14,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 112,
+                height: double.infinity,
+                child: isClosed
+                    ? const _AnimatedClosedShopImage()
+                    : _shopImage(),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 16,
-                        color: Color(0xFFF5A623),
-                      ),
-                      const SizedBox(width: 3),
                       Text(
-                        shop.rating.toStringAsFixed(1),
+                        shop.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: _kTextDark,
                         ),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(height: 5),
                       Text(
-                        '${shop.etaMinutes}–${shop.etaMinutes + 5} min',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _kTextMid,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Text(
-                        '${shop.productCount} items',
+                        shop.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12,
                           color: _kTextMid,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 16,
+                                color: Color(0xFFF5A623),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                shop.ratingLabel,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (shop.etaLabel != null)
+                            Text(
+                              shop.etaLabel!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _kTextMid,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          Text(
+                            '${shop.productCount} items',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: _kTextMid,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Delivery ₹${shop.deliveryFee.toStringAsFixed(0)} · Min order ₹199',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kTextDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: _kGreen, size: 24),
-          ],
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: isClosed ? _kTextMid : _kGreen,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _shopIcon() => Container(
-    width: 72,
-    height: 72,
-    color: _kGreenLight,
-    child: const Icon(Icons.storefront_rounded, color: _kGreen, size: 34),
-  );
+  Widget _shopImage() {
+    final image = shop.shopImageUrl.trim().isNotEmpty
+        ? shop.shopImageUrl.trim()
+        : shop.logo.trim();
+    if (image.isEmpty) return _shopIcon();
+    return Image.network(
+      image,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _shopIcon(),
+    );
+  }
+
+  Widget _shopIcon() => const _AnimatedShopFallback();
+}
+
+class _AnimatedShopFallback extends StatefulWidget {
+  const _AnimatedShopFallback();
+
+  @override
+  State<_AnimatedShopFallback> createState() => _AnimatedShopFallbackState();
+}
+
+class _AnimatedShopFallbackState extends State<_AnimatedShopFallback>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
+  late final Animation<double> _pulse = Tween<double>(
+    begin: 0.94,
+    end: 1.08,
+  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
+  late final Animation<double> _glow = Tween<double>(
+    begin: 0.25,
+    end: 0.55,
+  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFF0EB), Color(0xFFFFC9B4)],
+                ),
+              ),
+            ),
+            Positioned(
+              top: -18,
+              left: -16,
+              child: _ShopFallbackBubble(size: 58, opacity: _glow.value),
+            ),
+            Positioned(
+              right: -18,
+              bottom: -14,
+              child: _ShopFallbackBubble(size: 70, opacity: _glow.value * 0.8),
+            ),
+            Center(
+              child: Transform.scale(
+                scale: _pulse.value,
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _kGreen.withValues(alpha: 0.22),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.storefront_rounded,
+                    color: _kGreen,
+                    size: 30,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 10,
+              bottom: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'DoorMart',
+                  style: TextStyle(
+                    color: _kGreen,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ShopFallbackBubble extends StatelessWidget {
+  const _ShopFallbackBubble({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: opacity),
+      ),
+    );
+  }
+}
+
+class _AnimatedClosedShopImage extends StatefulWidget {
+  const _AnimatedClosedShopImage();
+
+  @override
+  State<_AnimatedClosedShopImage> createState() =>
+      _AnimatedClosedShopImageState();
+}
+
+class _AnimatedClosedShopImageState extends State<_AnimatedClosedShopImage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat(reverse: true);
+  late final Animation<double> _pulse = Tween<double>(
+    begin: 0.96,
+    end: 1.06,
+  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
+  late final Animation<double> _opacity = Tween<double>(
+    begin: 0.42,
+    end: 0.72,
+  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_controller);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF3F4F6), Color(0xFFFFE3D6)],
+                ),
+              ),
+            ),
+            Positioned(
+              top: -20,
+              right: -20,
+              child: _ShopFallbackBubble(size: 72, opacity: _opacity.value),
+            ),
+            Positioned(
+              left: -18,
+              bottom: -22,
+              child: _ShopFallbackBubble(
+                size: 78,
+                opacity: _opacity.value * 0.8,
+              ),
+            ),
+            Center(
+              child: Transform.scale(
+                scale: _pulse.value,
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.storefront_outlined,
+                    color: _kTextMid,
+                    size: 30,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 9,
+              right: 9,
+              bottom: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _kTextDark.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_clock_rounded,
+                      color: Colors.white,
+                      size: 13,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Closed',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _PopularStyleProductCard extends StatelessWidget {
@@ -3964,12 +4267,6 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
         final shops = [..._shops];
-        final products = _sectionProducts(state.products, 'popular_products');
-        for (final shop in shops) {
-          shop.productCount = products
-              .where((product) => product.vendorId == shop.id)
-              .length;
-        }
         if (shops.isEmpty) {
           return Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -3980,13 +4277,19 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
           );
         }
         if (widget.selectedCategory == 'Fastest delivery') {
-          shops.removeWhere((shop) => shop.etaMinutes > 25);
+          shops.removeWhere((shop) => (shop.etaMinMinutes ?? 999) > 25);
         } else if (widget.selectedCategory == 'Lowest delivery fee' &&
             shops.isNotEmpty) {
-          final lowestFee = shops
+          final fees = shops
               .map((shop) => shop.deliveryFee)
-              .reduce((a, b) => a < b ? a : b);
-          shops.removeWhere((shop) => shop.deliveryFee != lowestFee);
+              .whereType<double>()
+              .toList();
+          if (fees.isEmpty) {
+            shops.clear();
+          } else {
+            final lowestFee = fees.reduce((a, b) => a < b ? a : b);
+            shops.removeWhere((shop) => shop.deliveryFee != lowestFee);
+          }
         }
         if (shops.isEmpty) {
           return const Padding(
@@ -4000,9 +4303,16 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
         if (widget.sort == _EssentialsSort.ratingHighLow)
           shops.sort((a, b) => b.rating.compareTo(a.rating));
         if (widget.sort == _EssentialsSort.priceLowHigh)
-          shops.sort((a, b) => a.deliveryFee.compareTo(b.deliveryFee));
+          shops.sort(
+            (a, b) => (a.deliveryFee ?? double.infinity).compareTo(
+              b.deliveryFee ?? double.infinity,
+            ),
+          );
         if (widget.sort == _EssentialsSort.priceHighLow)
-          shops.sort((a, b) => a.etaMinutes.compareTo(b.etaMinutes));
+          shops.sort(
+            (a, b) =>
+                (a.etaMinMinutes ?? 999).compareTo(b.etaMinMinutes ?? 999),
+          );
         if (widget.sort == _EssentialsSort.nameAZ)
           shops.sort((a, b) => a.name.compareTo(b.name));
         return ListView.separated(

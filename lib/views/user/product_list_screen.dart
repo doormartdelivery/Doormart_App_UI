@@ -519,118 +519,124 @@ class _ShopHero extends StatelessWidget {
         ? args.shopCity ?? 'Nearby'
         : '${args.distanceKm!.toStringAsFixed(1)} km · ${args.shopCity ?? 'Nearby'}';
     final eta = args.etaMinutes ?? 25;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: coverImage.startsWith('http')
-                  ? Image.network(
-                      coverImage,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _ShopHeroBackdrop(),
-                    )
-                  : const _ShopHeroBackdrop(),
+    final bannerHeight = MediaQuery.sizeOf(context).width >= 720
+        ? 280.0
+        : 230.0;
+    return SizedBox(
+      height: bannerHeight,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 26,
+              offset: const Offset(0, 12),
             ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.18),
-                      Colors.black.withValues(alpha: 0.74),
-                    ],
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: coverImage.startsWith('http')
+                    ? Image.network(
+                        coverImage,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const _ShopHeroBackdrop(),
+                      )
+                    : const _ShopHeroBackdrop(),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.18),
+                        Colors.black.withValues(alpha: 0.74),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: logo.startsWith('http')
-                            ? Image.network(
-                                logo,
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _ShopHeroIcon(),
-                              )
-                            : _ShopHeroIcon(),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              args.shopName ?? 'Nearby shop',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              'Open now · $distance',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.88),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: logo.startsWith('http')
+                              ? Image.network(
+                                  logo,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _ShopHeroIcon(),
+                                )
+                              : _ShopHeroIcon(),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _ShopHeroChip(
-                        icon: Icons.star_rounded,
-                        label:
-                            '${(args.rating ?? 4.5).toStringAsFixed(1)} rating',
-                      ),
-                      _ShopHeroChip(
-                        icon: Icons.timer_rounded,
-                        label: '$eta-${eta + 5} min',
-                      ),
-                      _ShopHeroChip(
-                        icon: Icons.shopping_bag_rounded,
-                        label: '$itemCount items',
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                args.shopName ?? 'Nearby shop',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'Open now · $distance',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.88),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ShopHeroChip(
+                          icon: Icons.star_rounded,
+                          label:
+                              '${(args.rating ?? 4.5).toStringAsFixed(1)} rating',
+                        ),
+                        _ShopHeroChip(
+                          icon: Icons.timer_rounded,
+                          label: '$eta-${eta + 5} min',
+                        ),
+                        _ShopHeroChip(
+                          icon: Icons.shopping_bag_rounded,
+                          label: '$itemCount items',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
