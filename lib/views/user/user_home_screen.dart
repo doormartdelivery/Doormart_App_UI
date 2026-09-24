@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../mascot/walking_mascot_widget.dart';
 import '../../core/utils/network_image_url.dart';
@@ -126,6 +127,8 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     const SliverToBoxAdapter(child: _CategoryGrid()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 22)),
+                    const SliverToBoxAdapter(child: _AnimeVideoBanner()),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
                     const SliverToBoxAdapter(
                       child: _SectionTitle(
@@ -1311,6 +1314,60 @@ class _BannerFallback extends StatelessWidget {
 }
 
 // ─── Section Title ────────────────────────────────────────────────────────────
+
+class _AnimeVideoBanner extends StatefulWidget {
+  const _AnimeVideoBanner();
+
+  @override
+  State<_AnimeVideoBanner> createState() => _AnimeVideoBannerState();
+}
+
+class _AnimeVideoBannerState extends State<_AnimeVideoBanner> {
+  late final VideoPlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.asset('assets/anime_video.mp4')
+      ..setLooping(true)
+      ..setVolume(0.0)
+      ..addListener(_onControllerUpdate);
+    _controller.initialize().then((_) {
+      if (mounted) _controller.play();
+    }).catchError((Object error) {
+      debugPrint('[AnimeVideoBanner] failed to load video: $error');
+    });
+  }
+
+  void _onControllerUpdate() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerUpdate);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_controller.value.isInitialized || _controller.value.hasError) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: AspectRatio(
+          aspectRatio: _controller.value.aspectRatio,
+          child: VideoPlayer(_controller),
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.title, {this.actionColor = _kGreen});
