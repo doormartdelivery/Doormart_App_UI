@@ -36,6 +36,24 @@ void _logNextFrame(String label, Stopwatch sw) {
   });
 }
 
+String _formatVendorOpenTime(String? value) {
+  if (value == null || value.trim().isEmpty) return '';
+  final parts = value.trim().split(':');
+  if (parts.length < 2) return value.trim();
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return value.trim();
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+  return '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+}
+
+String _closedStoreLabel(ProductModel product) {
+  final openTime = _formatVendorOpenTime(product.vendorTodayOpenTime);
+  if (openTime.isEmpty) return 'Store closed';
+  return 'Opens at $openTime';
+}
+
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
   static const routeName = '/';
@@ -3087,32 +3105,42 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
                           product: product,
                           isFavorite: isFavorite,
                           imageFallbackBuilder: _funnyMissingImageFallback,
+                          isStoreClosed: product.vendorIsOpen == false,
                           onFavoriteToggle: () =>
                               widget.onFavoriteToggle(product),
-                          onTap: () => showProductBottomSheet(
-                            ctx,
-                            product,
-                            onAddToCart: (qty, variant) async {
-                              final tapSw = Stopwatch()..start();
-                              final ok = await state.addToCart(
-                                product,
-                                quantity: qty,
-                                unit: variant.unit,
-                                price: variant.price,
-                                discountCost: variant.discountCost,
-                                stock: variant.stock,
-                              );
-                              if (!ctx.mounted) return;
-                              showToast(
-                                ctx,
-                                ok
-                                    ? '${product.name} added to cart'
-                                    : state.error ?? 'Please login first',
-                              );
-                              _logNextFrame('cart:popular', tapSw);
-                            },
-                          ),
+                          onTap: product.vendorIsOpen == false
+                              ? () => showToast(
+                                  ctx,
+                                  'This store is closed right now',
+                                )
+                              : () => showProductBottomSheet(
+                                  ctx,
+                                  product,
+                                  onAddToCart: (qty, variant) async {
+                                    final tapSw = Stopwatch()..start();
+                                    final ok = await state.addToCart(
+                                      product,
+                                      quantity: qty,
+                                      unit: variant.unit,
+                                      price: variant.price,
+                                      discountCost: variant.discountCost,
+                                      stock: variant.stock,
+                                    );
+                                    if (!ctx.mounted) return;
+                                    showToast(
+                                      ctx,
+                                      ok
+                                          ? '${product.name} added to cart'
+                                          : state.error ?? 'Please login first',
+                                    );
+                                    _logNextFrame('cart:popular', tapSw);
+                                  },
+                                ),
                           onAdd: () async {
+                            if (product.vendorIsOpen == false) {
+                              showToast(ctx, 'This store is closed right now');
+                              return;
+                            }
                             final tapSw = Stopwatch()..start();
                             final ok = await state.addToCart(product);
                             if (!ctx.mounted) return;
@@ -3632,6 +3660,7 @@ class _PopularStyleProductCard extends StatelessWidget {
     required this.onAdd,
     required this.onTap,
     this.imageFallbackBuilder,
+    this.isStoreClosed = false,
   });
 
   final ProductModel product;
@@ -3641,172 +3670,208 @@ class _PopularStyleProductCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget Function(BuildContext context, ProductModel product)?
   imageFallbackBuilder;
+  final bool isStoreClosed;
 
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              flex: 62,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(22),
-                    ),
-                    child: _HomeFeedImage(
-                      imageUrl: product.imageUrl,
-                      product: product,
-                      imageFallbackBuilder: imageFallbackBuilder,
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: _EssentialsRatingBadge(rating: product.rating),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: _QuantityLikeFavorite(
-                      isFavorite: isFavorite,
-                      onTap: onFavoriteToggle,
-                    ),
-                  ),
-                ],
+      child: Opacity(
+        opacity: isStoreClosed ? 0.72 : 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isStoreClosed ? const Color(0xFFF9FAFB) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-            ),
-            Expanded(
-              flex: 55,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  compact ? 9 : 12,
-                  compact ? 7 : 8,
-                  compact ? 9 : 12,
-                  compact ? 8 : 10,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ],
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                flex: 62,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Text(
-                      product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 14 : 16,
-                        fontWeight: FontWeight.w800,
-                        color: _kTextDark,
-                        height: 1.25,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(22),
+                      ),
+                      child: _HomeFeedImage(
+                        imageUrl: product.imageUrl,
+                        product: product,
+                        imageFallbackBuilder: imageFallbackBuilder,
                       ),
                     ),
-                    Text(
-                      '${product.category} • ${_unitLabel(product.unit)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: compact ? 10.5 : 12,
-                        color: _kTextMid,
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: _EssentialsRatingBadge(rating: product.rating),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: _QuantityLikeFavorite(
+                        isFavorite: isFavorite,
+                        onTap: onFavoriteToggle,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: FittedBox(
-                            alignment: Alignment.centerLeft,
-                            fit: BoxFit.scaleDown,
+                    if (isStoreClosed)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                             child: Text(
-                              '₹ ${product.price.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: compact ? 14 : 15,
+                              _closedStoreLabel(product),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: _kGreen,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w900,
-                                color: _kTextDark,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            '₹ ${_mrpValue(product).toStringAsFixed(0)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: compact ? 10.5 : 12,
-                              fontWeight: FontWeight.w700,
-                              color: _kTextMid,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: _kTextMid,
-                              decorationThickness: 1.6,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${product.stock > 20 ? 10 : 18} min',
-                          style: TextStyle(
-                            fontSize: compact ? 8 : 9,
-                            fontWeight: FontWeight.w700,
-                            color: _kTextMid,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      height: compact ? 34 : 38,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: _kGreen,
-                        borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _kGreen.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      child: FilledButton(
-                        onPressed: onAdd,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                        child: Text(
-                          'Add to Cart',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: compact ? 11 : 12,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                flex: 55,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 9 : 12,
+                    compact ? 7 : 8,
+                    compact ? 9 : 12,
+                    compact ? 8 : 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 16,
+                          fontWeight: FontWeight.w800,
+                          color: _kTextDark,
+                          height: 1.25,
+                        ),
+                      ),
+                      Text(
+                        '${product.category} • ${_unitLabel(product.unit)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 10.5 : 12,
+                          color: _kTextMid,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: FittedBox(
+                              alignment: Alignment.centerLeft,
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '₹ ${product.price.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: compact ? 14 : 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: _kTextDark,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '₹ ${_mrpValue(product).toStringAsFixed(0)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: compact ? 10.5 : 12,
+                                fontWeight: FontWeight.w700,
+                                color: _kTextMid,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: _kTextMid,
+                                decorationThickness: 1.6,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${product.stock > 20 ? 10 : 18} min',
+                            style: TextStyle(
+                              fontSize: compact ? 8 : 9,
+                              fontWeight: FontWeight.w700,
+                              color: _kTextMid,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        height: compact ? 34 : 38,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: isStoreClosed
+                              ? const Color(0xFF9CA3AF)
+                              : _kGreen,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  (isStoreClosed
+                                          ? const Color(0xFF9CA3AF)
+                                          : _kGreen)
+                                      .withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: FilledButton(
+                          onPressed: isStoreClosed ? null : onAdd,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          child: Text(
+                            isStoreClosed ? 'Closed' : 'Add to Cart',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: compact ? 11 : 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -3863,14 +3928,10 @@ List<ProductModel> _sectionProducts(
   List<ProductModel> products,
   String section,
 ) {
-  final openProducts = products
-      .where((product) => product.vendorIsOpen != false)
-      .toList();
-  final source = section == 'daily_essentials' ? openProducts : products;
-  final scoped = source
+  final scoped = products
       .where((product) => product.dashboardSection == section)
       .toList();
-  return scoped.isNotEmpty ? scoped : List<ProductModel>.from(source);
+  return scoped.isNotEmpty ? scoped : List<ProductModel>.from(products);
 }
 
 List<ProductModel> _freshPickProducts(List<ProductModel> products) {
