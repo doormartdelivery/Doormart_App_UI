@@ -6,6 +6,7 @@ import '../app.dart';
 import '../core/constants.dart';
 import '../core/role_access.dart';
 import '../core/utils/network_image_url.dart';
+import '../features/operations/services/location_service.dart';
 import '../models/address_model.dart';
 import '../models/banner_model.dart';
 import '../models/category_model.dart';
@@ -105,6 +106,11 @@ class AppState extends ChangeNotifier {
   Set<String> reviewedProductKeys = {};
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
+  static const double nearbyRadiusKm = 5.0;
+  Set<String> nearbyVendorIds = const {};
+  bool nearbyVendorsLoading = false;
+  bool nearbyLocationUnavailable = false;
+  DateTime? _nearbyVendorLoadedAt;
   final List<CartLine> cart = [];
   int _cartMutationToken = 0;
   int dashboardRefreshTick = 0;
@@ -117,6 +123,15 @@ class AppState extends ChangeNotifier {
   double get total => subtotal + deliveryFee + gstAmount;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
+  bool get hasNearbyVendorData => nearbyVendorIds.isNotEmpty;
+  List<ProductModel> get nearbyProducts =>
+      products.where(isProductNearUser).toList(growable: false);
+  List<ProductModel> get nearbyFavorites =>
+      favorites.where(isProductNearUser).toList(growable: false);
+  List<CartLine> get unavailableCartLines => cart
+      .where((line) => !isProductNearUser(line.product))
+      .toList(growable: false);
+  bool get hasUnavailableCartItems => unavailableCartLines.isNotEmpty;
   bool get signedIn => token != null;
   String get logoutRouteName {
     switch (user?.role) {
@@ -134,6 +149,105 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  bool isProductNearUser(ProductModel product) {
+    final vendorId = product.vendorId.trim();
+    if (vendorId.isEmpty) return false;
+    return nearbyVendorIds.contains(vendorId);
+  }
+
+  Future<void> loadNearbyVendorIds({
+    double radiusKm = nearbyRadiusKm,
+    bool force = false,
+  }) async {
+    if (!force &&
+        _nearbyVendorLoadedAt != null &&
+        DateTime.now().difference(_nearbyVendorLoadedAt!) <
+            const Duration(minutes: 3)) {
+      return;
+    }
+
+    nearbyVendorsLoading = true;
+    nearbyLocationUnavailable = false;
+    notifyListeners();
+
+    final location = await _resolveNearbyLocation();
+    if (location == null) {
+      nearbyVendorIds = const {};
+      nearbyLocationUnavailable = true;
+      nearbyVendorsLoading = false;
+      _nearbyVendorLoadedAt = DateTime.now();
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final response = await apiService.get(
+        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$radiusKm',
+        token: token,
+      );
+      final vendors = response is List ? response : const [];
+      nearbyVendorIds = vendors
+          .whereType<Map<String, dynamic>>()
+          .map((vendor) => vendor['vendorId']?.toString().trim() ?? '')
+          .where((vendorId) => vendorId.isNotEmpty)
+          .toSet();
+      nearbyLocationUnavailable = false;
+      _nearbyVendorLoadedAt = DateTime.now();
+    } catch (error) {
+      debugPrint('Nearby vendor cache load skipped: $error');
+      nearbyVendorIds = const {};
+      nearbyLocationUnavailable = false;
+      _nearbyVendorLoadedAt = DateTime.now();
+    } finally {
+      nearbyVendorsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<({double latitude, double longitude})?>
+  _resolveNearbyLocation() async {
+    final addressLocation = await _deliveryAddressLocation();
+    if (addressLocation != null) return addressLocation;
+
+    try {
+      final gpsLocation = await LocationService().nearbyLocation();
+      return (latitude: gpsLocation.latitude, longitude: gpsLocation.longitude);
+    } catch (error) {
+      debugPrint('Nearby location unavailable: $error');
+      return null;
+    }
+  }
+
+  Future<({double latitude, double longitude})?>
+  _deliveryAddressLocation() async {
+    final selected = _addressLocation();
+    if (selected != null) return selected;
+
+    if (!signedIn || savedAddresses.isNotEmpty) return null;
+
+    try {
+      await loadAddresses().timeout(const Duration(seconds: 4));
+      return _addressLocation();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ({double latitude, double longitude})? _addressLocation() {
+    final addresses = [
+      if (selectedAddress != null) selectedAddress!,
+      ...savedAddresses,
+    ];
+    for (final address in addresses) {
+      final latitude = address.latitude;
+      final longitude = address.longitude;
+      if (latitude != null && longitude != null) {
+        return (latitude: latitude, longitude: longitude);
+      }
+    }
+    return null;
+  }
+
   Future<void> bootstrap() async {
     try {
       token = await _sessionService.getToken();
@@ -147,6 +261,7 @@ class AppState extends ChangeNotifier {
       if (token != null && user?.role == UserRoles.user) {
         await _restoreSession();
         await loadReviewedProductKeys();
+        unawaited(loadNearbyVendorIds());
       }
       if (token != null && user?.role == UserRoles.vendor) {
         await _refreshCurrentProfileSafely();
@@ -2540,6 +2655,11 @@ class AppState extends ChangeNotifier {
   }) async {
     if (token == null) {
       error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+    if (!isProductNearUser(product)) {
+      error = 'This product is not available near your location';
       notifyListeners();
       return false;
     }

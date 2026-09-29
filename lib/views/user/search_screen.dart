@@ -27,6 +27,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppState>().loadNearbyVendorIds();
+    });
   }
 
   @override
@@ -79,7 +83,7 @@ class _SearchScreenState extends State<SearchScreen> {
               SliverToBoxAdapter(
                 child: Consumer<AppState>(
                   builder: (context, state, _) {
-                    final products = _filteredProducts(state.products);
+                    final products = _filteredProducts(state.nearbyProducts);
                     final count = products.length;
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,8 +101,9 @@ class _SearchScreenState extends State<SearchScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               Consumer<AppState>(
                 builder: (context, state, _) {
-                  final products = _filteredProducts(state.products);
-                  if (state.loading && products.isEmpty) {
+                  final products = _filteredProducts(state.nearbyProducts);
+                  if ((state.loading || state.nearbyVendorsLoading) &&
+                      products.isEmpty) {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.only(top: 40),

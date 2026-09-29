@@ -26,6 +26,9 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppState>().loadNearbyVendorIds();
+    });
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -43,14 +46,39 @@ class CartScreen extends StatelessWidget {
                   }
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    itemCount: state.cart.length,
+                    itemCount:
+                        state.cart.length +
+                        ((state.nearbyLocationUnavailable ||
+                                state.hasUnavailableCartItems)
+                            ? 1
+                            : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final line = state.cart[index];
+                      final showNotice =
+                          state.nearbyLocationUnavailable ||
+                          state.hasUnavailableCartItems;
+                      if (showNotice && index == 0) {
+                        return _CartLocationNotice(
+                          locationUnavailable: state.nearbyLocationUnavailable,
+                        );
+                      }
+                      final line = state.cart[showNotice ? index - 1 : index];
+                      final isUnavailable =
+                          !state.nearbyVendorsLoading &&
+                          !state.nearbyLocationUnavailable &&
+                          !state.isProductNearUser(line.product);
                       return _CartItemCard(
                         key: ValueKey(line.key),
                         line: line,
+                        isUnavailable: isUnavailable,
                         onIncrement: () {
+                          if (isUnavailable) {
+                            showToast(
+                              context,
+                              'This item is not available near your location',
+                            );
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           unawaited(
                             state.addToCart(
@@ -73,6 +101,13 @@ class CartScreen extends StatelessWidget {
                           );
                         },
                         onUnitChanged: (unit) {
+                          if (isUnavailable) {
+                            showToast(
+                              context,
+                              'This item is not available near your location',
+                            );
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           unawaited(() async {
                             final ok = await state.changeCartUnit(
@@ -239,144 +274,198 @@ class _AppBarIcon extends StatelessWidget {
   }
 }
 
+class _CartLocationNotice extends StatelessWidget {
+  const _CartLocationNotice({required this.locationUnavailable});
+
+  final bool locationUnavailable;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kOrangeLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFC7B0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on_rounded, color: _kOrange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              locationUnavailable
+                  ? 'Allow location access to check item availability near you.'
+                  : 'Some cart items are not available near your location.',
+              style: const TextStyle(
+                color: _kTextDark,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Cart Item Card ───────────────────────────────────────────────────────────
 
 class _CartItemCard extends StatelessWidget {
   const _CartItemCard({
     super.key,
     required this.line,
+    required this.isUnavailable,
     required this.onIncrement,
     required this.onDecrement,
     required this.onUnitChanged,
   });
 
   final dynamic line; // your CartLine / CartItem type
+  final bool isUnavailable;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final ValueChanged<String> onUnitChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // ── Product image ─────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(22),
+    return Opacity(
+      opacity: isUnavailable ? 0.62 : 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            child: SizedBox(
-              width: 96,
-              height: 124,
-              child: _ProductImage(imageUrl: line.product.imageUrl ?? ''),
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          // ── Details ───────────────────────────────────────────────────
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              line.product.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: _kTextDark,
-                                height: 1.25,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              line.product.category ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: false,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: _kTextMid,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _UnitSwitcher(line: line, onUnitChanged: onUnitChanged),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _descriptionText(
-                      line.product.description,
-                      name: line.product.name,
-                      category: line.product.category ?? '',
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kTextMid,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      // Price
-                      Expanded(
-                        child: Text(
-                          'Rs ${line.unitPrice.toStringAsFixed(2)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: _kTextDark,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // ── Quantity pill ──────────────────────────────
-                      _QuantityPill(
-                        quantity: line.quantity,
-                        onDecrement: onDecrement,
-                        onIncrement: onIncrement,
-                      ),
-                      const SizedBox(width: 2),
-                    ],
-                  ),
-                ],
+          ],
+        ),
+        child: Row(
+          children: [
+            // ── Product image ─────────────────────────────────────────────
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(22),
+              ),
+              child: SizedBox(
+                width: 96,
+                height: 124,
+                child: _ProductImage(imageUrl: line.product.imageUrl ?? ''),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(width: 10),
+
+            // ── Details ───────────────────────────────────────────────────
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                line.product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: _kTextDark,
+                                  height: 1.25,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                line.product.category ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _kTextMid,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _UnitSwitcher(line: line, onUnitChanged: onUnitChanged),
+                      ],
+                    ),
+                    if (isUnavailable) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Not available near you',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _kOrange,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      _descriptionText(
+                        line.product.description,
+                        name: line.product.name,
+                        category: line.product.category ?? '',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: _kTextMid,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        // Price
+                        Expanded(
+                          child: Text(
+                            'Rs ${line.unitPrice.toStringAsFixed(2)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              color: _kTextDark,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // ── Quantity pill ──────────────────────────────
+                        _QuantityPill(
+                          quantity: line.quantity,
+                          onDecrement: onDecrement,
+                          onIncrement: onIncrement,
+                        ),
+                        const SizedBox(width: 2),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -712,6 +801,11 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalQty = state.cart.fold<int>(0, (s, l) => s + l.quantity);
     final itemsTotal = state.subtotal;
+    final canCheckout =
+        state.cart.isNotEmpty &&
+        !state.nearbyVendorsLoading &&
+        !state.nearbyLocationUnavailable &&
+        !state.hasUnavailableCartItems;
 
     return Container(
       decoration: BoxDecoration(
@@ -794,10 +888,21 @@ class _BottomBar extends StatelessWidget {
 
           // Checkout button
           _CheckoutButton(
-            enabled: state.cart.isNotEmpty,
+            enabled: canCheckout,
             onTap: () {
               if (state.cart.isEmpty) {
                 showToast(context, 'Your cart is empty');
+                return;
+              }
+              if (state.nearbyLocationUnavailable) {
+                showToast(
+                  context,
+                  'Allow location access to checkout nearby items',
+                );
+                return;
+              }
+              if (state.hasUnavailableCartItems) {
+                showToast(context, 'Remove unavailable items before checkout');
                 return;
               }
               HapticFeedback.mediumImpact();

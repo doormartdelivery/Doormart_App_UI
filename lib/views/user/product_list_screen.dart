@@ -65,6 +65,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppState>().loadNearbyVendorIds();
+    });
   }
 
   @override
@@ -98,7 +102,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, state, _) {
-            final products = _filteredProducts(state.products);
+            final products = _filteredProducts(state.nearbyProducts);
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(
@@ -166,7 +170,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                if (state.loading && products.isEmpty)
+                if ((state.loading || state.nearbyVendorsLoading) &&
+                    products.isEmpty)
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.only(top: 40),

@@ -29,6 +29,7 @@ const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF9E9E9E);
 const _kBorder = Color(0xFFE8E8E8);
 const _supportPhoneUri = '+918248118563';
+const _nearbyDefaultRadiusKm = AppState.nearbyRadiusKm;
 
 void _logNextFrame(String label, Stopwatch sw) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -52,6 +53,62 @@ String _closedStoreLabel(ProductModel product) {
   final openTime = _formatVendorOpenTime(product.vendorTodayOpenTime);
   if (openTime.isEmpty) return 'Store closed';
   return 'Opens at $openTime';
+}
+
+Future<({double latitude, double longitude})?> _resolveSharedNearbyLocation(
+  AppState state,
+) async {
+  final addressLocation = await _deliveryAddressLocationForState(state);
+  if (addressLocation != null) {
+    debugPrint(
+      'Nearby location source=address lat=${addressLocation.latitude} lng=${addressLocation.longitude}',
+    );
+    return addressLocation;
+  }
+
+  try {
+    final gpsLocation = await LocationService().nearbyLocation();
+    debugPrint(
+      'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
+    );
+    return gpsLocation;
+  } catch (error) {
+    debugPrint('Nearby location unavailable: $error');
+    return null;
+  }
+}
+
+Future<({double latitude, double longitude})?> _deliveryAddressLocationForState(
+  AppState state,
+) async {
+  final selected = _addressLocationForState(state);
+  if (selected != null) return selected;
+
+  if (!state.signedIn || state.savedAddresses.isNotEmpty) return null;
+
+  try {
+    await state.loadAddresses().timeout(const Duration(seconds: 4));
+    return _addressLocationForState(state);
+  } catch (_) {
+    return null;
+  }
+}
+
+({double latitude, double longitude})? _addressLocationForState(
+  AppState state,
+) {
+  final addresses = [
+    if (state.selectedAddress != null) state.selectedAddress!,
+    ...state.savedAddresses,
+  ];
+  for (final address in addresses) {
+    final latitude = address.latitude;
+    final longitude = address.longitude;
+    if (latitude != null && longitude != null) {
+      return (latitude: latitude, longitude: longitude);
+    }
+  }
+  return null;
 }
 
 class UserHomeScreen extends StatefulWidget {
@@ -91,6 +148,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final state = context.read<AppState>();
+      unawaited(state.loadNearbyVendorIds());
       if (state.signedIn && state.buyAgainProducts.isEmpty) {
         state.loadBuyAgainProducts();
       }
@@ -2297,7 +2355,7 @@ class _ProductRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        final products = _freshPickProducts(state.products);
+        final products = _freshPickProducts(state.nearbyProducts);
         if (products.isEmpty) {
           return const _EmptyProductsCard(
             height: 352,
@@ -3026,7 +3084,6 @@ class _EssentialsGrid extends StatefulWidget {
 class _EssentialsGridState extends State<_EssentialsGrid> {
   static const _pageSize = 30;
   int _visibleCount = _pageSize;
-
   @override
   void didUpdateWidget(covariant _EssentialsGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -3040,7 +3097,25 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (ctx, state, _) {
-        var products = _sectionProducts(state.products, 'daily_essentials');
+        if (state.nearbyVendorsLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: Center(child: CircularProgressIndicator(color: _kGreen)),
+          );
+        }
+        if (state.nearbyLocationUnavailable) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Text(
+              'Allow location access to see daily essentials near you.',
+              style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
+            ),
+          );
+        }
+        var products = _sectionProducts(
+          state.nearbyProducts,
+          'daily_essentials',
+        );
         if (widget.selectedCategory != 'All') {
           products = products
               .where(
@@ -3826,46 +3901,46 @@ class _PopularStyleProductCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Container(
-                        height: compact ? 34 : 38,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: isStoreClosed
-                              ? const Color(0xFF9CA3AF)
-                              : _kGreen,
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  (isStoreClosed
-                                          ? const Color(0xFF9CA3AF)
-                                          : _kGreen)
-                                      .withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                      if (isStoreClosed)
+                        _ClosedStoreActionPill(
+                          product: product,
+                          compact: compact,
+                        )
+                      else
+                        Container(
+                          height: compact ? 34 : 38,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: _kGreen,
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kGreen.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: FilledButton(
+                            onPressed: onAdd,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(999),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: FilledButton(
-                          onPressed: isStoreClosed ? null : onAdd,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
+                            child: Text(
+                              'Add to Cart',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: compact ? 11 : 12,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            isStoreClosed ? 'Closed' : 'Add to Cart',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: compact ? 11 : 12,
-                            ),
-                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -3873,6 +3948,57 @@ class _PopularStyleProductCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ClosedStoreActionPill extends StatelessWidget {
+  const _ClosedStoreActionPill({required this.product, required this.compact});
+
+  final ProductModel product;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: compact ? 34 : 38,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF7F2), Color(0xFFFFE7DC)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFC2AA), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: _kGreen.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.storefront_rounded,
+            color: _kGreen,
+            size: compact ? 15 : 16,
+          ),
+          SizedBox(width: compact ? 6 : 7),
+          Text(
+            'Store closed',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _kGreen,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.1,
+              fontSize: compact ? 11 : 12,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4830,7 +4956,7 @@ class _NearbyShopsList extends StatefulWidget {
 }
 
 class _NearbyShopsListState extends State<_NearbyShopsList> {
-  static const _defaultRadiusKm = 5.0;
+  static const _defaultRadiusKm = _nearbyDefaultRadiusKm;
   List<_NearbyShop> _shops = const [];
   bool _loading = true;
   bool _locationUnavailable = false;
@@ -4891,57 +5017,7 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
 
   Future<({double latitude, double longitude})?> _resolveNearbyLocation(
     AppState state,
-  ) async {
-    final addressLocation = await _deliveryAddressLocation(state);
-    if (addressLocation != null) {
-      debugPrint(
-        'Nearby location source=address lat=${addressLocation.latitude} lng=${addressLocation.longitude}',
-      );
-      return addressLocation;
-    }
-
-    try {
-      final gpsLocation = await LocationService().nearbyLocation();
-      debugPrint(
-        'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
-      );
-      return gpsLocation;
-    } catch (error) {
-      debugPrint('Nearby location unavailable: $error');
-      return null;
-    }
-  }
-
-  Future<({double latitude, double longitude})?> _deliveryAddressLocation(
-    AppState state,
-  ) async {
-    final selected = _addressLocation(state);
-    if (selected != null) return selected;
-
-    if (!state.signedIn || state.savedAddresses.isNotEmpty) return null;
-
-    try {
-      await state.loadAddresses().timeout(const Duration(seconds: 4));
-      return _addressLocation(state);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  ({double latitude, double longitude})? _addressLocation(AppState state) {
-    final addresses = [
-      if (state.selectedAddress != null) state.selectedAddress!,
-      ...state.savedAddresses,
-    ];
-    for (final address in addresses) {
-      final latitude = address.latitude;
-      final longitude = address.longitude;
-      if (latitude != null && longitude != null) {
-        return (latitude: latitude, longitude: longitude);
-      }
-    }
-    return null;
-  }
+  ) => _resolveSharedNearbyLocation(state);
 
   @override
   Widget build(BuildContext context) {

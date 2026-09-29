@@ -24,6 +24,15 @@ class WishlistScreen extends StatefulWidget {
 }
 
 class _WishlistScreenState extends State<WishlistScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppState>().loadNearbyVendorIds();
+    });
+  }
+
   bool _fastDeliveryOnly = false;
   bool _ratingOnly = false;
   _WishlistSort _sort = _WishlistSort.relevance;
@@ -36,7 +45,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, state, _) {
-            final favorites = _applyFilters(state.favorites);
+            final favorites = _applyFilters(state.nearbyFavorites);
             return Column(
               children: [
                 _TopBar(
@@ -81,7 +90,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  child: favorites.isEmpty
+                  child: state.nearbyVendorsLoading && favorites.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : favorites.isEmpty
                       ? const _EmptyFavoritesCard()
                       : ListView.separated(
                           padding: EdgeInsets.fromLTRB(
