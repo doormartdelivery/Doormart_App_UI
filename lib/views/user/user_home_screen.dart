@@ -3863,10 +3863,14 @@ List<ProductModel> _sectionProducts(
   List<ProductModel> products,
   String section,
 ) {
-  final scoped = products
+  final openProducts = products
+      .where((product) => product.vendorIsOpen != false)
+      .toList();
+  final source = section == 'daily_essentials' ? openProducts : products;
+  final scoped = source
       .where((product) => product.dashboardSection == section)
       .toList();
-  return scoped.isNotEmpty ? scoped : List<ProductModel>.from(products);
+  return scoped.isNotEmpty ? scoped : List<ProductModel>.from(source);
 }
 
 List<ProductModel> _freshPickProducts(List<ProductModel> products) {

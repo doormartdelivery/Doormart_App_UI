@@ -59,7 +59,9 @@ class ProductReviewModel {
       rating: (json['rating'] as num? ?? 0).toDouble(),
       comment: json['comment'] as String? ?? '',
       userName: json['userName'] as String? ?? 'Customer',
-      userAvatarUrl: NetworkImageUrl.normalize(json['userAvatarUrl'] as String?),
+      userAvatarUrl: NetworkImageUrl.normalize(
+        json['userAvatarUrl'] as String?,
+      ),
       createdAt: _parseDateTime(json['createdAt']),
     );
   }
@@ -85,6 +87,9 @@ class ProductModel {
     this.mrp = 0,
     this.unit = 'item',
     this.unitVariants = const [],
+    this.vendorIsOpen,
+    this.vendorTodayOpenTime,
+    this.vendorTodayCloseTime,
   });
 
   final String id;
@@ -105,6 +110,9 @@ class ProductModel {
   final double mrp;
   final String unit;
   final List<ProductUnitVariant> unitVariants;
+  final bool? vendorIsOpen;
+  final String? vendorTodayOpenTime;
+  final String? vendorTodayCloseTime;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     final stockQuantity = (json['stockQuantity'] as num?)?.toInt();
@@ -132,6 +140,11 @@ class ProductModel {
       mrp: (json['mrp'] as num? ?? 0).toDouble(),
       unit: json['unit'] as String? ?? 'item',
       unitVariants: _parseUnitVariants(json),
+      vendorIsOpen: json['vendorIsOpen'] is bool
+          ? json['vendorIsOpen'] as bool
+          : null,
+      vendorTodayOpenTime: json['vendorTodayOpenTime']?.toString(),
+      vendorTodayCloseTime: json['vendorTodayCloseTime']?.toString(),
     );
   }
 
@@ -155,21 +168,23 @@ class ProductModel {
     'mrp': mrp,
     'unit': unit,
     'unitVariants': unitVariants.map((variant) => variant.toJson()).toList(),
+    'vendorIsOpen': vendorIsOpen,
+    'vendorTodayOpenTime': vendorTodayOpenTime,
+    'vendorTodayCloseTime': vendorTodayCloseTime,
   };
 
   static List<ProductUnitVariant> _parseUnitVariants(
     Map<String, dynamic> json,
   ) {
     final parsedVariants = <ProductUnitVariant>[];
-    final rawVariants = [
-      json['unitVariants'],
-      json['variants'],
-    ];
+    final rawVariants = [json['unitVariants'], json['variants']];
 
     for (final variants in rawVariants) {
       if (variants is List && variants.isNotEmpty) {
         parsedVariants.addAll(
-          variants.whereType<Map<String, dynamic>>().map(ProductUnitVariant.fromJson),
+          variants.whereType<Map<String, dynamic>>().map(
+            ProductUnitVariant.fromJson,
+          ),
         );
       }
     }

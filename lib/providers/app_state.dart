@@ -2543,6 +2543,11 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    if (product.vendorIsOpen == false) {
+      error = 'This store is closed right now';
+      notifyListeners();
+      return false;
+    }
     final snapshot = _cloneCart();
     final mutationToken = _nextCartMutationToken();
     final selectedUnit = (unit ?? product.unit).trim();
