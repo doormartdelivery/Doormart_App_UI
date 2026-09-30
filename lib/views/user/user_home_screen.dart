@@ -203,6 +203,27 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     const SliverToBoxAdapter(child: SizedBox(height: 18)),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
                     const SliverToBoxAdapter(
+                      child: _SectionTitle('Shops near you'),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    SliverToBoxAdapter(
+                      child: _PopularFilters(
+                        sort: _popularSort,
+                        selectedCategory: _popularSelectedCategory,
+                        onFilterTap: _showPopularFilterSheet,
+                        onSortTap: _showPopularSortSheet,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _NearbyShopsList(
+                        sort: _popularSort,
+                        selectedCategory: _popularSelectedCategory,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                    const SliverToBoxAdapter(child: _GroceryComboSection()),
+                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    const SliverToBoxAdapter(
                       child: _SectionTitle(
                         'Daily essentials',
                         actionColor: _kGreen,
@@ -224,27 +245,6 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                           context,
                           product,
                         ),
-                      ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 18)),
-                    const SliverToBoxAdapter(child: _GroceryComboSection()),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                    const SliverToBoxAdapter(
-                      child: _SectionTitle('Shops near you'),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                    SliverToBoxAdapter(
-                      child: _PopularFilters(
-                        sort: _popularSort,
-                        selectedCategory: _popularSelectedCategory,
-                        onFilterTap: _showPopularFilterSheet,
-                        onSortTap: _showPopularSortSheet,
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _NearbyShopsList(
-                        sort: _popularSort,
-                        selectedCategory: _popularSelectedCategory,
                       ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 170)),
