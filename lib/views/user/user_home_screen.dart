@@ -17,6 +17,7 @@ import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../features/operations/services/location_service.dart';
 import 'cart_screen.dart';
+import 'product_category_screen.dart';
 import 'product_list_screen.dart';
 import 'search_screen.dart';
 import 'profile_screen.dart';
@@ -58,14 +59,6 @@ String _closedStoreLabel(ProductModel product) {
 Future<({double latitude, double longitude})?> _resolveSharedNearbyLocation(
   AppState state,
 ) async {
-  final addressLocation = await _deliveryAddressLocationForState(state);
-  if (addressLocation != null) {
-    debugPrint(
-      'Nearby location source=address lat=${addressLocation.latitude} lng=${addressLocation.longitude}',
-    );
-    return addressLocation;
-  }
-
   try {
     final gpsLocation = await LocationService().nearbyLocation();
     debugPrint(
@@ -73,42 +66,9 @@ Future<({double latitude, double longitude})?> _resolveSharedNearbyLocation(
     );
     return gpsLocation;
   } catch (error) {
-    debugPrint('Nearby location unavailable: $error');
+    debugPrint('Nearby GPS unavailable: $error');
     return null;
   }
-}
-
-Future<({double latitude, double longitude})?> _deliveryAddressLocationForState(
-  AppState state,
-) async {
-  final selected = _addressLocationForState(state);
-  if (selected != null) return selected;
-
-  if (!state.signedIn || state.savedAddresses.isNotEmpty) return null;
-
-  try {
-    await state.loadAddresses().timeout(const Duration(seconds: 4));
-    return _addressLocationForState(state);
-  } catch (_) {
-    return null;
-  }
-}
-
-({double latitude, double longitude})? _addressLocationForState(
-  AppState state,
-) {
-  final addresses = [
-    if (state.selectedAddress != null) state.selectedAddress!,
-    ...state.savedAddresses,
-  ];
-  for (final address in addresses) {
-    final latitude = address.latitude;
-    final longitude = address.longitude;
-    if (latitude != null && longitude != null) {
-      return (latitude: latitude, longitude: longitude);
-    }
-  }
-  return null;
 }
 
 class UserHomeScreen extends StatefulWidget {
@@ -148,7 +108,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final state = context.read<AppState>();
-      unawaited(state.loadNearbyVendorIds());
+      unawaited(state.loadNearbyVendorIds(force: true));
       if (state.signedIn && state.buyAgainProducts.isEmpty) {
         state.loadBuyAgainProducts();
       }
@@ -1473,9 +1433,15 @@ class _AnimeVideoBannerState extends State<_AnimeVideoBanner> {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title, {this.actionColor = _kGreen});
+  const _SectionTitle(
+    this.title, {
+    this.actionColor = _kGreen,
+    this.seeAllRouteName = ProductListScreen.routeName,
+  });
+
   final String title;
   final Color actionColor;
+  final String seeAllRouteName;
 
   @override
   Widget build(BuildContext context) {
@@ -1495,8 +1461,7 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () =>
-                Navigator.pushNamed(context, ProductListScreen.routeName),
+            onPressed: () => Navigator.pushNamed(context, seeAllRouteName),
             style: TextButton.styleFrom(
               foregroundColor: actionColor,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1808,7 +1773,10 @@ class _CategoryCollapsingDelegate extends SliverPersistentHeaderDelegate {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
-                          _SectionTitle('Shop by category'),
+                          _SectionTitle(
+                            'Shop by category',
+                            seeAllRouteName: ProductCategoryScreen.routeName,
+                          ),
                           SizedBox(height: 12),
                           Expanded(child: _CategoryGrid()),
                         ],
@@ -3104,11 +3072,12 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
           );
         }
         if (state.nearbyLocationUnavailable) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            child: Text(
-              'Allow location access to see daily essentials near you.',
-              style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: _LocationActionCard(
+              message: state.nearbyLocationMessage.isNotEmpty
+                  ? state.nearbyLocationMessage
+                  : 'Turn on location and allow permission to see daily essentials near you.',
             ),
           );
         }
@@ -5029,10 +4998,10 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
     }
     if (_locationUnavailable) {
       return const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Text(
-          'Allow location access to see shops near you.',
-          style: TextStyle(color: _kTextMid, fontWeight: FontWeight.w600),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: _LocationActionCard(
+          message:
+              'Turn on location and allow permission to see shops near you.',
         ),
       );
     }
@@ -5102,6 +5071,71 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
   }
 
   void _expandSearch() => _loadNearbyShops(radiusKm: 10);
+}
+
+class _LocationActionCard extends StatelessWidget {
+  const _LocationActionCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFC7B0)),
+        boxShadow: [
+          BoxShadow(
+            color: _kGreen.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: _kGreenLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.location_off_rounded, color: _kGreen),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Location needed',
+                  style: TextStyle(
+                    color: _kTextDark,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: _kTextMid,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _NearbyEmptyState extends StatelessWidget {

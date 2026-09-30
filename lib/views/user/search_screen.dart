@@ -307,6 +307,7 @@ class _SearchHeader extends StatelessWidget {
             controller: controller,
             autofocus: true,
             hintText: 'Search groceries in English',
+            showSearchAction: false,
             onSearchChanged: onChanged,
             onSubmitted: onSubmitted,
           ),

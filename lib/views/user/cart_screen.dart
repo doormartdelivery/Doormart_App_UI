@@ -60,6 +60,7 @@ class CartScreen extends StatelessWidget {
                       if (showNotice && index == 0) {
                         return _CartLocationNotice(
                           locationUnavailable: state.nearbyLocationUnavailable,
+                          message: state.nearbyLocationMessage,
                         );
                       }
                       final line = state.cart[showNotice ? index - 1 : index];
@@ -275,9 +276,13 @@ class _AppBarIcon extends StatelessWidget {
 }
 
 class _CartLocationNotice extends StatelessWidget {
-  const _CartLocationNotice({required this.locationUnavailable});
+  const _CartLocationNotice({
+    required this.locationUnavailable,
+    required this.message,
+  });
 
   final bool locationUnavailable;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +300,9 @@ class _CartLocationNotice extends StatelessWidget {
           Expanded(
             child: Text(
               locationUnavailable
-                  ? 'Allow location access to check item availability near you.'
+                  ? (message.isNotEmpty
+                        ? message
+                        : 'Turn on location and allow permission to check item availability near you.')
                   : 'Some cart items are not available near your location.',
               style: const TextStyle(
                 color: _kTextDark,
@@ -897,7 +904,7 @@ class _BottomBar extends StatelessWidget {
               if (state.nearbyLocationUnavailable) {
                 showToast(
                   context,
-                  'Allow location access to checkout nearby items',
+                  'Turn on location and allow permission to checkout nearby items',
                 );
                 return;
               }

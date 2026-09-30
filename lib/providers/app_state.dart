@@ -110,6 +110,7 @@ class AppState extends ChangeNotifier {
   Set<String> nearbyVendorIds = const {};
   bool nearbyVendorsLoading = false;
   bool nearbyLocationUnavailable = false;
+  String nearbyLocationMessage = '';
   DateTime? _nearbyVendorLoadedAt;
   final List<CartLine> cart = [];
   int _cartMutationToken = 0;
@@ -168,12 +169,14 @@ class AppState extends ChangeNotifier {
 
     nearbyVendorsLoading = true;
     nearbyLocationUnavailable = false;
+    nearbyLocationMessage = '';
     notifyListeners();
 
     final location = await _resolveNearbyLocation();
     if (location == null) {
       nearbyVendorIds = const {};
       nearbyLocationUnavailable = true;
+      nearbyLocationMessage = _nearbyLocationFailureMessage;
       nearbyVendorsLoading = false;
       _nearbyVendorLoadedAt = DateTime.now();
       notifyListeners();
@@ -192,11 +195,13 @@ class AppState extends ChangeNotifier {
           .where((vendorId) => vendorId.isNotEmpty)
           .toSet();
       nearbyLocationUnavailable = false;
+      nearbyLocationMessage = '';
       _nearbyVendorLoadedAt = DateTime.now();
     } catch (error) {
       debugPrint('Nearby vendor cache load skipped: $error');
       nearbyVendorIds = const {};
       nearbyLocationUnavailable = false;
+      nearbyLocationMessage = '';
       _nearbyVendorLoadedAt = DateTime.now();
     } finally {
       nearbyVendorsLoading = false;
@@ -204,48 +209,27 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  String _nearbyLocationFailureMessage =
+      'Turn on location and allow location permission to see nearby stores.';
+
   Future<({double latitude, double longitude})?>
   _resolveNearbyLocation() async {
-    final addressLocation = await _deliveryAddressLocation();
-    if (addressLocation != null) return addressLocation;
-
     try {
       final gpsLocation = await LocationService().nearbyLocation();
+      debugPrint(
+        'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
+      );
       return (latitude: gpsLocation.latitude, longitude: gpsLocation.longitude);
     } catch (error) {
-      debugPrint('Nearby location unavailable: $error');
+      final message = error.toString();
+      _nearbyLocationFailureMessage = message.contains('services are disabled')
+          ? 'Turn on phone location/GPS to see nearby stores.'
+          : message.contains('permission')
+          ? 'Allow location permission to see nearby stores.'
+          : 'Turn on location and allow permission to see nearby stores.';
+      debugPrint('Nearby GPS unavailable: $error');
       return null;
     }
-  }
-
-  Future<({double latitude, double longitude})?>
-  _deliveryAddressLocation() async {
-    final selected = _addressLocation();
-    if (selected != null) return selected;
-
-    if (!signedIn || savedAddresses.isNotEmpty) return null;
-
-    try {
-      await loadAddresses().timeout(const Duration(seconds: 4));
-      return _addressLocation();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  ({double latitude, double longitude})? _addressLocation() {
-    final addresses = [
-      if (selectedAddress != null) selectedAddress!,
-      ...savedAddresses,
-    ];
-    for (final address in addresses) {
-      final latitude = address.latitude;
-      final longitude = address.longitude;
-      if (latitude != null && longitude != null) {
-        return (latitude: latitude, longitude: longitude);
-      }
-    }
-    return null;
   }
 
   Future<void> bootstrap() async {

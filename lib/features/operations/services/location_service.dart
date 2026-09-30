@@ -42,17 +42,10 @@ class LocationService {
       throw StateError('Location permission is required');
     }
 
-    if (!kIsWeb) {
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        return (latitude: lastKnown.latitude, longitude: lastKnown.longitude);
-      }
-    }
-
     final position = await Geolocator.getCurrentPosition(
       locationSettings: LocationSettings(
-        accuracy: kIsWeb ? LocationAccuracy.high : LocationAccuracy.low,
-        timeLimit: Duration(seconds: kIsWeb ? 10 : 4),
+        accuracy: kIsWeb ? LocationAccuracy.high : LocationAccuracy.high,
+        timeLimit: Duration(seconds: kIsWeb ? 10 : 10),
       ),
     );
     return (latitude: position.latitude, longitude: position.longitude);
