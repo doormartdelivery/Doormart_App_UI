@@ -106,7 +106,7 @@ class AppState extends ChangeNotifier {
   Set<String> reviewedProductKeys = {};
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
-  static const double nearbyRadiusKm = 5.0;
+  static double nearbyRadiusKm = 5.0;
   Set<String> nearbyVendorIds = const {};
   bool nearbyVendorsLoading = false;
   bool nearbyLocationUnavailable = false;
@@ -116,6 +116,11 @@ class AppState extends ChangeNotifier {
   int _cartMutationToken = 0;
   int dashboardRefreshTick = 0;
   double deliveryChargeAmount = 35;
+  bool distanceBasedDelivery = false;
+  double deliveryBaseDistanceKm = 2;
+  double deliveryBaseCharge = 35;
+  double deliveryPerKmCharge = 8;
+  double deliveryMaxRadiusKm = 10;
   double gstPercent = 0;
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
@@ -157,9 +162,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadNearbyVendorIds({
-    double radiusKm = nearbyRadiusKm,
+    double? radiusKm,
     bool force = false,
   }) async {
+    final effectiveRadiusKm = radiusKm ?? nearbyRadiusKm;
     if (!force &&
         _nearbyVendorLoadedAt != null &&
         DateTime.now().difference(_nearbyVendorLoadedAt!) <
@@ -185,7 +191,7 @@ class AppState extends ChangeNotifier {
 
     try {
       final response = await apiService.get(
-        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$radiusKm',
+        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$effectiveRadiusKm',
         token: token,
       );
       final vendors = response is List ? response : const [];
@@ -402,6 +408,8 @@ class AppState extends ChangeNotifier {
     String gstCertificate = '',
     String panCard = '',
     String cancelledCheque = '',
+    String shopImageUrl = '',
+    List<VendorBusinessHour> businessHours = const [],
     double? pickupLatitude,
     double? pickupLongitude,
   }) async {
@@ -430,6 +438,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificate,
                 'panCardUrl': panCard,
                 'cancelledChequeUrl': cancelledCheque,
+                'shopImageUrl': shopImageUrl,
+                if (businessHours.isNotEmpty)
+                  'businessHours': businessHours
+                      .map((hour) => hour.toJson())
+                      .toList(),
                 if (pickupLatitude != null && pickupLongitude != null)
                   'pickupLocation': {
                     'latitude': pickupLatitude,
@@ -1723,7 +1736,9 @@ class AppState extends ChangeNotifier {
     return const [];
   }
 
-  Future<Map<String, dynamic>> loadCheckoutSummary() async {
+  Future<Map<String, dynamic>> loadCheckoutSummary({
+    AddressModel? address,
+  }) async {
     if (token == null) throw StateError('Please login first');
     final data =
         await apiService.post(
@@ -1733,6 +1748,18 @@ class AppState extends ChangeNotifier {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
                 'gstPercent': gstPercent,
+                if (address != null)
+                  'address': {
+                    'line1': address.line1,
+                    'area': address.area,
+                    'landmark': address.landmark,
+                    'city': address.city,
+                    'state': address.state,
+                    'pincode': address.pincode,
+                    'label': address.label,
+                    'fullAddress': address.fullAddress,
+                    ...address.toLocationJson(),
+                  },
               },
             )
             as Map<String, dynamic>;
@@ -1763,6 +1790,26 @@ class AppState extends ChangeNotifier {
         map['delivery_charge_amount'],
         fallback: deliveryChargeAmount,
       );
+      distanceBasedDelivery =
+          (map['delivery_pricing_mode'] ?? '').toString().toLowerCase() ==
+          'distance';
+      deliveryBaseDistanceKm = _asDouble(
+        map['delivery_base_distance_km'],
+        fallback: deliveryBaseDistanceKm,
+      );
+      deliveryBaseCharge = _asDouble(
+        map['delivery_base_charge'],
+        fallback: deliveryChargeAmount,
+      );
+      deliveryPerKmCharge = _asDouble(
+        map['delivery_per_km_charge'],
+        fallback: deliveryPerKmCharge,
+      );
+      deliveryMaxRadiusKm = _asDouble(
+        map['delivery_max_radius_km'],
+        fallback: deliveryMaxRadiusKm,
+      );
+      nearbyRadiusKm = deliveryMaxRadiusKm;
       gstPercent = _asDouble(map['gst_percent'], fallback: gstPercent);
       notifyListeners();
     } catch (e) {
@@ -1773,6 +1820,11 @@ class AppState extends ChangeNotifier {
   Future<void> saveCheckoutSettings({
     required double deliveryChargeAmount,
     required double gstPercent,
+    required bool distanceBasedDelivery,
+    required double deliveryBaseDistanceKm,
+    required double deliveryBaseCharge,
+    required double deliveryPerKmCharge,
+    required double deliveryMaxRadiusKm,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1783,10 +1835,20 @@ class AppState extends ChangeNotifier {
       token: token,
       body: {
         'delivery_charge_amount': deliveryChargeAmount,
+        'delivery_pricing_mode': distanceBasedDelivery ? 'distance' : 'fixed',
+        'delivery_base_distance_km': deliveryBaseDistanceKm,
+        'delivery_base_charge': deliveryBaseCharge,
+        'delivery_per_km_charge': deliveryPerKmCharge,
+        'delivery_max_radius_km': deliveryMaxRadiusKm,
         'gst_percent': gstPercent,
       },
     );
     this.deliveryChargeAmount = deliveryChargeAmount;
+    this.distanceBasedDelivery = distanceBasedDelivery;
+    this.deliveryBaseDistanceKm = deliveryBaseDistanceKm;
+    this.deliveryBaseCharge = deliveryBaseCharge;
+    this.deliveryPerKmCharge = deliveryPerKmCharge;
+    this.deliveryMaxRadiusKm = deliveryMaxRadiusKm;
     this.gstPercent = gstPercent;
     notifyListeners();
   }
@@ -2087,6 +2149,8 @@ class AppState extends ChangeNotifier {
     String gstCertificateUrl = '',
     String panCardUrl = '',
     String cancelledChequeUrl = '',
+    String shopImageUrl = '',
+    List<VendorBusinessHour> businessHours = const [],
     double? pickupLatitude,
     double? pickupLongitude,
     double commissionPercent = 0,
@@ -2122,6 +2186,11 @@ class AppState extends ChangeNotifier {
                 'gstCertificateUrl': gstCertificateUrl,
                 'panCardUrl': panCardUrl,
                 'cancelledChequeUrl': cancelledChequeUrl,
+                'shopImageUrl': shopImageUrl,
+                if (businessHours.isNotEmpty)
+                  'businessHours': businessHours
+                      .map((hour) => hour.toJson())
+                      .toList(),
                 if (pickupLatitude != null && pickupLongitude != null)
                   'pickupLocation': {
                     'latitude': pickupLatitude,
@@ -2156,6 +2225,8 @@ class AppState extends ChangeNotifier {
     String? gstCertificateUrl,
     String? panCardUrl,
     String? cancelledChequeUrl,
+    String? shopImageUrl,
+    List<VendorBusinessHour>? businessHours,
     double? pickupLatitude,
     double? pickupLongitude,
     double? commissionPercent,
@@ -2194,6 +2265,11 @@ class AppState extends ChangeNotifier {
                 if (panCardUrl != null) 'panCardUrl': panCardUrl,
                 if (cancelledChequeUrl != null)
                   'cancelledChequeUrl': cancelledChequeUrl,
+                if (shopImageUrl != null) 'shopImageUrl': shopImageUrl,
+                if (businessHours != null)
+                  'businessHours': businessHours
+                      .map((hour) => hour.toJson())
+                      .toList(),
                 if (pickupLatitude != null && pickupLongitude != null)
                   'pickupLocation': {
                     'latitude': pickupLatitude,

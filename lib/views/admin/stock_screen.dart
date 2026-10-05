@@ -30,8 +30,18 @@ class _StockScreenState extends State<StockScreen>
   late Future<Map<String, dynamic>> _dashboardFuture;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _deliveryChargeController = TextEditingController();
+  final TextEditingController _deliveryChargeController =
+      TextEditingController();
+  final TextEditingController _deliveryBaseDistanceController =
+      TextEditingController();
+  final TextEditingController _deliveryBaseChargeController =
+      TextEditingController();
+  final TextEditingController _deliveryPerKmController =
+      TextEditingController();
+  final TextEditingController _deliveryMaxRadiusController =
+      TextEditingController();
   final TextEditingController _gstController = TextEditingController();
+  bool _distanceBasedDelivery = false;
   String _filter = 'All';
   int _lastRefreshTick = 0;
   bool _settingsLoaded = false;
@@ -51,6 +61,10 @@ class _StockScreenState extends State<StockScreen>
     _controller.dispose();
     _searchController.dispose();
     _deliveryChargeController.dispose();
+    _deliveryBaseDistanceController.dispose();
+    _deliveryBaseChargeController.dispose();
+    _deliveryPerKmController.dispose();
+    _deliveryMaxRadiusController.dispose();
     _gstController.dispose();
     super.dispose();
   }
@@ -79,18 +93,52 @@ class _StockScreenState extends State<StockScreen>
     if (!_settingsLoaded) {
       _settingsLoaded = true;
       final state = context.read<AppState>();
-      _deliveryChargeController.text = state.deliveryChargeAmount.toStringAsFixed(0);
+      _deliveryChargeController.text = state.deliveryChargeAmount
+          .toStringAsFixed(0);
+      _distanceBasedDelivery = state.distanceBasedDelivery;
+      _deliveryBaseDistanceController.text = state.deliveryBaseDistanceKm
+          .toStringAsFixed(0);
+      _deliveryBaseChargeController.text = state.deliveryBaseCharge
+          .toStringAsFixed(0);
+      _deliveryPerKmController.text = state.deliveryPerKmCharge.toStringAsFixed(
+        0,
+      );
+      _deliveryMaxRadiusController.text = state.deliveryMaxRadiusKm
+          .toStringAsFixed(0);
       _gstController.text = state.gstPercent.toStringAsFixed(0);
     }
   }
 
   Future<void> _saveCheckoutSettings() async {
     final state = context.read<AppState>();
-    final deliveryCharge = double.tryParse(_deliveryChargeController.text.trim());
+    final deliveryCharge = double.tryParse(
+      _deliveryChargeController.text.trim(),
+    );
+    final baseDistance = double.tryParse(
+      _deliveryBaseDistanceController.text.trim(),
+    );
+    final baseCharge = double.tryParse(
+      _deliveryBaseChargeController.text.trim(),
+    );
+    final perKm = double.tryParse(_deliveryPerKmController.text.trim());
+    final maxRadius = double.tryParse(_deliveryMaxRadiusController.text.trim());
     final gst = double.tryParse(_gstController.text.trim());
-    if (deliveryCharge == null || deliveryCharge < 0 || gst == null || gst < 0) {
+    if (deliveryCharge == null ||
+        deliveryCharge < 0 ||
+        baseDistance == null ||
+        baseDistance < 0 ||
+        baseCharge == null ||
+        baseCharge < 0 ||
+        perKm == null ||
+        perKm < 0 ||
+        maxRadius == null ||
+        maxRadius <= 0 ||
+        gst == null ||
+        gst < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter valid GST and delivery charge values')),
+        const SnackBar(
+          content: Text('Enter valid delivery pricing and GST values'),
+        ),
       );
       return;
     }
@@ -98,17 +146,22 @@ class _StockScreenState extends State<StockScreen>
       await state.saveCheckoutSettings(
         deliveryChargeAmount: deliveryCharge,
         gstPercent: gst,
+        distanceBasedDelivery: _distanceBasedDelivery,
+        deliveryBaseDistanceKm: baseDistance,
+        deliveryBaseCharge: baseCharge,
+        deliveryPerKmCharge: perKm,
+        deliveryMaxRadiusKm: maxRadius,
       );
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Checkout settings saved')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Checkout settings saved')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -116,7 +169,7 @@ class _StockScreenState extends State<StockScreen>
   Widget build(BuildContext context) {
     final isAdmin =
         context.read<AppState>().user?.role == UserRoles.admin ||
-            context.read<AppState>().user?.role == UserRoles.superAdmin;
+        context.read<AppState>().user?.role == UserRoles.superAdmin;
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F6F6),
@@ -142,7 +195,10 @@ class _StockScreenState extends State<StockScreen>
             if (snapshot.hasError) {
               return Padding(
                 padding: const EdgeInsets.all(16),
-                child: _ErrorCard(message: snapshot.error.toString(), onRetry: _refresh),
+                child: _ErrorCard(
+                  message: snapshot.error.toString(),
+                  onRetry: _refresh,
+                ),
               );
             }
             if (!snapshot.hasData) {
@@ -154,9 +210,10 @@ class _StockScreenState extends State<StockScreen>
             final stockRows = _buildStockRows(products, lowStockItems);
             final q = _searchController.text.trim().toLowerCase();
             final visibleRows = stockRows.where((row) {
-              final matchesSearch = q.isEmpty ||
+              final matchesSearch =
+                  q.isEmpty ||
                   row.name.toLowerCase().contains(q) ||
-                row.category.toLowerCase().contains(q);
+                  row.category.toLowerCase().contains(q);
               final matchesFilter = switch (_filter) {
                 'All' => true,
                 'Low stock' => row.level == 'Low stock',
@@ -176,7 +233,8 @@ class _StockScreenState extends State<StockScreen>
                       animation: _controller,
                       index: 0,
                       child: _StockHero(
-                        onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                        onOpenMenu: () =>
+                            _scaffoldKey.currentState?.openDrawer(),
                         onRefresh: _refresh,
                       ),
                     ),
@@ -187,10 +245,19 @@ class _StockScreenState extends State<StockScreen>
                       child: _StockMetrics(
                         totalProducts: products.length,
                         inStock: products.where((p) => p.stock > 15).length,
-                        lowStock: lowStockItems.where((i) => i.status == 'Low').length,
-                        outOfStock: lowStockItems.where((i) => i.status == 'Critical').length,
-                        totalValue: products.fold<double>(0, (sum, p) => sum + (p.price * p.stock)),
-                        expiringSoon: lowStockItems.where((i) => i.status != 'Healthy').length,
+                        lowStock: lowStockItems
+                            .where((i) => i.status == 'Low')
+                            .length,
+                        outOfStock: lowStockItems
+                            .where((i) => i.status == 'Critical')
+                            .length,
+                        totalValue: products.fold<double>(
+                          0,
+                          (sum, p) => sum + (p.price * p.stock),
+                        ),
+                        expiringSoon: lowStockItems
+                            .where((i) => i.status != 'Healthy')
+                            .length,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -199,10 +266,25 @@ class _StockScreenState extends State<StockScreen>
                       index: 2,
                       child: isAdmin
                           ? _CheckoutConfigCard(
-                              deliveryChargeController: _deliveryChargeController,
+                              deliveryChargeController:
+                                  _deliveryChargeController,
                               gstController: _gstController,
-                              currentDeliveryCharge: context.read<AppState>().deliveryChargeAmount,
-                              currentGstPercent: context.read<AppState>().gstPercent,
+                              baseDistanceController:
+                                  _deliveryBaseDistanceController,
+                              baseChargeController:
+                                  _deliveryBaseChargeController,
+                              perKmController: _deliveryPerKmController,
+                              maxRadiusController: _deliveryMaxRadiusController,
+                              currentDeliveryCharge: context
+                                  .read<AppState>()
+                                  .deliveryChargeAmount,
+                              currentGstPercent: context
+                                  .read<AppState>()
+                                  .gstPercent,
+                              distanceBasedDelivery: _distanceBasedDelivery,
+                              onDistanceModeChanged: (value) => setState(
+                                () => _distanceBasedDelivery = value,
+                              ),
                               onSave: _saveCheckoutSettings,
                             )
                           : const SizedBox.shrink(),
@@ -300,7 +382,10 @@ class _StockHero extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6A00),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -382,7 +467,10 @@ class _StockMetrics extends StatelessWidget {
         filled: true,
         trailing: Icons.error_outline,
       ),
-      _CountCard(title: 'INVENTORY VALUE', value: '₹${(totalValue / 1000000).toStringAsFixed(1)}M'),
+      _CountCard(
+        title: 'INVENTORY VALUE',
+        value: '₹${(totalValue / 1000000).toStringAsFixed(1)}M',
+      ),
       _CountCard(title: 'EXPIRING SOON', value: '$expiringSoon Items'),
     ];
     return LayoutBuilder(
@@ -411,6 +499,12 @@ class _CheckoutConfigCard extends StatelessWidget {
     required this.gstController,
     required this.currentDeliveryCharge,
     required this.currentGstPercent,
+    required this.baseDistanceController,
+    required this.baseChargeController,
+    required this.perKmController,
+    required this.maxRadiusController,
+    required this.distanceBasedDelivery,
+    required this.onDistanceModeChanged,
     required this.onSave,
   });
 
@@ -418,6 +512,12 @@ class _CheckoutConfigCard extends StatelessWidget {
   final TextEditingController gstController;
   final double currentDeliveryCharge;
   final double currentGstPercent;
+  final TextEditingController baseDistanceController;
+  final TextEditingController baseChargeController;
+  final TextEditingController perKmController;
+  final TextEditingController maxRadiusController;
+  final bool distanceBasedDelivery;
+  final ValueChanged<bool> onDistanceModeChanged;
   final VoidCallback onSave;
 
   @override
@@ -432,48 +532,95 @@ class _CheckoutConfigCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Checkout charges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          const Text(
+            'Checkout charges',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
           const SizedBox(height: 6),
           Text(
-            'Update delivery fee and GST from the stock page. Checkout will use these values automatically.',
+            'Choose a fixed delivery fee or calculate it from pickup-to-customer distance. Checkout uses these values automatically.',
             style: TextStyle(color: const Color(0xFF64748B)),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: deliveryChargeController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Delivery charge',
-                    prefixText: 'Rs ',
-                    border: OutlineInputBorder(),
+          SwitchListTile.adaptive(
+            value: distanceBasedDelivery,
+            onChanged: onDistanceModeChanged,
+            contentPadding: EdgeInsets.zero,
+            activeColor: const Color(0xFFE8541A),
+            title: const Text(
+              'Calculate delivery fee by distance',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: const Text(
+              'Example: base charge for first few km, then extra per km.',
+            ),
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = constraints.maxWidth > 720
+                  ? (constraints.maxWidth - 36) / 4
+                  : constraints.maxWidth > 460
+                  ? (constraints.maxWidth - 12) / 2
+                  : constraints.maxWidth;
+              Widget field(
+                TextEditingController controller,
+                String label, {
+                String? prefix,
+                String? suffix,
+              }) {
+                return SizedBox(
+                  width: itemWidth,
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: label,
+                      prefixText: prefix,
+                      suffixText: suffix,
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: gstController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'GST %',
-                    suffixText: '%',
-                    border: OutlineInputBorder(),
+                );
+              }
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  field(
+                    deliveryChargeController,
+                    'Fixed fallback fee',
+                    prefix: 'Rs ',
                   ),
-                ),
-              ),
-            ],
+                  field(baseDistanceController, 'Base distance', suffix: 'km'),
+                  field(baseChargeController, 'Base charge', prefix: 'Rs '),
+                  field(perKmController, 'Extra per km', prefix: 'Rs '),
+                  field(maxRadiusController, 'Nearby max radius', suffix: 'km'),
+                  field(gstController, 'GST', suffix: '%'),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              Text('Current delivery fee: Rs ${currentDeliveryCharge.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(width: 16),
-              Text('Current GST: ${currentGstPercent.toStringAsFixed(0)}%',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                'Current delivery fee: Rs ${currentDeliveryCharge.toStringAsFixed(0)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'Current GST: ${currentGstPercent.toStringAsFixed(0)}%',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                distanceBasedDelivery
+                    ? 'Mode: Distance based'
+                    : 'Mode: Fixed fee',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -526,9 +673,23 @@ class _CountCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          Text(title, style: TextStyle(color: base, fontWeight: FontWeight.w800, letterSpacing: .2)),
+          Text(
+            title,
+            style: TextStyle(
+              color: base,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .2,
+            ),
+          ),
           const SizedBox(height: 10),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
         ],
       ),
     );
@@ -551,7 +712,10 @@ class _StockSearchBar extends StatelessWidget {
         prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
@@ -586,7 +750,10 @@ class _StockFilterChips extends StatelessWidget {
             selected: active,
             label: Text(value),
             selectedColor: const Color(0xFFE8541A),
-            labelStyle: TextStyle(color: active ? Colors.white : const Color(0xFF1A1A1A), fontWeight: FontWeight.w800),
+            labelStyle: TextStyle(
+              color: active ? Colors.white : const Color(0xFF1A1A1A),
+              fontWeight: FontWeight.w800,
+            ),
             onSelected: (_) => onChanged(value),
           );
         },
@@ -620,8 +787,20 @@ class _StockTable extends StatelessWidget {
             ),
             child: const Row(
               children: [
-                Expanded(flex: 3, child: Text('PRODUCT', style: TextStyle(fontWeight: FontWeight.w900))),
-                Expanded(flex: 2, child: Text('STOCK LEVEL', style: TextStyle(fontWeight: FontWeight.w900))),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'PRODUCT',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'STOCK LEVEL',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
               ],
             ),
           ),
@@ -673,7 +852,10 @@ class _StockTableRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(row.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  child: Text(
+                    row.name,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ],
             ),
@@ -701,7 +883,13 @@ class _StockTableRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(row.stockLabel, style: TextStyle(color: row.color, fontWeight: FontWeight.w900)),
+                Text(
+                  row.stockLabel,
+                  style: TextStyle(
+                    color: row.color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
           ),
@@ -747,8 +935,14 @@ class _StockCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.name, style: const TextStyle(fontWeight: FontWeight.w900)),
-                        Text(item.category, style: const TextStyle(color: Color(0xFF64748B))),
+                        Text(
+                          item.name,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        Text(
+                          item.category,
+                          style: const TextStyle(color: Color(0xFF64748B)),
+                        ),
                       ],
                     ),
                   ),
@@ -759,11 +953,20 @@ class _StockCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${item.stock}', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+                  Text(
+                    '${item.stock}',
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                   const SizedBox(width: 4),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 5),
-                    child: const Text('units available', style: TextStyle(color: Color(0xFF64748B))),
+                    child: const Text(
+                      'units available',
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
                   ),
                 ],
               ),
@@ -774,8 +977,8 @@ class _StockCard extends StatelessWidget {
                   value: item.status == 'Critical'
                       ? 0.08
                       : item.status == 'Low'
-                          ? 0.28
-                          : 0.62,
+                      ? 0.28
+                      : 0.62,
                   minHeight: 9,
                   color: item.color,
                   backgroundColor: item.color.withValues(alpha: .12),
@@ -784,12 +987,19 @@ class _StockCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.event_available, size: 17, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.event_available,
+                    size: 17,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 5),
                   Expanded(
                     child: Text(
                       'Restock: ${item.restock}',
-                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -823,7 +1033,10 @@ class _RestockPlanner extends StatelessWidget {
             Row(
               children: [
                 const Expanded(
-                  child: Text('Restock priority', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  child: Text(
+                    'Restock priority',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
                 ),
                 IconButton.filledTonal(
                   tooltip: 'Create purchase order',
@@ -858,13 +1071,19 @@ class _RestockRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(item.status == 'Critical' ? Icons.bolt : Icons.low_priority, color: item.color),
+          Icon(
+            item.status == 'Critical' ? Icons.bolt : Icons.low_priority,
+            color: item.color,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
                 Text(
                   'Stock ${item.stock}  •  ${item.status}  •  ${item.restock}',
                   style: const TextStyle(color: Color(0xFF64748B)),
@@ -901,7 +1120,11 @@ class _MetricCard extends StatelessWidget {
                 color: metric.color.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: SizedBox(width: 44, height: 44, child: Icon(metric.icon, color: metric.color)),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(metric.icon, color: metric.color),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -909,8 +1132,17 @@ class _MetricCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(metric.value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                  Text(metric.label, style: const TextStyle(color: Color(0xFF64748B))),
+                  Text(
+                    metric.value,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    metric.label,
+                    style: const TextStyle(color: Color(0xFF64748B)),
+                  ),
                 ],
               ),
             ),
@@ -936,7 +1168,10 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+        child: Text(
+          label,
+          style: TextStyle(color: color, fontWeight: FontWeight.w800),
+        ),
       ),
     );
   }
@@ -969,7 +1204,11 @@ class _HeroPill extends StatelessWidget {
 }
 
 class _AnimatedIn extends StatelessWidget {
-  const _AnimatedIn({required this.animation, required this.index, required this.child});
+  const _AnimatedIn({
+    required this.animation,
+    required this.index,
+    required this.child,
+  });
 
   final Animation<double> animation;
   final int index;
@@ -979,12 +1218,19 @@ class _AnimatedIn extends StatelessWidget {
   Widget build(BuildContext context) {
     final curved = CurvedAnimation(
       parent: animation,
-      curve: Interval((index * .07).clamp(0, .72), 1, curve: Curves.easeOutCubic),
+      curve: Interval(
+        (index * .07).clamp(0, .72),
+        1,
+        curve: Curves.easeOutCubic,
+      ),
     );
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, .06), end: Offset.zero).animate(curved),
+        position: Tween<Offset>(
+          begin: const Offset(0, .06),
+          end: Offset.zero,
+        ).animate(curved),
         child: child,
       ),
     );
@@ -1026,10 +1272,7 @@ class _ErrorCard extends StatelessWidget {
 }
 
 class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer({
-    required this.onNavigate,
-    required this.onLogout,
-  });
+  const _AdminDrawer({required this.onNavigate, required this.onLogout});
 
   final void Function(String route) onNavigate;
   final Future<void> Function() onLogout;
@@ -1041,12 +1284,24 @@ class _AdminDrawer extends StatelessWidget {
     final items = [
       ('Overview', Icons.dashboard, AdminDashboardScreen.routeName),
       ('Orders', Icons.receipt_long, AdminOrdersScreen.routeName),
-      if (isSuperAdmin) ('Notifications', Icons.notifications_active, AdminNotificationsScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Notifications',
+          Icons.notifications_active,
+          AdminNotificationsScreen.routeName,
+        ),
       ('Products', Icons.inventory_2, ManageProductsScreen.routeName),
-      if (isSuperAdmin) ('Categories', Icons.category, ManageCategoriesScreen.routeName),
-      if (isSuperAdmin) ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
+      if (isSuperAdmin)
+        ('Categories', Icons.category, ManageCategoriesScreen.routeName),
+      if (isSuperAdmin)
+        ('Banners', Icons.slideshow, ManageBannersScreen.routeName),
       if (isSuperAdmin) ('Users', Icons.groups, ManageUsersScreen.routeName),
-      if (isSuperAdmin) ('Delivery partners', Icons.delivery_dining, ManageDeliveryScreen.routeName),
+      if (isSuperAdmin)
+        (
+          'Delivery partners',
+          Icons.delivery_dining,
+          ManageDeliveryScreen.routeName,
+        ),
       ('Stock alerts', Icons.warning_amber, StockScreen.routeName),
     ];
 
@@ -1061,16 +1316,28 @@ class _AdminDrawer extends StatelessWidget {
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: Color(0xFFFFF0EB),
-                    child: Icon(Icons.admin_panel_settings, color: Color(0xFFE8541A)),
+                    child: Icon(
+                      Icons.admin_panel_settings,
+                      color: Color(0xFFE8541A),
+                    ),
                   ),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Admin menu', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                        Text(
+                          'Admin menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
                         SizedBox(height: 4),
-                        Text('Navigate the control center', style: TextStyle(color: Color(0xFF9E9E9E))),
+                        Text(
+                          'Navigate the control center',
+                          style: TextStyle(color: Color(0xFF9E9E9E)),
+                        ),
                       ],
                     ),
                   ),
@@ -1085,17 +1352,17 @@ class _AdminDrawer extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final item = items[index];
-      final accentColors = const [
-        Color(0xFF0F766E),
-        Color(0xFFB45309),
-        Color(0xFF2563EB),
-        Color(0xFF059669),
-        Color(0xFFEA580C),
-        Color(0xFF7C3AED),
-        Color(0xFFDB2777),
-        Color(0xFFDC2626),
-      ];
-      final accent = accentColors[index % accentColors.length];
+                  final accentColors = const [
+                    Color(0xFF0F766E),
+                    Color(0xFFB45309),
+                    Color(0xFF2563EB),
+                    Color(0xFF059669),
+                    Color(0xFFEA580C),
+                    Color(0xFF7C3AED),
+                    Color(0xFFDB2777),
+                    Color(0xFFDC2626),
+                  ];
+                  final accent = accentColors[index % accentColors.length];
                   final selected = item.$3 == StockScreen.routeName;
                   return Material(
                     color: Colors.white,
@@ -1111,7 +1378,9 @@ class _AdminDrawer extends StatelessWidget {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE8541A).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFFE8541A,
+                                ).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Icon(
@@ -1129,7 +1398,12 @@ class _AdminDrawer extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            Icon(Icons.chevron_right, color: selected ? const Color(0xFFE8541A) : const Color(0xFF9E9E9E)),
+                            Icon(
+                              Icons.chevron_right,
+                              color: selected
+                                  ? const Color(0xFFE8541A)
+                                  : const Color(0xFF9E9E9E),
+                            ),
                           ],
                         ),
                       ),
@@ -1154,7 +1428,10 @@ class _AdminDrawer extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.logout),
-                  label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
+                  label: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -1214,7 +1491,10 @@ class _StockRow {
   final String level;
 }
 
-List<_StockRow> _buildStockRows(List<ProductModel> products, List<_StockAlertItem> alerts) {
+List<_StockRow> _buildStockRows(
+  List<ProductModel> products,
+  List<_StockAlertItem> alerts,
+) {
   final alertMap = {for (final item in alerts) item.name.toLowerCase(): item};
   return products.map((product) {
     final alert = alertMap[product.name.toLowerCase()];
@@ -1222,14 +1502,16 @@ List<_StockRow> _buildStockRows(List<ProductModel> products, List<_StockAlertIte
     final level = alert?.status == 'Critical'
         ? 'Out of stock'
         : stock <= 15
-            ? 'Low stock'
-            : 'In stock';
-    final color = alert?.color ?? (stock <= 15 ? const Color(0xFFE8541A) : const Color(0xFF0F766E));
+        ? 'Low stock'
+        : 'In stock';
+    final color =
+        alert?.color ??
+        (stock <= 15 ? const Color(0xFFE8541A) : const Color(0xFF0F766E));
     final progress = stock <= 0
         ? 0.08
         : stock <= 15
-            ? 0.42
-            : 0.78;
+        ? 0.42
+        : 0.78;
     return _StockRow(
       name: product.name,
       category: product.category,
@@ -1249,7 +1531,9 @@ class _CriticalAlertsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final criticalItems = items.where((item) => item.status == 'Critical').toList();
+    final criticalItems = items
+        .where((item) => item.status == 'Critical')
+        .toList();
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1268,7 +1552,12 @@ class _CriticalAlertsPanel extends StatelessWidget {
               children: [
                 const Icon(Icons.error_outline, color: Color(0xFFE8541A)),
                 const SizedBox(width: 10),
-                const Expanded(child: Text('Critical Stock Alerts', style: TextStyle(fontWeight: FontWeight.w900))),
+                const Expanded(
+                  child: Text(
+                    'Critical Stock Alerts',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
                 TextButton(onPressed: () {}, child: const Text('View All')),
               ],
             ),
@@ -1279,38 +1568,59 @@ class _CriticalAlertsPanel extends StatelessWidget {
               child: Text('No critical alerts right now.'),
             )
           else
-            ...criticalItems.take(3).map(
-              (item) => Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: const Color(0xFFF4F7FB),
-                      child: Icon(item.icon, color: item.color),
+            ...criticalItems
+                .take(3)
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: const Color(0xFFF4F7FB),
+                          child: Icon(item.icon, color: item.color),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                'SKU: ${item.category}',
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8541A),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Restock',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                          Text('SKU: ${item.category}', style: const TextStyle(color: Color(0xFF64748B))),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8541A),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text('Restock', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
         ],
       ),
     );
@@ -1359,9 +1669,11 @@ Color _stockColor(String status) {
 
 IconData _stockIcon(String category) {
   final value = category.toLowerCase();
-  if (value.contains('dairy') || value.contains('milk')) return Icons.local_drink;
+  if (value.contains('dairy') || value.contains('milk'))
+    return Icons.local_drink;
   if (value.contains('fruit')) return Icons.eco;
-  if (value.contains('staple') || value.contains('rice')) return Icons.rice_bowl;
+  if (value.contains('staple') || value.contains('rice'))
+    return Icons.rice_bowl;
   if (value.contains('baby')) return Icons.child_care;
   return Icons.inventory_2;
 }

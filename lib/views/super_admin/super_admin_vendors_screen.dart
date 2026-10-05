@@ -109,6 +109,7 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
   Future<void> _createVendor() async {
     final created = await showDialog<VendorModel?>(
       context: context,
+      useSafeArea: true,
       builder: (context) => const _VendorFormDialog(),
     );
     if (!mounted || created == null) return;
@@ -123,6 +124,7 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
   Future<void> _editVendor(VendorModel vendor) async {
     final updated = await showDialog<VendorModel?>(
       context: context,
+      useSafeArea: true,
       builder: (context) => _VendorFormDialog(vendor: vendor),
     );
     if (!mounted || updated == null) return;
@@ -1612,6 +1614,116 @@ class _RejectVendorDialogState extends State<_RejectVendorDialog> {
   }
 }
 
+List<VendorBusinessHour> _defaultAdminVendorBusinessHours() => List.generate(
+  7,
+  (day) => VendorBusinessHour(
+    day: day,
+    isOpen: true,
+    openTime: '08:00',
+    closeTime: '22:00',
+  ),
+);
+
+List<VendorBusinessHour> _normalizedAdminVendorBusinessHours(
+  List<VendorBusinessHour> hours,
+) {
+  if (hours.length == 7) return hours;
+  final byDay = {for (final hour in hours) hour.day: hour};
+  return List.generate(
+    7,
+    (day) =>
+        byDay[day] ??
+        VendorBusinessHour(
+          day: day,
+          isOpen: true,
+          openTime: '08:00',
+          closeTime: '22:00',
+        ),
+  );
+}
+
+class _AdminBusinessHoursEditor extends StatelessWidget {
+  const _AdminBusinessHoursEditor({
+    required this.hours,
+    required this.onChanged,
+  });
+
+  final List<VendorBusinessHour> hours;
+  final ValueChanged<List<VendorBusinessHour>> onChanged;
+
+  static const _days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  Future<void> _pickTime(BuildContext context, int index, bool opening) async {
+    final current = opening ? hours[index].openTime : hours[index].closeTime;
+    final parts = current.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? (opening ? 8 : 22),
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null) return;
+    final value =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    onChanged(
+      hours
+          .map(
+            (hour) => opening
+                ? hour.copyWith(openTime: value)
+                : hour.copyWith(closeTime: value),
+          )
+          .toList(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(hours.length, (index) {
+            final hour = hours[index];
+            return FilterChip(
+              selected: hour.isOpen,
+              label: Text(_days[index]),
+              onSelected: (value) {
+                final updated = [...hours];
+                updated[index] = hour.copyWith(isOpen: value);
+                onChanged(updated);
+              },
+              selectedColor: const Color(0xFFFFF0EB),
+              checkmarkColor: const Color(0xFFE8541A),
+              side: const BorderSide(color: Color(0xFFF1D4C8)),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickTime(context, 0, true),
+                icon: const Icon(Icons.schedule_rounded),
+                label: Text('Open ${hours.first.openTime}'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickTime(context, 0, false),
+                icon: const Icon(Icons.schedule_rounded),
+                label: Text('Close ${hours.first.closeTime}'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _VendorFormDialog extends StatefulWidget {
   const _VendorFormDialog({this.vendor});
 
@@ -1651,11 +1763,14 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
   String? _gstCertificate;
   String? _panCard;
   String? _cancelledCheque;
+  String? _shopImageUrl;
   String? _storeLogoName;
   String? _gstCertificateName;
   String? _panCardName;
   String? _cancelledChequeName;
+  String? _shopImageName;
   String? _uploadingField;
+  List<VendorBusinessHour> _businessHours = _defaultAdminVendorBusinessHours();
   double? _pickupLatitude;
   double? _pickupLongitude;
   bool _capturingPickupLocation = false;
@@ -1693,6 +1808,12 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
     );
     _ifscController = TextEditingController(text: vendor?.ifscCode ?? '');
     _storeLogo = vendor?.logoUrl.isNotEmpty == true ? vendor!.logoUrl : null;
+    _shopImageUrl = vendor?.shopImageUrl.isNotEmpty == true
+        ? vendor!.shopImageUrl
+        : null;
+    _businessHours = _normalizedAdminVendorBusinessHours(
+      vendor?.businessHours ?? const [],
+    );
     _gstCertificate = vendor?.gstCertificateUrl.isNotEmpty == true
         ? vendor!.gstCertificateUrl
         : null;
@@ -1703,6 +1824,7 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
         ? vendor!.cancelledChequeUrl
         : null;
     _storeLogoName = _storeLogo == null ? null : 'Uploaded file';
+    _shopImageName = _shopImageUrl == null ? null : 'Uploaded banner';
     _gstCertificateName = _gstCertificate == null ? null : 'Uploaded file';
     _panCardName = _panCard == null ? null : 'Uploaded file';
     _cancelledChequeName = _cancelledCheque == null ? null : 'Uploaded file';
@@ -1845,6 +1967,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           gstCertificateUrl: _gstCertificate ?? '',
           panCardUrl: _panCard ?? '',
           cancelledChequeUrl: _cancelledCheque ?? '',
+          shopImageUrl: _shopImageUrl ?? '',
+          businessHours: _businessHours,
           pickupLatitude: _pickupLatitude,
           pickupLongitude: _pickupLongitude,
         );
@@ -1872,6 +1996,8 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           gstCertificateUrl: _gstCertificate ?? '',
           panCardUrl: _panCard ?? '',
           cancelledChequeUrl: _cancelledCheque ?? '',
+          shopImageUrl: _shopImageUrl ?? '',
+          businessHours: _businessHours,
           pickupLatitude: _pickupLatitude,
           pickupLongitude: _pickupLongitude,
         );
@@ -1912,10 +2038,35 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final isMobile = screenSize.width < 600;
+    final dialogWidth = isMobile ? screenSize.width - 20 : 760.0;
+    final dialogHeight = isMobile
+        ? screenSize.height - 24
+        : screenSize.height * 0.86;
+
     return ScaleTransition(
       scale: _scaleAnimation,
       child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 24,
+          vertical: isMobile ? 12 : 24,
+        ),
+        contentPadding: EdgeInsets.fromLTRB(
+          isMobile ? 14 : 24,
+          8,
+          isMobile ? 14 : 24,
+          0,
+        ),
+        actionsPadding: EdgeInsets.fromLTRB(
+          isMobile ? 14 : 24,
+          10,
+          isMobile ? 14 : 24,
+          isMobile ? 14 : 18,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
+        ),
         title: Row(
           children: [
             Container(
@@ -1934,18 +2085,23 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
               ),
             ),
             const SizedBox(width: 16),
-            Text(
-              _isEditing ? 'Edit Vendor' : 'Add Vendor',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-                letterSpacing: -0.5,
+            Expanded(
+              child: Text(
+                _isEditing ? 'Edit Vendor' : 'Add Vendor',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
           ],
         ),
         content: SizedBox(
-          width: 760,
+          width: dialogWidth,
+          height: dialogHeight,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1966,24 +2122,19 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                       icon: Icons.storefront_rounded,
                     ),
                     const SizedBox(height: 14),
-                    Row(
+                    _ResponsiveFieldRow(
                       children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _phoneController,
-                            label: 'Mobile Number',
-                            icon: Icons.phone_iphone_rounded,
-                            keyboardType: TextInputType.phone,
-                          ),
+                        _buildTextField(
+                          controller: _phoneController,
+                          label: 'Mobile Number',
+                          icon: Icons.phone_iphone_rounded,
+                          keyboardType: TextInputType.phone,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _emailController,
-                            label: 'Email Address',
-                            icon: Icons.email_rounded,
-                            keyboardType: TextInputType.emailAddress,
-                          ),
+                        _buildTextField(
+                          controller: _emailController,
+                          label: 'Email Address',
+                          icon: Icons.email_rounded,
+                          keyboardType: TextInputType.emailAddress,
                         ),
                       ],
                     ),
@@ -2045,22 +2196,17 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                       icon: Icons.category_rounded,
                     ),
                     const SizedBox(height: 14),
-                    Row(
+                    _ResponsiveFieldRow(
                       children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _gstController,
-                            label: 'GST Number',
-                            icon: Icons.receipt_long_rounded,
-                          ),
+                        _buildTextField(
+                          controller: _gstController,
+                          label: 'GST Number',
+                          icon: Icons.receipt_long_rounded,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _panController,
-                            label: 'PAN Number',
-                            icon: Icons.badge_rounded,
-                          ),
+                        _buildTextField(
+                          controller: _panController,
+                          label: 'PAN Number',
+                          icon: Icons.badge_rounded,
                         ),
                       ],
                     ),
@@ -2096,22 +2242,17 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                           : null,
                     ),
                     const SizedBox(height: 14),
-                    Row(
+                    _ResponsiveFieldRow(
                       children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _cityController,
-                            label: 'City',
-                            icon: Icons.location_city_rounded,
-                          ),
+                        _buildTextField(
+                          controller: _cityController,
+                          label: 'City',
+                          icon: Icons.location_city_rounded,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _stateController,
-                            label: 'State',
-                            icon: Icons.map_rounded,
-                          ),
+                        _buildTextField(
+                          controller: _stateController,
+                          label: 'State',
+                          icon: Icons.map_rounded,
                         ),
                       ],
                     ),
@@ -2126,6 +2267,18 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                 ),
                 const SizedBox(height: 16),
                 _FormSection(
+                  title: 'Store Availability',
+                  subtitle: 'Open days and shop timing visible to customers',
+                  children: [
+                    _AdminBusinessHoursEditor(
+                      hours: _businessHours,
+                      onChanged: (hours) =>
+                          setState(() => _businessHours = hours),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _FormSection(
                   title: 'Bank Details',
                   subtitle: 'For vendor payouts',
                   children: [
@@ -2135,23 +2288,18 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                       icon: Icons.person_pin_circle_rounded,
                     ),
                     const SizedBox(height: 14),
-                    Row(
+                    _ResponsiveFieldRow(
                       children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _bankNumberController,
-                            label: 'Bank Account Number',
-                            icon: Icons.account_balance_rounded,
-                            keyboardType: TextInputType.number,
-                          ),
+                        _buildTextField(
+                          controller: _bankNumberController,
+                          label: 'Bank Account Number',
+                          icon: Icons.account_balance_rounded,
+                          keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _ifscController,
-                            label: 'IFSC Code',
-                            icon: Icons.code_rounded,
-                          ),
+                        _buildTextField(
+                          controller: _ifscController,
+                          label: 'IFSC Code',
+                          icon: Icons.code_rounded,
                         ),
                       ],
                     ),
@@ -2160,7 +2308,7 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                 const SizedBox(height: 16),
                 _FormSection(
                   title: 'Document Uploads',
-                  subtitle: 'Store logo, GST, PAN, and cheque',
+                  subtitle: 'Store logo, shop banner, GST, PAN, and cheque',
                   children: [
                     _UploadTile(
                       title: 'Store Logo',
@@ -2176,6 +2324,23 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
                         ],
                         onSelected: (value) => _storeLogo = value,
                         onNameSelected: (value) => _storeLogoName = value,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _UploadTile(
+                      title: 'Shop Banner Photo',
+                      value: _shopImageName,
+                      uploading: _uploadingField == 'shop_banner',
+                      onTap: () => _pickAsset(
+                        field: 'shop_banner',
+                        acceptedTypeGroups: const [
+                          XTypeGroup(
+                            label: 'Images',
+                            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+                          ),
+                        ],
+                        onSelected: (value) => _shopImageUrl = value,
+                        onNameSelected: (value) => _shopImageName = value,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -2236,56 +2401,11 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: _saving
-                ? null
-                : () => Navigator.of(context, rootNavigator: true).pop(),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-          ),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFE8541A),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isEditing ? Icons.save_outlined : Icons.add_business,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _isEditing ? 'Save Changes' : 'Create Vendor',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
+          _VendorFormActions(
+            saving: _saving,
+            isEditing: _isEditing,
+            onCancel: () => Navigator.of(context, rootNavigator: true).pop(),
+            onSave: _save,
           ),
         ],
       ),
@@ -2346,6 +2466,112 @@ class _VendorFormDialogState extends State<_VendorFormDialog>
             ),
         ],
       ),
+    );
+  }
+}
+
+class _ResponsiveFieldRow extends StatelessWidget {
+  const _ResponsiveFieldRow({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    if (isMobile) {
+      return Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(height: 14),
+            children[i],
+          ],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Expanded(child: children[i]),
+        ],
+      ],
+    );
+  }
+}
+
+class _VendorFormActions extends StatelessWidget {
+  const _VendorFormActions({
+    required this.saving,
+    required this.isEditing,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final bool saving;
+  final bool isEditing;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final cancelButton = TextButton(
+      onPressed: saving ? null : onCancel,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Text(
+        'Cancel',
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+    );
+    final saveButton = FilledButton(
+      onPressed: saving ? null : onSave,
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFFE8541A),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: saving
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white,
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isEditing ? Icons.save_outlined : Icons.add_business,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  isEditing ? 'Save Changes' : 'Create Vendor',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+    );
+    if (isMobile) {
+      return SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [saveButton, const SizedBox(height: 8), cancelButton],
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [cancelButton, const SizedBox(width: 10), saveButton],
     );
   }
 }

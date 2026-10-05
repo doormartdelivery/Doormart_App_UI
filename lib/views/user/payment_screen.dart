@@ -101,6 +101,22 @@ class _PaymentScreenState extends State<PaymentScreen>
         email: state.user?.email,
         contact: state.user?.phone,
         address: addressText,
+        products: state.cart.map((line) => line.toOrderJson()).toList(),
+        deliveryFee: state.deliveryFee,
+        gstPercent: state.gstPercent,
+        deliveryAddress: address == null
+            ? null
+            : {
+                'line1': address.line1,
+                'area': address.area,
+                'landmark': address.landmark,
+                'city': address.city,
+                'state': address.state,
+                'pincode': address.pincode,
+                'label': address.label,
+                'fullAddress': address.fullAddress,
+                ...address.toLocationJson(),
+              },
       );
 
       _orderId = _readString(data, const ['orderId', 'order_id']);

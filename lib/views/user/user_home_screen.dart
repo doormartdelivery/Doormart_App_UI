@@ -17,6 +17,7 @@ import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../features/operations/services/location_service.dart';
 import 'cart_screen.dart';
+import 'nearby_shops_screen.dart';
 import 'product_category_screen.dart';
 import 'product_list_screen.dart';
 import 'search_screen.dart';
@@ -30,7 +31,6 @@ const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF9E9E9E);
 const _kBorder = Color(0xFFE8E8E8);
 const _supportPhoneUri = '+918248118563';
-const _nearbyDefaultRadiusKm = AppState.nearbyRadiusKm;
 
 void _logNextFrame(String label, Stopwatch sw) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -203,7 +203,10 @@ class _UserHomeScreenState extends State<UserHomeScreen>
                     const SliverToBoxAdapter(child: SizedBox(height: 18)),
                     const SliverToBoxAdapter(child: SizedBox(height: 22)),
                     const SliverToBoxAdapter(
-                      child: _SectionTitle('Shops near you'),
+                      child: _SectionTitle(
+                        'Shops near you',
+                        seeAllRouteName: NearbyShopsScreen.routeName,
+                      ),
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: 10)),
                     SliverToBoxAdapter(
@@ -3316,6 +3319,7 @@ class _NearbyShop {
     required this.city,
     required this.logo,
     required this.shopImageUrl,
+    required this.address,
     required this.productCount,
     required this.rating,
     required this.reviewCount,
@@ -3333,6 +3337,7 @@ class _NearbyShop {
   final String city;
   final String logo;
   final String shopImageUrl;
+  final String address;
   int productCount;
   final double rating;
   final int reviewCount;
@@ -3380,6 +3385,7 @@ class _NearbyShop {
           : 'Nearby',
       logo: json['logoUrl']?.toString() ?? '',
       shopImageUrl: json['shopImageUrl']?.toString() ?? '',
+      address: _nearbyFullAddress(json),
       productCount: _nearbyInt(json['productCount']),
       rating: _nearbyDouble(json['rating']),
       reviewCount: _nearbyInt(json['reviewCount']),
@@ -3395,6 +3401,39 @@ class _NearbyShop {
       distanceKm: _nearbyNullableDouble(json['distanceKm']),
     );
   }
+}
+
+String _nearbyFullAddress(Map<String, dynamic> json) {
+  final direct = _cleanNearbyAddressParts([json['fullAddress']]);
+  if (direct.isNotEmpty) return direct;
+
+  return _cleanNearbyAddressParts([
+    json['pickupAddress'] ?? json['address'],
+    json['city'],
+    json['state'],
+    json['pincode'],
+  ]);
+}
+
+String _cleanNearbyAddressParts(List<dynamic> values) {
+  String key(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+  final cleaned = <String>[];
+  final parts = values
+      .expand((value) => (value ?? '').toString().split(','))
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty);
+
+  for (final part in parts) {
+    final partKey = key(part);
+    final duplicate = cleaned.any((existing) {
+      final existingKey = key(existing);
+      return existingKey == partKey || existingKey.contains(partKey);
+    });
+    if (!duplicate) cleaned.add(part);
+  }
+  return cleaned.join(', ');
 }
 
 double _nearbyDouble(dynamic value, {double fallback = 0}) {
@@ -3435,10 +3474,15 @@ class _NearbyShopCard extends StatelessWidget {
                 shopCity: shop.city,
                 shopLogo: shop.logo,
                 shopImageUrl: shop.shopImageUrl,
+                shopAddress: shop.address,
                 distanceKm: shop.distanceKm,
                 rating: shop.rating,
                 etaMinutes: shop.etaMinMinutes,
                 deliveryFee: shop.deliveryFee,
+                minOrderAmount: shop.minOrderAmount,
+                isOpen: shop.isOpen,
+                todayOpenTime: shop.todayOpenTime,
+                todayCloseTime: shop.todayCloseTime,
               ),
             ),
       child: Opacity(
@@ -4925,11 +4969,10 @@ class _NearbyShopsList extends StatefulWidget {
 }
 
 class _NearbyShopsListState extends State<_NearbyShopsList> {
-  static const _defaultRadiusKm = _nearbyDefaultRadiusKm;
   List<_NearbyShop> _shops = const [];
   bool _loading = true;
   bool _locationUnavailable = false;
-  double _radiusKm = _defaultRadiusKm;
+  double _radiusKm = AppState.nearbyRadiusKm;
 
   @override
   void initState() {
@@ -4937,11 +4980,12 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
     _loadNearbyShops();
   }
 
-  Future<void> _loadNearbyShops({double radiusKm = _defaultRadiusKm}) async {
+  Future<void> _loadNearbyShops({double? radiusKm}) async {
+    final effectiveRadiusKm = radiusKm ?? AppState.nearbyRadiusKm;
     if (mounted) {
       setState(() {
         _loading = true;
-        _radiusKm = radiusKm;
+        _radiusKm = effectiveRadiusKm;
         _locationUnavailable = false;
       });
     }
@@ -4960,7 +5004,7 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
 
     try {
       final response = await state.apiService.get(
-        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$radiusKm',
+        '/vendors/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radiusKm=$effectiveRadiusKm',
         token: state.token,
       );
       final vendors = response is List ? response : const [];
@@ -5056,14 +5100,18 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
           );
         if (widget.sort == _EssentialsSort.nameAZ)
           shops.sort((a, b) => a.name.compareTo(b.name));
+        final visibleShops = shops.take(10).toList();
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: shops.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 18),
+          itemCount: visibleShops.length + 1,
+          separatorBuilder: (context, index) => const SizedBox(height: 18),
           itemBuilder: (ctx, i) {
-            return _NearbyShopCard(shop: shops[i]);
+            if (i == visibleShops.length) {
+              return const _SeeAllNearbyShopsButton();
+            }
+            return _NearbyShopCard(shop: visibleShops[i]);
           },
         );
       },
@@ -5071,6 +5119,57 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
   }
 
   void _expandSearch() => _loadNearbyShops(radiusKm: 10);
+}
+
+class _SeeAllNearbyShopsButton extends StatelessWidget {
+  const _SeeAllNearbyShopsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.pushNamed(context, NearbyShopsScreen.routeName);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFF5EF), Color(0xFFFFE5D8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Color(0xFFFFC7B0)),
+          boxShadow: [
+            BoxShadow(
+              color: _kGreen.withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.storefront_rounded, color: _kGreen, size: 20),
+            SizedBox(width: 9),
+            Text(
+              'See all shops near you',
+              style: TextStyle(
+                color: _kGreen,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(width: 7),
+            Icon(Icons.arrow_forward_rounded, color: _kGreen, size: 19),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _LocationActionCard extends StatelessWidget {

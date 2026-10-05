@@ -5,6 +5,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class LocationService {
+  static ({double latitude, double longitude})? _lastNearbyLocation;
+
+  static ({double latitude, double longitude})? get lastNearbyLocation =>
+      _lastNearbyLocation;
+
   Future<({double latitude, double longitude})> currentLocation() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw StateError('Location services are disabled');
@@ -25,7 +30,12 @@ class LocationService {
         timeLimit: const Duration(seconds: 15),
       ),
     );
-    return (latitude: position.latitude, longitude: position.longitude);
+    final location = (
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    _lastNearbyLocation = location;
+    return location;
   }
 
   Future<({double latitude, double longitude})> nearbyLocation() async {
@@ -48,7 +58,12 @@ class LocationService {
         timeLimit: Duration(seconds: kIsWeb ? 10 : 10),
       ),
     );
-    return (latitude: position.latitude, longitude: position.longitude);
+    final location = (
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    _lastNearbyLocation = location;
+    return location;
   }
 
   Future<String?> addressFromCoordinates({

@@ -14,6 +14,10 @@ class PaymentService {
     String? email,
     String? contact,
     String? address,
+    List<Map<String, dynamic>>? products,
+    double? deliveryFee,
+    double? gstPercent,
+    Map<String, dynamic>? deliveryAddress,
   }) async {
     final body = <String, dynamic>{
       'amount': amountInPaise,
@@ -23,7 +27,11 @@ class PaymentService {
     if (receipt != null) body['receipt'] = receipt;
     if (email != null) body['email'] = email;
     if (contact != null) body['contact'] = contact;
-    if (address != null) body['address'] = address;
+    if (address != null) body['addressText'] = address;
+    if (products != null) body['products'] = products;
+    if (deliveryFee != null) body['deliveryFee'] = deliveryFee;
+    if (gstPercent != null) body['gstPercent'] = gstPercent;
+    if (deliveryAddress != null) body['address'] = deliveryAddress;
 
     return await api.post(
           '/payments/cashfree/create-order',

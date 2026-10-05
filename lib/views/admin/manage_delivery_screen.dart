@@ -624,6 +624,7 @@ class _PartnerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 430;
     final status = _statusLabel(user, isOnline: isOnline);
     final vehicle = _vehicleFor(user);
     final statusColor = switch (status) {
@@ -650,200 +651,295 @@ class _PartnerCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // ── Top: avatar + info + actions ────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                // Avatar
-                Stack(
-                  clipBehavior: Clip.none,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: _kOrangeLight,
-                      backgroundImage: user.avatarUrl.isNotEmpty
-                          ? NetworkImage(user.avatarUrl)
-                          : null,
-                      child: user.avatarUrl.isEmpty
-                          ? Text(
-                              user.name.isNotEmpty
-                                  ? user.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: _kOrange,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 20,
-                              ),
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 13,
-                        height: 13,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: isCompact ? 25 : 28,
+                          backgroundColor: _kOrangeLight,
+                          backgroundImage: user.avatarUrl.isNotEmpty
+                              ? NetworkImage(user.avatarUrl)
+                              : null,
+                          child: user.avatarUrl.isEmpty
+                              ? Text(
+                                  user.name.isNotEmpty
+                                      ? user.name[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: _kOrange,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 20,
+                                  ),
+                                )
+                              : null,
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(width: 14),
-
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: _kTextDark,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '#${user.id.substring(0, 8).toUpperCase()}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _kTextMid,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      // Status pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 13,
+                            height: 13,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
 
-                // Actions
-                Column(
-                  children: [
-                    if (user.approvalStatus.toLowerCase() == 'pending' &&
-                        onApprove != null) ...[
-                      _ActionBtn(
-                        icon: Icons.verified_rounded,
-                        color: const Color(0xFF15803D),
-                        bg: const Color(0xFFEAF7ED),
-                        tooltip: 'Approve registration',
-                        onTap: onApprove!,
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: _kTextDark,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '#${user.id.substring(0, 8).toUpperCase()}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: _kTextMid,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              status,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      _ActionBtn(
-                        icon: Icons.cancel_outlined,
-                        color: const Color(0xFFBE123C),
-                        bg: const Color(0xFFFFF1F2),
-                        tooltip: 'Reject registration',
-                        onTap: onReject!,
+                    ),
+
+                    if (!isCompact) ...[
+                      const SizedBox(width: 10),
+                      _PartnerActionButtons(
+                        user: user,
+                        onApprove: onApprove,
+                        onReject: onReject,
+                        onShowStatus: onShowStatus,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        vertical: true,
                       ),
-                      const SizedBox(height: 6),
                     ],
-                    _ActionBtn(
-                      icon: Icons.timeline_rounded,
-                      color: const Color(0xFF4F46E5),
-                      bg: const Color(0xFFEFF2FF),
-                      tooltip: 'Show status',
-                      onTap: onShowStatus,
-                    ),
-                    const SizedBox(height: 6),
-                    _ActionBtn(
-                      icon: Icons.edit_rounded,
-                      color: _kOrange,
-                      bg: _kOrangeLight,
-                      tooltip: 'Edit partner',
-                      onTap: onEdit,
-                    ),
-                    const SizedBox(height: 6),
-                    _ActionBtn(
-                      icon: Icons.delete_outline_rounded,
-                      color: const Color(0xFFDC2626),
-                      bg: const Color(0xFFFFEEEE),
-                      tooltip: 'Delete partner',
-                      onTap: onDelete,
-                    ),
                   ],
                 ),
+                if (isCompact) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _PartnerActionButtons(
+                      user: user,
+                      onApprove: onApprove,
+                      onReject: onReject,
+                      onShowStatus: onShowStatus,
+                      onEdit: onEdit,
+                      onDelete: onDelete,
+                      vertical: false,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // ── Divider ─────────────────────────────────────────────────
           const Divider(height: 1, color: Color(0xFFF5F5F5)),
 
-          // ── Bottom: vehicle + phone + email ──────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-            child: Row(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Icon(
-                  Icons.electric_bike_rounded,
-                  size: 16,
-                  color: _kTextMid,
+                _PartnerMetaChip(
+                  icon: Icons.electric_bike_rounded,
+                  label: vehicle,
+                  foreground: _kTextDark,
+                  background: Colors.transparent,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  vehicle,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: _kTextDark,
-                  ),
+                _PartnerMetaChip(
+                  icon: Icons.phone_rounded,
+                  label: user.phone.isEmpty ? 'No phone' : user.phone,
+                  foreground: _kTextMid,
+                  background: Colors.transparent,
                 ),
-                const SizedBox(width: 14),
-                const Icon(Icons.phone_rounded, size: 14, color: _kTextMid),
-                const SizedBox(width: 4),
-                Text(
-                  user.phone,
-                  style: const TextStyle(fontSize: 12, color: _kTextMid),
-                ),
-                const Spacer(),
                 if ((user.email ?? '').isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isCompact ? 240 : 320,
                     ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      user.email!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF2563EB),
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: _PartnerMetaChip(
+                      icon: Icons.email_rounded,
+                      label: user.email!,
+                      foreground: const Color(0xFF2563EB),
+                      background: const Color(0xFFEFF6FF),
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PartnerActionButtons extends StatelessWidget {
+  const _PartnerActionButtons({
+    required this.user,
+    required this.onShowStatus,
+    required this.onEdit,
+    required this.onDelete,
+    required this.vertical,
+    this.onApprove,
+    this.onReject,
+  });
+
+  final UserModel user;
+  final VoidCallback onShowStatus;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
+  final bool vertical;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttons = <Widget>[
+      if (user.approvalStatus.toLowerCase() == 'pending' &&
+          onApprove != null) ...[
+        _ActionBtn(
+          icon: Icons.verified_rounded,
+          color: const Color(0xFF15803D),
+          bg: const Color(0xFFEAF7ED),
+          tooltip: 'Approve registration',
+          onTap: onApprove!,
+        ),
+        _ActionBtn(
+          icon: Icons.cancel_outlined,
+          color: const Color(0xFFBE123C),
+          bg: const Color(0xFFFFF1F2),
+          tooltip: 'Reject registration',
+          onTap: onReject!,
+        ),
+      ],
+      _ActionBtn(
+        icon: Icons.timeline_rounded,
+        color: const Color(0xFF4F46E5),
+        bg: const Color(0xFFEFF2FF),
+        tooltip: 'Show status',
+        onTap: onShowStatus,
+      ),
+      _ActionBtn(
+        icon: Icons.edit_rounded,
+        color: _kOrange,
+        bg: _kOrangeLight,
+        tooltip: 'Edit partner',
+        onTap: onEdit,
+      ),
+      _ActionBtn(
+        icon: Icons.delete_outline_rounded,
+        color: const Color(0xFFDC2626),
+        bg: const Color(0xFFFFEEEE),
+        tooltip: 'Delete partner',
+        onTap: onDelete,
+      ),
+    ];
+
+    if (vertical) {
+      return Column(
+        children: [
+          for (var i = 0; i < buttons.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            buttons[i],
+          ],
+        ],
+      );
+    }
+
+    return Wrap(spacing: 8, runSpacing: 8, children: buttons);
+  }
+}
+
+class _PartnerMetaChip extends StatelessWidget {
+  const _PartnerMetaChip({
+    required this.icon,
+    required this.label,
+    required this.foreground,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: background == Colors.transparent
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: foreground == _kTextDark ? _kTextMid : foreground,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: foreground,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1833,12 +1929,38 @@ class _PartnerDialogState extends State<_PartnerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isMobile = size.width < 600;
+    final dialogWidth = isMobile ? size.width - 20 : 640.0;
+    final dialogHeight = isMobile ? size.height - 24 : size.height * 0.86;
+
     return AlertDialog(
       backgroundColor: const Color(0xFFF7F7F8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 24,
+        vertical: isMobile ? 12 : 24,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 22 : 28),
+      ),
+      titlePadding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 20,
+        isMobile ? 16 : 20,
+        isMobile ? 16 : 20,
+        0,
+      ),
+      contentPadding: EdgeInsets.fromLTRB(
+        isMobile ? 14 : 20,
+        12,
+        isMobile ? 14 : 20,
+        8,
+      ),
+      actionsPadding: EdgeInsets.fromLTRB(
+        isMobile ? 14 : 16,
+        0,
+        isMobile ? 14 : 16,
+        isMobile ? 14 : 20,
+      ),
       title: Row(
         children: [
           Container(
@@ -1860,17 +1982,20 @@ class _PartnerDialogState extends State<_PartnerDialog> {
           Expanded(
             child: Text(
               _isEdit ? 'Edit Delivery Partner' : 'Add Delivery Partner',
-              style: const TextStyle(
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
                 fontWeight: FontWeight.w900,
                 color: _kTextDark,
-                fontSize: 17,
+                fontSize: isMobile ? 16 : 17,
               ),
             ),
           ),
         ],
       ),
       content: SizedBox(
-        width: 640,
+        width: dialogWidth,
+        height: dialogHeight,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2071,38 +2196,74 @@ class _PartnerDialogState extends State<_PartnerDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context, null),
-          child: const Text('Cancel', style: TextStyle(color: _kTextMid)),
-        ),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: _kOrange,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          ),
-          onPressed: _saving ? null : _save,
-          icon: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Icon(
-                  _isEdit ? Icons.save_rounded : Icons.person_add_rounded,
-                  size: 18,
-                ),
-          label: Text(
-            _saving ? 'Saving…' : (_isEdit ? 'Save changes' : 'Add partner'),
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
+        _PartnerDialogActions(
+          saving: _saving,
+          isEdit: _isEdit,
+          onCancel: () => Navigator.pop(context, null),
+          onSave: _save,
         ),
       ],
+    );
+  }
+}
+
+class _PartnerDialogActions extends StatelessWidget {
+  const _PartnerDialogActions({
+    required this.saving,
+    required this.isEdit,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final bool saving;
+  final bool isEdit;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    final cancelButton = TextButton(
+      onPressed: saving ? null : onCancel,
+      child: const Text('Cancel', style: TextStyle(color: _kTextMid)),
+    );
+    final saveButton = FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: _kOrange,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+      onPressed: saving ? null : onSave,
+      icon: saving
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(
+              isEdit ? Icons.save_rounded : Icons.person_add_rounded,
+              size: 18,
+            ),
+      label: Text(
+        saving ? 'Saving…' : (isEdit ? 'Save changes' : 'Add partner'),
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    );
+    if (isMobile) {
+      return SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [saveButton, const SizedBox(height: 8), cancelButton],
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [cancelButton, const SizedBox(width: 8), saveButton],
     );
   }
 }

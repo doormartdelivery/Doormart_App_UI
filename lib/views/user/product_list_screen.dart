@@ -33,10 +33,15 @@ class ProductListArgs {
     this.shopCity,
     this.shopLogo,
     this.shopImageUrl,
+    this.shopAddress,
     this.distanceKm,
     this.rating,
     this.etaMinutes,
     this.deliveryFee,
+    this.minOrderAmount,
+    this.isOpen,
+    this.todayOpenTime,
+    this.todayCloseTime,
   });
 
   final String? category;
@@ -45,10 +50,15 @@ class ProductListArgs {
   final String? shopCity;
   final String? shopLogo;
   final String? shopImageUrl;
+  final String? shopAddress;
   final double? distanceKm;
   final double? rating;
   final int? etaMinutes;
   final double? deliveryFee;
+  final double? minOrderAmount;
+  final bool? isOpen;
+  final String? todayOpenTime;
+  final String? todayCloseTime;
 
   bool get isShopMode => vendorId != null && vendorId!.trim().isNotEmpty;
 }
@@ -133,6 +143,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         args: _args!,
                         itemCount: products.length,
                       ),
+                    ),
+                  ),
+                if (_args?.isShopMode == true)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      child: _ShopAddressCard(args: _args!),
                     ),
                   ),
                 if (_args?.isShopMode == true)
@@ -524,6 +541,10 @@ class _ShopHero extends StatelessWidget {
         ? args.shopCity ?? 'Nearby'
         : '${args.distanceKm!.toStringAsFixed(1)} km · ${args.shopCity ?? 'Nearby'}';
     final eta = args.etaMinutes ?? 25;
+    final openLabel = args.isOpen == false ? 'Closed' : 'Open now';
+    final timingLabel = _shopTimingLabel(args);
+    final deliveryFee = args.deliveryFee;
+    final minOrder = args.minOrderAmount;
     final bannerHeight = MediaQuery.sizeOf(context).width >= 720
         ? 280.0
         : 230.0;
@@ -603,7 +624,7 @@ class _ShopHero extends StatelessWidget {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                'Open now · $distance',
+                                '$openLabel · $distance',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -612,6 +633,19 @@ class _ShopHero extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                              if (timingLabel.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  timingLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.78),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -635,6 +669,17 @@ class _ShopHero extends StatelessWidget {
                           icon: Icons.shopping_bag_rounded,
                           label: '$itemCount items',
                         ),
+                        if (minOrder != null && minOrder > 0)
+                          _ShopHeroChip(
+                            icon: Icons.receipt_long_rounded,
+                            label: 'Min ₹${minOrder.toStringAsFixed(0)}',
+                          ),
+                        if (deliveryFee != null && deliveryFee > 0)
+                          _ShopHeroChip(
+                            icon: Icons.delivery_dining_rounded,
+                            label:
+                                'Delivery ₹${deliveryFee.toStringAsFixed(0)}',
+                          ),
                       ],
                     ),
                   ],
@@ -643,6 +688,134 @@ class _ShopHero extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+String _shopTimingLabel(ProductListArgs args) {
+  final open = _formatShopTime(args.todayOpenTime);
+  final close = _formatShopTime(args.todayCloseTime);
+  if (open.isNotEmpty && close.isNotEmpty) return 'Today $open – $close';
+  if (open.isNotEmpty) return 'Opens at $open';
+  if (close.isNotEmpty) return 'Closes at $close';
+  return '';
+}
+
+String _formatShopTime(String? value) {
+  if (value == null || value.trim().isEmpty) return '';
+  final parts = value.trim().split(':');
+  if (parts.length < 2) return value.trim();
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return value.trim();
+  final period = hour >= 12 ? 'PM' : 'AM';
+  final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+  return '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+}
+
+class _ShopAddressCard extends StatelessWidget {
+  const _ShopAddressCard({required this.args});
+
+  final ProductListArgs args;
+
+  @override
+  Widget build(BuildContext context) {
+    final address = (args.shopAddress ?? '').trim();
+    final city = (args.shopCity ?? '').trim();
+    final displayAddress = address.isNotEmpty
+        ? address
+        : city.isNotEmpty
+        ? city
+        : 'Store address will appear here soon';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFC7B0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE8541A).withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF6A2A), Color(0xFFE8541A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE8541A).withValues(alpha: 0.22),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.location_on_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Store address',
+                  style: TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  displayAddress,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF7A7A7A),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              'Pickup',
+              style: TextStyle(
+                color: Color(0xFFE8541A),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

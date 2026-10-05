@@ -324,7 +324,6 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
           const SizedBox(height: 24),
         ],
       ),
-
     );
   }
 }
@@ -935,20 +934,8 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     _text(widget.order.vendorStoreName, fallback: '—'),
                   ),
                   _detailLine(
-                    'Address',
-                    _fullVendorAddress(widget.order),
-                  ),
-                  _detailLine(
                     'Pickup address',
-                    _text(widget.order.vendorPickupAddress, fallback: '—'),
-                  ),
-                  _detailLine(
-                    'City',
-                    _text(widget.order.vendorCity, fallback: '—'),
-                  ),
-                  _detailLine(
-                    'Pincode',
-                    _text(widget.order.vendorPincode, fallback: '—'),
+                    _fullVendorAddress(widget.order),
                   ),
                   if (widget.order.vendorLatitude != null &&
                       widget.order.vendorLongitude != null)
@@ -980,10 +967,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     'Phone',
                     _text(widget.order.customerPhone, fallback: '—'),
                   ),
-                  _detailLine(
-                    'Address',
-                    _fullCustomerAddress(widget.order),
-                  ),
+                  _detailLine('Address', _fullCustomerAddress(widget.order)),
                   _detailLine(
                     'Street',
                     _text(widget.order.customerLine1, fallback: '—'),
@@ -1226,16 +1210,35 @@ String _text(dynamic value, {String fallback = ''}) {
 }
 
 String _fullVendorAddress(dynamic order) {
-  final parts = <String>[
-    _text(order.vendorAddress, fallback: ''),
+  final primary = _text(order.vendorPickupAddress, fallback: '').isNotEmpty
+      ? _text(order.vendorPickupAddress, fallback: '')
+      : _text(order.vendorAddress, fallback: '');
+  final address = _cleanAddressParts([
+    primary,
     _text(order.vendorCity, fallback: ''),
     _text(order.vendorState, fallback: ''),
     _text(order.vendorPincode, fallback: ''),
-  ]
+  ]);
+  return address.isEmpty ? '—' : address;
+}
+
+String _cleanAddressParts(List<String> values) {
+  String key(String value) =>
+      value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  final cleaned = <String>[];
+  final parts = values
+      .expand((value) => value.split(','))
       .map((part) => part.trim())
-      .where((part) => part.isNotEmpty)
-      .toList();
-  return parts.isEmpty ? '—' : parts.join(', ');
+      .where((part) => part.isNotEmpty);
+  for (final part in parts) {
+    final partKey = key(part);
+    final duplicate = cleaned.any((existing) {
+      final existingKey = key(existing);
+      return existingKey == partKey || existingKey.contains(partKey);
+    });
+    if (!duplicate) cleaned.add(part);
+  }
+  return cleaned.join(', ');
 }
 
 String _fullCustomerAddress(dynamic order) {
@@ -1246,10 +1249,7 @@ String _fullCustomerAddress(dynamic order) {
     _text(order.customerCity, fallback: ''),
     _text(order.customerState, fallback: ''),
     _text(order.customerPincode, fallback: ''),
-  ]
-      .map((part) => part.trim())
-      .where((part) => part.isNotEmpty)
-      .toList();
+  ].map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
   final joined = parts.join(', ');
   if (joined.isNotEmpty) return joined;
   return _text(order.customerAddress, fallback: '—');
@@ -1535,7 +1535,9 @@ class _DeliverySidebarDrawer extends StatelessWidget {
     final provider = context.watch<DeliveryProvider>();
     final person = provider.deliveryPerson;
     final initialsSource = (person?.name ?? '').trim();
-    final avatarLetter = initialsSource.isNotEmpty ? initialsSource[0].toUpperCase() : 'D';
+    final avatarLetter = initialsSource.isNotEmpty
+        ? initialsSource[0].toUpperCase()
+        : 'D';
     final currentLabel = switch (currentRoute) {
       DeliveryHomeScreen.routeName => 'Home',
       DeliveryHistoryScreen.routeName => 'History',
@@ -1570,7 +1572,9 @@ class _DeliverySidebarDrawer extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.24),
+                          ),
                         ),
                         child: Center(
                           child: Text(
@@ -1585,7 +1589,10 @@ class _DeliverySidebarDrawer extends StatelessWidget {
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(999),
@@ -1675,7 +1682,9 @@ class _DeliverySidebarDrawer extends StatelessWidget {
     } else if (route == DeliveryHistoryScreen.routeName) {
       Navigator.of(context).pushNamed(route);
     } else if (route == DeliveryEarningsScreen.routeName) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()));
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DeliveryEarningsScreen()));
     } else if (route == DeliveryProfileScreen.routeName) {
       Navigator.of(context).pushNamed(route);
     }
@@ -1710,7 +1719,9 @@ class _DrawerItem extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: selected ? const Color(0x33E8541A) : const Color(0x1AFFFFFF),
+                color: selected
+                    ? const Color(0x33E8541A)
+                    : const Color(0x1AFFFFFF),
               ),
             ),
             child: Row(
@@ -1719,7 +1730,9 @@ class _DrawerItem extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: selected ? const Color(0xFFE8541A) : const Color(0xFF111827),
+                    color: selected
+                        ? const Color(0xFFE8541A)
+                        : const Color(0xFF111827),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: Colors.white, size: 22),
@@ -1734,7 +1747,9 @@ class _DrawerItem extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
-                          fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                          fontWeight: selected
+                              ? FontWeight.w900
+                              : FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),

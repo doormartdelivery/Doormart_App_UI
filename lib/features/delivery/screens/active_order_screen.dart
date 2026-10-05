@@ -139,7 +139,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
         order.status == DeliveryOrderStatus.delivered;
     final pickupFlowColor =
         order.status == DeliveryOrderStatus.packed ||
-        order.status == DeliveryOrderStatus.pickedUp ||
+            order.status == DeliveryOrderStatus.pickedUp ||
             order.status == DeliveryOrderStatus.outForDelivery ||
             order.status == DeliveryOrderStatus.delivered
         ? const Color(0xFFE8541A)
@@ -254,18 +254,6 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               '${order.vendorLatitude!.toStringAsFixed(6)}, ${order.vendorLongitude!.toStringAsFixed(6)}',
                             ),
                           _infoRow(
-                            'Pickup city',
-                            order.vendorCity?.trim().isNotEmpty == true
-                                ? order.vendorCity!.trim()
-                                : '—',
-                          ),
-                          _infoRow(
-                            'Pickup pincode',
-                            order.vendorPincode?.trim().isNotEmpty == true
-                                ? order.vendorPincode!.trim()
-                                : '—',
-                          ),
-                          _infoRow(
                             'Store phone',
                             order.vendorPhone?.trim().isNotEmpty == true
                                 ? order.vendorPhone!.trim()
@@ -278,16 +266,14 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             icon: Icons.store_mall_directory_rounded,
                             onPressed:
                                 order.vendorLatitude != null &&
-                                    order.vendorLongitude != null ||
+                                        order.vendorLongitude != null ||
                                     _hasAddress(_fullVendorAddress(order))
                                 ? () => _openDirections(
                                     address: _fullVendorAddress(order),
                                     latitude: order.vendorLatitude,
                                     longitude: order.vendorLongitude,
-                                    conflictLatitude:
-                                        order.customerLatitude,
-                                    conflictLongitude:
-                                        order.customerLongitude,
+                                    conflictLatitude: order.customerLatitude,
+                                    conflictLongitude: order.customerLongitude,
                                   )
                                 : null,
                           ),
@@ -348,7 +334,7 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                             icon: Icons.map_outlined,
                             onPressed:
                                 order.customerLatitude != null &&
-                                    order.customerLongitude != null ||
+                                        order.customerLongitude != null ||
                                     _hasAddress(_fullCustomerAddress(order))
                                 ? () => _openDirections(
                                     address: _fullCustomerAddress(order),
@@ -424,17 +410,18 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               title: 'Get Customer Directions',
                               subtitle: 'Open turn-by-turn delivery navigation',
                               accent: const Color(0xFFFF8A3D),
-                              onTap: order.customerLatitude != null &&
-            order.customerLongitude != null ||
-            _hasAddress(_fullCustomerAddress(order))
-                ? () => _openDirections(
-                    address: _fullCustomerAddress(order),
-                    latitude: order.customerLatitude,
-                    longitude: order.customerLongitude,
-                    conflictLatitude: order.vendorLatitude,
-                    conflictLongitude: order.vendorLongitude,
-                  )
-                : null,
+                              onTap:
+                                  order.customerLatitude != null &&
+                                          order.customerLongitude != null ||
+                                      _hasAddress(_fullCustomerAddress(order))
+                                  ? () => _openDirections(
+                                      address: _fullCustomerAddress(order),
+                                      latitude: order.customerLatitude,
+                                      longitude: order.customerLongitude,
+                                      conflictLatitude: order.vendorLatitude,
+                                      conflictLongitude: order.vendorLongitude,
+                                    )
+                                  : null,
                               disabledLabel: 'Customer address not available',
                             ),
                             const SizedBox(height: 10),
@@ -444,7 +431,8 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                               step: '2',
                               icon: Icons.call_outlined,
                               title: 'Call customer',
-                              subtitle: 'Speak with the customer before proceeding',
+                              subtitle:
+                                  'Speak with the customer before proceeding',
                               accent: const Color(0xFFFFA142),
                               onTap: () => _call(order.customerPhone),
                             ),
@@ -712,49 +700,56 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     return trimmed.isNotEmpty && trimmed != '—';
   }
 
-  bool _coordinatesClose(
-    double lat1,
-    double lng1,
-    double lat2,
-    double lng2,
-  ) {
+  bool _coordinatesClose(double lat1, double lng1, double lat2, double lng2) {
     return (lat1 - lat2).abs() < 0.0001 && (lng1 - lng2).abs() < 0.0001;
   }
 
   String _fullVendorAddress(DeliveryOrderModel order) {
-    final parts = <String>[
-      order.vendorPickupAddress ?? '',
+    final pickupAddress = order.vendorPickupAddress?.trim() ?? '';
+    final primary = pickupAddress.isNotEmpty
+        ? pickupAddress
+        : (order.vendorAddress ?? '').trim();
+    final address = _cleanAddressParts([
+      primary,
       order.vendorCity ?? '',
       order.vendorState ?? '',
       order.vendorPincode ?? '',
-    ]
+    ]);
+    return address.isEmpty ? '—' : address;
+  }
+
+  String _cleanAddressParts(List<String> values) {
+    String key(String value) =>
+        value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final cleaned = <String>[];
+    final parts = values
+        .expand((value) => value.split(','))
         .map((part) => part.trim())
-        .where((part) => part.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) {
-      return order.vendorAddress?.trim().isNotEmpty == true
-          ? order.vendorAddress!.trim()
-          : '—';
+        .where((part) => part.isNotEmpty);
+    for (final part in parts) {
+      final partKey = key(part);
+      final duplicate = cleaned.any((existing) {
+        final existingKey = key(existing);
+        return existingKey == partKey || existingKey.contains(partKey);
+      });
+      if (!duplicate) cleaned.add(part);
     }
-    return parts.join(', ');
+    return cleaned.join(', ');
   }
 
   String _fullCustomerAddress(DeliveryOrderModel order) {
     final parts = <String>[
       order.customerLine1 ?? '',
-      order.customerArea ?? '',
+      order.customerArea,
       order.customerLandmark ?? '',
       order.customerCity ?? '',
       order.customerState ?? '',
       order.customerPincode ?? '',
-    ]
-        .map((part) => part.trim())
-        .where((part) => part.isNotEmpty)
-        .toList();
+    ].map((part) => part.trim()).where((part) => part.isNotEmpty).toList();
     final joined = parts.join(', ');
     if (joined.isNotEmpty) return joined;
-    return order.customerAddress?.trim().isNotEmpty == true
-        ? order.customerAddress!.trim()
+    return order.customerAddress.trim().isNotEmpty
+        ? order.customerAddress.trim()
         : '—';
   }
 }

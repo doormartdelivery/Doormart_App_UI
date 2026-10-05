@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../../features/operations/services/location_service.dart';
 import '../../widgets/custom_text_field.dart';
@@ -69,11 +70,14 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
   String? _gstCertificate;
   String? _panCard;
   String? _cancelledCheque;
+  String? _shopImageUrl;
   String? _storeLogoName;
   String? _gstCertificateName;
   String? _panCardName;
   String? _cancelledChequeName;
+  String? _shopImageName;
   String? _uploadingField;
+  List<VendorBusinessHour> _businessHours = _defaultVendorBusinessHours();
   bool _capturingPickupLocation = false;
   double? _pickupLatitude;
   double? _pickupLongitude;
@@ -108,6 +112,9 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
       _cancelledCheque = vendor.cancelledChequeUrl.isEmpty
           ? null
           : vendor.cancelledChequeUrl;
+      _shopImageUrl = vendor.shopImageUrl.isEmpty ? null : vendor.shopImageUrl;
+      _shopImageName = _shopImageUrl == null ? null : 'Uploaded banner';
+      _businessHours = _normalizedVendorBusinessHours(vendor.businessHours);
     }
   }
 
@@ -216,6 +223,8 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
         gstCertificate: _gstCertificate ?? '',
         panCard: _panCard ?? '',
         cancelledCheque: _cancelledCheque ?? '',
+        shopImageUrl: _shopImageUrl ?? '',
+        businessHours: _businessHours,
         pickupLatitude: _pickupLatitude,
         pickupLongitude: _pickupLongitude,
       );
@@ -460,6 +469,20 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                   const SizedBox(height: 16),
                   _SectionCard(
                     step: '3',
+                    title: 'Store Availability',
+                    subtitle: 'Choose when customers can order from you',
+                    icon: Icons.schedule_rounded,
+                    children: [
+                      _BusinessHoursEditor(
+                        hours: _businessHours,
+                        onChanged: (hours) =>
+                            setState(() => _businessHours = hours),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    step: '4',
                     title: 'Bank Details',
                     subtitle: 'Where your payouts will be sent',
                     icon: Icons.account_balance_rounded,
@@ -489,7 +512,7 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   _SectionCard(
-                    step: '4',
+                    step: '5',
                     title: 'Document Uploads',
                     subtitle: 'Clear photos or scans work best',
                     icon: Icons.folder_copy_rounded,
@@ -508,6 +531,23 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
                           ],
                           onSelected: (value) => _storeLogo = value,
                           onNameSelected: (value) => _storeLogoName = value,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _UploadTile(
+                        title: 'Shop Banner Photo',
+                        value: _shopImageName,
+                        uploading: _uploadingField == 'shop_banner',
+                        onTap: () => _pickAsset(
+                          field: 'shop_banner',
+                          acceptedTypeGroups: const [
+                            XTypeGroup(
+                              label: 'Images',
+                              extensions: ['jpg', 'jpeg', 'png', 'webp'],
+                            ),
+                          ],
+                          onSelected: (value) => _shopImageUrl = value,
+                          onNameSelected: (value) => _shopImageName = value,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -620,6 +660,139 @@ class _VendorRegisterScreenState extends State<VendorRegisterScreen> {
     } finally {
       if (mounted) setState(() => _capturingPickupLocation = false);
     }
+  }
+}
+
+List<VendorBusinessHour> _defaultVendorBusinessHours() => List.generate(
+  7,
+  (day) => VendorBusinessHour(
+    day: day,
+    isOpen: true,
+    openTime: '08:00',
+    closeTime: '22:00',
+  ),
+);
+
+List<VendorBusinessHour> _normalizedVendorBusinessHours(
+  List<VendorBusinessHour> hours,
+) {
+  if (hours.length == 7) return hours;
+  final byDay = {for (final hour in hours) hour.day: hour};
+  return List.generate(
+    7,
+    (day) =>
+        byDay[day] ??
+        VendorBusinessHour(
+          day: day,
+          isOpen: true,
+          openTime: '08:00',
+          closeTime: '22:00',
+        ),
+  );
+}
+
+class _BusinessHoursEditor extends StatelessWidget {
+  const _BusinessHoursEditor({required this.hours, required this.onChanged});
+
+  final List<VendorBusinessHour> hours;
+  final ValueChanged<List<VendorBusinessHour>> onChanged;
+
+  static const _days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  Future<void> _pickTime(BuildContext context, int index, bool opening) async {
+    final current = opening ? hours[index].openTime : hours[index].closeTime;
+    final parts = current.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? (opening ? 8 : 22),
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null) return;
+    final value =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    onChanged(
+      hours
+          .map(
+            (hour) => opening
+                ? hour.copyWith(openTime: value)
+                : hour.copyWith(closeTime: value),
+          )
+          .toList(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(hours.length, (index) {
+            final hour = hours[index];
+            return FilterChip(
+              selected: hour.isOpen,
+              label: Text(_days[index]),
+              onSelected: (value) {
+                final updated = [...hours];
+                updated[index] = hour.copyWith(isOpen: value);
+                onChanged(updated);
+              },
+              selectedColor: _kOrangeLight,
+              checkmarkColor: _kOrange,
+              side: const BorderSide(color: _kBorder),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _TimeButton(
+                label: 'Open',
+                value: hours.first.openTime,
+                onTap: () => _pickTime(context, 0, true),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _TimeButton(
+                label: 'Close',
+                value: hours.first.closeTime,
+                onTap: () => _pickTime(context, 0, false),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeButton extends StatelessWidget {
+  const _TimeButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.schedule_rounded),
+      label: Text('$label $value'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _kOrange,
+        side: const BorderSide(color: _kOrange),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    );
   }
 }
 

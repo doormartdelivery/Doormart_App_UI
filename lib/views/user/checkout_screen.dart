@@ -40,11 +40,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       await context.read<AppState>().loadAddresses();
       if (!mounted) return;
-      _summaryFuture = context.read<AppState>().loadCheckoutSummary();
-      final summary = await _summaryFuture;
-      if (!mounted) return;
       final state = context.read<AppState>();
       _selectedAddressId = state.selectedAddress?.id;
+      _summaryFuture = state.loadCheckoutSummary(
+        address: state.selectedAddress,
+      );
+      final summary = await _summaryFuture;
+      if (!mounted) return;
       state.checkoutSummary = summary;
       if (mounted) setState(() {});
     });
@@ -66,10 +68,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ) async {
     setState(() => _processingCod = true);
     try {
-      await state.checkout(
-        address: selectedAddress,
-        paymentMethod: 'cod',
-      );
+      await state.checkout(address: selectedAddress, paymentMethod: 'cod');
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       showToast(context, '✅ COD order placed!');
@@ -102,7 +101,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             final addresses = state.savedAddresses;
             final selectedAddress = _resolveAddress(state);
             final canOrder =
-                addresses.isNotEmpty && state.cart.isNotEmpty && selectedAddress != null;
+                addresses.isNotEmpty &&
+                state.cart.isNotEmpty &&
+                selectedAddress != null;
             final vendorEntries = <String, String>{};
             for (final line in state.cart) {
               final vendorId = line.product.vendorId.trim().isEmpty
@@ -129,7 +130,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         // ── Hero title ────────────────────────────────────
                         const Text(
                           'Confirm delivery\nand payment',
@@ -172,7 +172,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 await appState.loadAddresses();
                                 if (!mounted) return;
                                 setState(() {
-                                  _selectedAddressId = state.selectedAddress?.id;
+                                  _selectedAddressId =
+                                      state.selectedAddress?.id;
                                 });
                               }
                             },
@@ -222,15 +223,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   const SizedBox(width: 12),
                               itemBuilder: (_, i) {
                                 final addr = addresses[i];
-                                final sel = _selectedAddressId == addr.id ||
+                                final sel =
+                                    _selectedAddressId == addr.id ||
                                     (_selectedAddressId == null &&
                                         state.selectedAddress?.id == addr.id);
                                 return _AddressCard(
                                   data: addr,
                                   selected: sel,
-                                  onTap: () => setState(
-                                    () => _selectedAddressId = addr.id,
-                                  ),
+                                  onTap: () => setState(() {
+                                    _selectedAddressId = addr.id;
+                                    state.selectedAddress = addr;
+                                    _summaryFuture = state.loadCheckoutSummary(
+                                      address: addr,
+                                    );
+                                  }),
                                 );
                               },
                             ),
@@ -242,20 +248,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const _SectionLabel('🧾  Order summary'),
                         const SizedBox(height: 12),
                         FutureBuilder<Map<String, dynamic>>(
-                          future: _summaryFuture ?? state.loadCheckoutSummary(),
+                          future:
+                              _summaryFuture ??
+                              state.loadCheckoutSummary(
+                                address: selectedAddress,
+                              ),
                           builder: (context, snapshot) {
-                            final summary = snapshot.data ?? state.checkoutSummary;
-                            final subtotal = (summary?['subtotal'] as num?)?.toDouble() ?? state.subtotal;
-                            final deliveryFee = (summary?['deliveryFee'] as num?)?.toDouble() ?? state.deliveryFee;
-                            final gstAmount = (summary?['gstAmount'] as num?)?.toDouble() ?? state.gstAmount;
-                            final total = (summary?['total'] as num?)?.toDouble() ?? state.total;
+                            final summary =
+                                snapshot.data ?? state.checkoutSummary;
+                            final subtotal =
+                                (summary?['subtotal'] as num?)?.toDouble() ??
+                                state.subtotal;
+                            final deliveryFee =
+                                (summary?['deliveryFee'] as num?)?.toDouble() ??
+                                state.deliveryFee;
+                            final gstAmount =
+                                (summary?['gstAmount'] as num?)?.toDouble() ??
+                                state.gstAmount;
+                            final total =
+                                (summary?['total'] as num?)?.toDouble() ??
+                                state.total;
                             return _SummaryCard(
                               items: state.cart,
                               subtotal: subtotal,
                               deliveryFee: deliveryFee,
                               gstAmount: gstAmount,
                               total: total,
-                              loading: snapshot.connectionState == ConnectionState.waiting && summary == null,
+                              loading:
+                                  snapshot.connectionState ==
+                                      ConnectionState.waiting &&
+                                  summary == null,
                             );
                           },
                         ),
@@ -321,9 +343,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: _kOrangeLight,
-                                            borderRadius: BorderRadius.circular(999),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
                                             border: Border.all(
-                                              color: _kOrange.withValues(alpha: 0.12),
+                                              color: _kOrange.withValues(
+                                                alpha: 0.12,
+                                              ),
                                             ),
                                           ),
                                           child: Text(
@@ -355,8 +381,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           icon: Icons.money_rounded,
                           loading: _processingCod,
                           enabled: canOrder,
-                          onTap: () =>
-                              _placeCodOrder(state, selectedAddress!),
+                          onTap: () => _placeCodOrder(state, selectedAddress!),
                         ),
 
                         const SizedBox(height: 12),
@@ -378,8 +403,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           const _InfoCard(
                             icon: Icons.info_outline_rounded,
                             title: 'Select an address',
-                            subtitle:
-                                'Tap a saved address above to continue.',
+                            subtitle: 'Tap a saved address above to continue.',
                           ),
                       ],
                     ),
@@ -422,8 +446,11 @@ class _TopBar extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.chevron_left_rounded,
-                  size: 26, color: _kTextDark),
+              child: const Icon(
+                Icons.chevron_left_rounded,
+                size: 26,
+                color: _kTextDark,
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -665,10 +692,7 @@ class _SummaryCard extends StatelessWidget {
           _SummaryRow(label: 'GST', value: gstAmount),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(
-              height: 1,
-              color: Colors.grey.shade100,
-            ),
+            child: Divider(height: 1, color: Colors.grey.shade100),
           ),
           _SummaryRow(label: 'Total', value: total, bold: true),
         ],
@@ -741,10 +765,10 @@ class _ActionButtonState extends State<_ActionButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -804,9 +828,11 @@ class _ActionButtonState extends State<_ActionButton>
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(widget.icon,
-                          size: 18,
-                          color: active ? Colors.white : Colors.grey),
+                      Icon(
+                        widget.icon,
+                        size: 18,
+                        color: active ? Colors.white : Colors.grey,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         widget.label,
@@ -842,10 +868,10 @@ class _CashfreeButtonState extends State<_CashfreeButton>
     vsync: this,
     duration: const Duration(milliseconds: 110),
   );
-  late final Animation<double> _scale =
-      Tween<double>(begin: 1.0, end: 0.96).animate(
-    CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.96,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
 
   @override
   void dispose() {
@@ -932,8 +958,7 @@ class _DeliveryAddressChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.local_shipping_rounded,
-              size: 16, color: _kOrange),
+          const Icon(Icons.local_shipping_rounded, size: 16, color: _kOrange),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -994,24 +1019,25 @@ class _InfoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: _kTextDark,
-                    )),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: _kTextDark,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF666666),
-                    )),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF666666),
+                  ),
+                ),
                 if (actionLabel != null && onAction != null) ...[
                   const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: onAction,
-                    child: Text(actionLabel!),
-                  ),
+                  FilledButton(onPressed: onAction, child: Text(actionLabel!)),
                 ],
               ],
             ),
