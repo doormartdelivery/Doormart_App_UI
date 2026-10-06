@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../views/super_admin/delivery_analytics_screen.dart';
+import '../../views/super_admin/delivery_charges_screen.dart';
 import '../../views/super_admin/payout_tracking_screen.dart';
 import '../../views/super_admin/reports_screen.dart';
 import '../../views/super_admin/revenue_analytics_screen.dart';
@@ -20,6 +21,7 @@ class SuperAdminRoutes {
     PayoutTrackingScreen.routeName: (_) => const PayoutTrackingScreen(),
     ReportsScreen.routeName: (_) => const ReportsScreen(),
     DeliveryAnalyticsScreen.routeName: (_) => const DeliveryAnalyticsScreen(),
+    DeliveryChargesScreen.routeName: (_) => const DeliveryChargesScreen(),
     SuperAdminOrdersScreen.routeName: (_) => const SuperAdminOrdersScreen(),
     SuperAdminHeatmapScreen.routeName: (_) => const SuperAdminHeatmapScreen(),
     SuperAdminProductsScreen.routeName: (_) => const SuperAdminProductsScreen(),

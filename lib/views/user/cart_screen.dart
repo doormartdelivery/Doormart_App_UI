@@ -27,7 +27,9 @@ class CartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppState>().loadNearbyVendorIds();
+      final state = context.read<AppState>();
+      state.loadNearbyVendorIds();
+      state.loadCheckoutSettings();
     });
     return Scaffold(
       backgroundColor: _kBg,
@@ -890,6 +892,52 @@ class _BottomBar extends StatelessWidget {
               ),
             ],
           ),
+
+          if (state.freeDeliveryEnabled && state.cart.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: state.isFreeDelivery
+                    ? const Color(0xFFF0FDF4)
+                    : const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: state.isFreeDelivery
+                      ? const Color(0xFFBBF7D0)
+                      : const Color(0xFFFED7AA),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    state.isFreeDelivery
+                        ? Icons.check_circle_rounded
+                        : Icons.local_shipping_outlined,
+                    size: 18,
+                    color: state.isFreeDelivery
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFFEA580C),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      state.isFreeDelivery
+                          ? 'FREE delivery unlocked!'
+                          : 'Add Rs ${state.amountNeededForFreeDelivery.toStringAsFixed(0)} more to get FREE delivery',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: state.isFreeDelivery
+                            ? const Color(0xFF15803D)
+                            : const Color(0xFF9A3412),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 16),
 

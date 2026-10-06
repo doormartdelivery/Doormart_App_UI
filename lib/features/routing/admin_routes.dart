@@ -11,6 +11,7 @@ import '../../views/admin/manage_delivery_screen.dart';
 import '../../views/admin/manage_products_screen.dart';
 import '../../views/admin/manage_users_screen.dart';
 import '../../views/admin/stock_screen.dart';
+import '../../views/super_admin/delivery_charges_screen.dart';
 
 class AdminRoutes {
   static Map<String, WidgetBuilder> get routes => {
@@ -25,5 +26,6 @@ class AdminRoutes {
     ManageUsersScreen.routeName: (_) => const ManageUsersScreen(),
     ManageDeliveryScreen.routeName: (_) => const ManageDeliveryScreen(),
     StockScreen.routeName: (_) => const StockScreen(),
+    DeliveryChargesScreen.routeName: (_) => const DeliveryChargesScreen(),
   };
 }

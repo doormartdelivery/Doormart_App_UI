@@ -590,7 +590,12 @@ class _SummaryCard extends StatelessWidget {
         children: [
           _row('Subtotal', subtotal),
           const SizedBox(height: 8),
-          _row('Delivery fee', deliveryFee),
+          _row(
+            'Delivery fee',
+            deliveryFee,
+            text: deliveryFee <= 0 ? 'FREE' : null,
+            textColor: deliveryFee <= 0 ? const Color(0xFF16A34A) : null,
+          ),
           const SizedBox(height: 8),
           _row('GST', gstAmount),
           const Divider(height: 24),
@@ -600,16 +605,23 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, double amount, {bool bold = false}) {
+  Widget _row(
+    String label,
+    double amount, {
+    bool bold = false,
+    String? text,
+    Color? textColor,
+  }) {
     final style = TextStyle(
       fontSize: bold ? 16 : 14,
       fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+      color: textColor,
     );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: style),
-        Text('Rs ${amount.toStringAsFixed(2)}', style: style),
+        Text(text ?? 'Rs ${amount.toStringAsFixed(2)}', style: style),
       ],
     );
   }

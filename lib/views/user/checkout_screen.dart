@@ -38,9 +38,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _initialLoadDone = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await context.read<AppState>().loadAddresses();
-      if (!mounted) return;
       final state = context.read<AppState>();
+      await state.loadCheckoutSettings();
+      if (!mounted) return;
+      await state.loadAddresses();
+      if (!mounted) return;
       _selectedAddressId = state.selectedAddress?.id;
       _summaryFuture = state.loadCheckoutSummary(
         address: state.selectedAddress,
@@ -687,9 +689,74 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
-          _SummaryRow(label: 'Delivery fee', value: deliveryFee),
+          _SummaryRow(
+            label: 'Delivery fee',
+            value: deliveryFee,
+            valueText: deliveryFee <= 0 ? 'FREE' : null,
+            valueColor: deliveryFee <= 0 ? const Color(0xFF16A34A) : null,
+          ),
           const SizedBox(height: 10),
           _SummaryRow(label: 'GST', value: gstAmount),
+          Builder(
+            builder: (context) {
+              final appState = context.watch<AppState>();
+              if (!appState.freeDeliveryEnabled) return const SizedBox.shrink();
+              final isFree = deliveryFee <= 0 ||
+                  (appState.freeDeliveryEnabled &&
+                      (appState.freeDeliveryThreshold <= 0 ||
+                          subtotal >= appState.freeDeliveryThreshold));
+              final needed = appState.freeDeliveryThreshold - subtotal;
+              final msg = isFree
+                  ? 'FREE delivery applied!'
+                  : (needed > 0
+                      ? 'Add Rs ${needed.toStringAsFixed(0)} more to get FREE delivery'
+                      : 'FREE delivery applied!');
+              return Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isFree
+                        ? const Color(0xFFF0FDF4)
+                        : const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isFree
+                          ? const Color(0xFFBBF7D0)
+                          : const Color(0xFFFED7AA),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isFree
+                            ? Icons.check_circle_rounded
+                            : Icons.local_shipping_outlined,
+                        size: 15,
+                        color: isFree
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFEA580C),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          msg,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isFree
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFF9A3412),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: Colors.grey.shade100),
@@ -706,14 +773,20 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.bold = false,
+    this.valueText,
+    this.valueColor,
   });
 
   final String label;
   final double value;
   final bool bold;
+  final String? valueText;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
+    final displayText = valueText ?? 'Rs ${value.toStringAsFixed(2)}';
+    final textColor = valueColor ?? (bold ? _kOrange : _kTextDark);
     return Row(
       children: [
         Text(
@@ -726,10 +799,10 @@ class _SummaryRow extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          'Rs ${value.toStringAsFixed(2)}',
+          displayText,
           style: TextStyle(
             fontSize: bold ? 17 : 13,
-            color: bold ? _kOrange : _kTextDark,
+            color: textColor,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
           ),
         ),

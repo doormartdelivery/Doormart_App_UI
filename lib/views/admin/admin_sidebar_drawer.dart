@@ -14,6 +14,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import '../super_admin/delivery_charges_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
 import '../vendor/vendor_profile_screen.dart';
 
@@ -116,6 +117,13 @@ class AdminSidebarDrawer extends StatelessWidget {
           Icons.delivery_dining,
           ManageDeliveryScreen.routeName,
           const Color(0xFFDB2777),
+        ),
+      if (isSuperAdmin)
+        (
+          'Delivery charges',
+          Icons.local_shipping_outlined,
+          DeliveryChargesScreen.routeName,
+          const Color(0xFFE8541A),
         ),
       (
         'Stock alerts',

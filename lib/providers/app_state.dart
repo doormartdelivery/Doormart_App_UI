@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app.dart';
 import '../core/constants.dart';
@@ -122,9 +123,30 @@ class AppState extends ChangeNotifier {
   double deliveryPerKmCharge = 8;
   double deliveryMaxRadiusKm = 10;
   double gstPercent = 0;
+  bool freeDeliveryEnabled = false;
+  double freeDeliveryThreshold = 0;
+  bool shiftChargesEnabled = false;
+  double dayDeliveryCharge = 35;
+  double nightDeliveryCharge = 50;
+  String dayShiftStart = '06:00';
+  String dayShiftEnd = '22:00';
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
-  double get deliveryFee => cart.isEmpty ? 0 : deliveryChargeAmount;
+  bool get isFreeDelivery =>
+      cart.isNotEmpty &&
+      freeDeliveryEnabled &&
+      (freeDeliveryThreshold <= 0 || subtotal >= freeDeliveryThreshold);
+  double get amountNeededForFreeDelivery =>
+      (freeDeliveryEnabled && freeDeliveryThreshold > 0 && subtotal < freeDeliveryThreshold)
+          ? (freeDeliveryThreshold - subtotal)
+          : 0;
+  double get deliveryFee {
+    if (cart.isEmpty) return 0;
+    if (isFreeDelivery) return 0;
+    final summaryFee = (checkoutSummary?['deliveryFee'] as num?)?.toDouble();
+    if (summaryFee != null) return summaryFee;
+    return deliveryChargeAmount;
+  }
   double get gstAmount => cart.isEmpty ? 0 : subtotal * (gstPercent / 100);
   double get total => subtotal + deliveryFee + gstAmount;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
@@ -1764,6 +1786,13 @@ class AppState extends ChangeNotifier {
             )
             as Map<String, dynamic>;
     checkoutSummary = data;
+    if (data.containsKey('freeDeliveryThreshold')) {
+      final t = _asDouble(data['freeDeliveryThreshold']);
+      if (t > 0) freeDeliveryThreshold = t;
+    }
+    if (data.containsKey('freeDeliveryEnabled')) {
+      freeDeliveryEnabled = _asBool(data['freeDeliveryEnabled']);
+    }
     notifyListeners();
     return data;
   }
@@ -1780,37 +1809,173 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> loadCheckoutSettings() async {
+    // 1. Try to load cached delivery settings from SharedPreferences first
     try {
-      final data = await apiService.get('/settings/public') as List<dynamic>;
-      final map = {
-        for (final item in data.whereType<Map<String, dynamic>>())
-          (item['key'] ?? '').toString(): item['value'],
-      };
-      deliveryChargeAmount = _asDouble(
-        map['delivery_charge_amount'],
-        fallback: deliveryChargeAmount,
-      );
-      distanceBasedDelivery =
-          (map['delivery_pricing_mode'] ?? '').toString().toLowerCase() ==
-          'distance';
-      deliveryBaseDistanceKm = _asDouble(
-        map['delivery_base_distance_km'],
-        fallback: deliveryBaseDistanceKm,
-      );
-      deliveryBaseCharge = _asDouble(
-        map['delivery_base_charge'],
-        fallback: deliveryChargeAmount,
-      );
-      deliveryPerKmCharge = _asDouble(
-        map['delivery_per_km_charge'],
-        fallback: deliveryPerKmCharge,
-      );
-      deliveryMaxRadiusKm = _asDouble(
-        map['delivery_max_radius_km'],
-        fallback: deliveryMaxRadiusKm,
-      );
-      nearbyRadiusKm = deliveryMaxRadiusKm;
-      gstPercent = _asDouble(map['gst_percent'], fallback: gstPercent);
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey('free_delivery_enabled')) {
+        freeDeliveryEnabled = prefs.getBool('free_delivery_enabled') ?? freeDeliveryEnabled;
+      }
+      if (prefs.containsKey('free_delivery_threshold')) {
+        freeDeliveryThreshold = prefs.getDouble('free_delivery_threshold') ?? freeDeliveryThreshold;
+      }
+      if (prefs.containsKey('delivery_charge_amount')) {
+        deliveryChargeAmount = prefs.getDouble('delivery_charge_amount') ?? deliveryChargeAmount;
+      }
+      if (prefs.containsKey('delivery_pricing_mode')) {
+        distanceBasedDelivery = prefs.getString('delivery_pricing_mode') == 'distance';
+      }
+      if (prefs.containsKey('delivery_base_distance_km')) {
+        deliveryBaseDistanceKm = prefs.getDouble('delivery_base_distance_km') ?? deliveryBaseDistanceKm;
+      }
+      if (prefs.containsKey('delivery_base_charge')) {
+        deliveryBaseCharge = prefs.getDouble('delivery_base_charge') ?? deliveryBaseCharge;
+      }
+      if (prefs.containsKey('delivery_per_km_charge')) {
+        deliveryPerKmCharge = prefs.getDouble('delivery_per_km_charge') ?? deliveryPerKmCharge;
+      }
+      if (prefs.containsKey('delivery_max_radius_km')) {
+        deliveryMaxRadiusKm = prefs.getDouble('delivery_max_radius_km') ?? deliveryMaxRadiusKm;
+        nearbyRadiusKm = deliveryMaxRadiusKm;
+      }
+      if (prefs.containsKey('gst_percent')) {
+        gstPercent = prefs.getDouble('gst_percent') ?? gstPercent;
+      }
+      if (prefs.containsKey('shift_charges_enabled')) {
+        shiftChargesEnabled = prefs.getBool('shift_charges_enabled') ?? shiftChargesEnabled;
+      }
+      if (prefs.containsKey('day_delivery_charge')) {
+        dayDeliveryCharge = prefs.getDouble('day_delivery_charge') ?? dayDeliveryCharge;
+      }
+      if (prefs.containsKey('night_delivery_charge')) {
+        nightDeliveryCharge = prefs.getDouble('night_delivery_charge') ?? nightDeliveryCharge;
+      }
+      if (prefs.containsKey('day_shift_start')) {
+        dayShiftStart = prefs.getString('day_shift_start') ?? dayShiftStart;
+      }
+      if (prefs.containsKey('day_shift_end')) {
+        dayShiftEnd = prefs.getString('day_shift_end') ?? dayShiftEnd;
+      }
+    } catch (e) {
+      debugPrint('Local delivery settings load skipped: $e');
+    }
+
+    // 2. Fetch fresh settings from backend
+    try {
+      dynamic data;
+      if (token != null && (user?.role == UserRoles.superAdmin || user?.role == UserRoles.admin)) {
+        final endpoint = (user?.role == UserRoles.superAdmin) ? '/super-admin/settings' : '/admin/settings';
+        try {
+          data = await apiService.get(endpoint, token: token);
+        } catch (_) {
+          data = await apiService.get('/settings/public');
+        }
+      } else {
+        data = await apiService.get('/settings/public');
+      }
+
+      if (data is List) {
+        final map = {
+          for (final item in data.whereType<Map<String, dynamic>>())
+            (item['key'] ?? '').toString(): item['value'],
+        };
+
+        if (map.containsKey('delivery_charge_amount')) {
+          deliveryChargeAmount = _asDouble(
+            map['delivery_charge_amount'],
+            fallback: deliveryChargeAmount,
+          );
+        }
+        if (map.containsKey('delivery_pricing_mode')) {
+          distanceBasedDelivery =
+              (map['delivery_pricing_mode'] ?? '').toString().toLowerCase() ==
+              'distance';
+        }
+        if (map.containsKey('delivery_base_distance_km')) {
+          deliveryBaseDistanceKm = _asDouble(
+            map['delivery_base_distance_km'],
+            fallback: deliveryBaseDistanceKm,
+          );
+        }
+        if (map.containsKey('delivery_base_charge')) {
+          deliveryBaseCharge = _asDouble(
+            map['delivery_base_charge'],
+            fallback: deliveryChargeAmount,
+          );
+        }
+        if (map.containsKey('delivery_per_km_charge')) {
+          deliveryPerKmCharge = _asDouble(
+            map['delivery_per_km_charge'],
+            fallback: deliveryPerKmCharge,
+          );
+        }
+        if (map.containsKey('delivery_max_radius_km')) {
+          deliveryMaxRadiusKm = _asDouble(
+            map['delivery_max_radius_km'],
+            fallback: deliveryMaxRadiusKm,
+          );
+          nearbyRadiusKm = deliveryMaxRadiusKm;
+        }
+        if (map.containsKey('gst_percent')) {
+          gstPercent = _asDouble(map['gst_percent'], fallback: gstPercent);
+        }
+
+        if (map.containsKey('free_delivery_enabled')) {
+          freeDeliveryEnabled = _asBool(
+            map['free_delivery_enabled'],
+            fallback: freeDeliveryEnabled,
+          );
+        }
+        if (map.containsKey('free_delivery_threshold')) {
+          freeDeliveryThreshold = _asDouble(
+            map['free_delivery_threshold'],
+            fallback: freeDeliveryThreshold,
+          );
+        }
+        if (map.containsKey('shift_charges_enabled')) {
+          shiftChargesEnabled = _asBool(
+            map['shift_charges_enabled'],
+            fallback: shiftChargesEnabled,
+          );
+        }
+        if (map.containsKey('day_delivery_charge')) {
+          dayDeliveryCharge = _asDouble(
+            map['day_delivery_charge'],
+            fallback: dayDeliveryCharge,
+          );
+        }
+        if (map.containsKey('night_delivery_charge')) {
+          nightDeliveryCharge = _asDouble(
+            map['night_delivery_charge'],
+            fallback: nightDeliveryCharge,
+          );
+        }
+        if (map.containsKey('day_shift_start') && map['day_shift_start'] != null) {
+          dayShiftStart = map['day_shift_start'].toString();
+        }
+        if (map.containsKey('day_shift_end') && map['day_shift_end'] != null) {
+          dayShiftEnd = map['day_shift_end'].toString();
+        }
+
+        // Cache updated remote settings to SharedPreferences
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('free_delivery_enabled', freeDeliveryEnabled);
+          await prefs.setDouble('free_delivery_threshold', freeDeliveryThreshold);
+          await prefs.setDouble('delivery_charge_amount', deliveryChargeAmount);
+          await prefs.setString('delivery_pricing_mode', distanceBasedDelivery ? 'distance' : 'fixed');
+          await prefs.setDouble('delivery_base_distance_km', deliveryBaseDistanceKm);
+          await prefs.setDouble('delivery_base_charge', deliveryBaseCharge);
+          await prefs.setDouble('delivery_per_km_charge', deliveryPerKmCharge);
+          await prefs.setDouble('delivery_max_radius_km', deliveryMaxRadiusKm);
+          await prefs.setDouble('gst_percent', gstPercent);
+          await prefs.setBool('shift_charges_enabled', shiftChargesEnabled);
+          await prefs.setDouble('day_delivery_charge', dayDeliveryCharge);
+          await prefs.setDouble('night_delivery_charge', nightDeliveryCharge);
+          await prefs.setString('day_shift_start', dayShiftStart);
+          await prefs.setString('day_shift_end', dayShiftEnd);
+        } catch (_) {}
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Checkout settings load skipped: $e');
@@ -1825,13 +1990,35 @@ class AppState extends ChangeNotifier {
     required double deliveryBaseCharge,
     required double deliveryPerKmCharge,
     required double deliveryMaxRadiusKm,
+    bool? freeDeliveryEnabled,
+    double? freeDeliveryThreshold,
+    bool? shiftChargesEnabled,
+    double? dayDeliveryCharge,
+    double? nightDeliveryCharge,
+    String? dayShiftStart,
+    String? dayShiftEnd,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
     }
+    final effectiveFreeEnabled = freeDeliveryEnabled ?? this.freeDeliveryEnabled;
+    final effectiveFreeThreshold =
+        freeDeliveryThreshold ?? this.freeDeliveryThreshold;
+    final effectiveShiftEnabled =
+        shiftChargesEnabled ?? this.shiftChargesEnabled;
+    final effectiveDayCharge = dayDeliveryCharge ?? this.dayDeliveryCharge;
+    final effectiveNightCharge =
+        nightDeliveryCharge ?? this.nightDeliveryCharge;
+    final effectiveDayStart = dayShiftStart ?? this.dayShiftStart;
+    final effectiveDayEnd = dayShiftEnd ?? this.dayShiftEnd;
+
+    final targetEndpoint = (user?.role == UserRoles.superAdmin)
+        ? '/super-admin/settings'
+        : '/admin/settings';
+
     await apiService.put(
-      '/admin/settings',
+      targetEndpoint,
       token: token,
       body: {
         'delivery_charge_amount': deliveryChargeAmount,
@@ -1841,6 +2028,13 @@ class AppState extends ChangeNotifier {
         'delivery_per_km_charge': deliveryPerKmCharge,
         'delivery_max_radius_km': deliveryMaxRadiusKm,
         'gst_percent': gstPercent,
+        'free_delivery_enabled': effectiveFreeEnabled,
+        'free_delivery_threshold': effectiveFreeThreshold,
+        'shift_charges_enabled': effectiveShiftEnabled,
+        'day_delivery_charge': effectiveDayCharge,
+        'night_delivery_charge': effectiveNightCharge,
+        'day_shift_start': effectiveDayStart,
+        'day_shift_end': effectiveDayEnd,
       },
     );
     this.deliveryChargeAmount = deliveryChargeAmount;
@@ -1850,7 +2044,43 @@ class AppState extends ChangeNotifier {
     this.deliveryPerKmCharge = deliveryPerKmCharge;
     this.deliveryMaxRadiusKm = deliveryMaxRadiusKm;
     this.gstPercent = gstPercent;
+    this.freeDeliveryEnabled = effectiveFreeEnabled;
+    this.freeDeliveryThreshold = effectiveFreeThreshold;
+    this.shiftChargesEnabled = effectiveShiftEnabled;
+    this.dayDeliveryCharge = effectiveDayCharge;
+    this.nightDeliveryCharge = effectiveNightCharge;
+    this.dayShiftStart = effectiveDayStart;
+    this.dayShiftEnd = effectiveDayEnd;
+
+    // Cache immediately to SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('free_delivery_enabled', effectiveFreeEnabled);
+      await prefs.setDouble('free_delivery_threshold', effectiveFreeThreshold);
+      await prefs.setDouble('delivery_charge_amount', deliveryChargeAmount);
+      await prefs.setString('delivery_pricing_mode', distanceBasedDelivery ? 'distance' : 'fixed');
+      await prefs.setDouble('delivery_base_distance_km', deliveryBaseDistanceKm);
+      await prefs.setDouble('delivery_base_charge', deliveryBaseCharge);
+      await prefs.setDouble('delivery_per_km_charge', deliveryPerKmCharge);
+      await prefs.setDouble('delivery_max_radius_km', deliveryMaxRadiusKm);
+      await prefs.setDouble('gst_percent', gstPercent);
+      await prefs.setBool('shift_charges_enabled', effectiveShiftEnabled);
+      await prefs.setDouble('day_delivery_charge', effectiveDayCharge);
+      await prefs.setDouble('night_delivery_charge', effectiveNightCharge);
+      await prefs.setString('day_shift_start', effectiveDayStart);
+      await prefs.setString('day_shift_end', effectiveDayEnd);
+    } catch (_) {}
+
     notifyListeners();
+  }
+
+  bool _asBool(dynamic value, {bool fallback = false}) {
+    if (value == null) return fallback;
+    if (value is bool) return value;
+    final str = value.toString().trim().toLowerCase();
+    if (str == 'true' || str == '1') return true;
+    if (str == 'false' || str == '0') return false;
+    return fallback;
   }
 
   double _asDouble(dynamic value, {double fallback = 0}) {
