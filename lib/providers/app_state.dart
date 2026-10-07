@@ -132,23 +132,50 @@ class AppState extends ChangeNotifier {
   String dayShiftEnd = '22:00';
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
-  bool get isFreeDelivery =>
-      cart.isNotEmpty &&
-      freeDeliveryEnabled &&
-      (freeDeliveryThreshold <= 0 || subtotal >= freeDeliveryThreshold);
+  bool get isFreeDelivery {
+    if (cart.isEmpty) return false;
+    if (checkoutSummary?['isFreeDelivery'] == true) return true;
+    return freeDeliveryEnabled &&
+        (freeDeliveryThreshold <= 0 || subtotal >= freeDeliveryThreshold);
+  }
   double get amountNeededForFreeDelivery =>
       (freeDeliveryEnabled && freeDeliveryThreshold > 0 && subtotal < freeDeliveryThreshold)
           ? (freeDeliveryThreshold - subtotal)
           : 0;
-  double get deliveryFee {
+  static int _parseTimeToMinutes(String timeStr, int fallback) {
+    try {
+      final parts = timeStr.trim().split(':');
+      if (parts.length >= 2) {
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  double get calculatedDeliveryFee {
     if (cart.isEmpty) return 0;
-    if (isFreeDelivery) return 0;
-    final summaryFee = (checkoutSummary?['deliveryFee'] as num?)?.toDouble();
-    if (summaryFee != null) return summaryFee;
+    final summaryFee =
+        (checkoutSummary?['calculatedDeliveryFee'] as num?)?.toDouble() ??
+        (checkoutSummary?['deliveryFee'] as num?)?.toDouble();
+    if (summaryFee != null && summaryFee > 0) return summaryFee;
+    if (shiftChargesEnabled) {
+      final now = DateTime.now();
+      final currentMinutes = now.hour * 60 + now.minute;
+      final start = _parseTimeToMinutes(dayShiftStart, 6 * 60);
+      final end = _parseTimeToMinutes(dayShiftEnd, 22 * 60);
+      final isDay = start < end
+          ? (currentMinutes >= start && currentMinutes < end)
+          : (currentMinutes >= start || currentMinutes < end);
+      return isDay ? dayDeliveryCharge : nightDeliveryCharge;
+    }
     return deliveryChargeAmount;
   }
+
+  double get effectiveDeliveryFee => isFreeDelivery ? 0.0 : calculatedDeliveryFee;
+
+  double get deliveryFee => effectiveDeliveryFee;
   double get gstAmount => cart.isEmpty ? 0 : subtotal * (gstPercent / 100);
-  double get total => subtotal + deliveryFee + gstAmount;
+  double get total => subtotal + effectiveDeliveryFee + gstAmount;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
   bool get hasNearbyVendorData => nearbyVendorIds.isNotEmpty;
@@ -1785,7 +1812,6 @@ class AppState extends ChangeNotifier {
               },
             )
             as Map<String, dynamic>;
-    checkoutSummary = data;
     if (data.containsKey('freeDeliveryThreshold')) {
       final t = _asDouble(data['freeDeliveryThreshold']);
       if (t > 0) freeDeliveryThreshold = t;
@@ -1793,6 +1819,35 @@ class AppState extends ChangeNotifier {
     if (data.containsKey('freeDeliveryEnabled')) {
       freeDeliveryEnabled = _asBool(data['freeDeliveryEnabled']);
     }
+    final feeFromData = (data['deliveryFee'] as num?)?.toDouble();
+    final shiftChargeFromData = (data['shiftCharge'] as num?)?.toDouble();
+    final effectiveRawFee = (shiftChargeFromData != null && shiftChargeFromData > 0)
+        ? shiftChargeFromData
+        : (feeFromData != null && feeFromData > 0)
+            ? feeFromData
+            : calculatedDeliveryFee;
+    final qualifiesFree = isFreeDelivery ||
+        data['isFreeDelivery'] == true ||
+        (freeDeliveryEnabled &&
+            (freeDeliveryThreshold <= 0 || subtotal >= freeDeliveryThreshold));
+
+    data['calculatedDeliveryFee'] = effectiveRawFee;
+    if (qualifiesFree) {
+      data['deliveryFee'] = 0.0;
+      data['effectiveDeliveryFee'] = 0.0;
+      data['isFreeDelivery'] = true;
+      final st = (data['subtotal'] as num?)?.toDouble() ?? subtotal;
+      final gst = (data['gstAmount'] as num?)?.toDouble() ?? gstAmount;
+      data['total'] = st + gst;
+    } else {
+      data['deliveryFee'] = effectiveRawFee;
+      data['effectiveDeliveryFee'] = effectiveRawFee;
+      data['isFreeDelivery'] = false;
+      final st = (data['subtotal'] as num?)?.toDouble() ?? subtotal;
+      final gst = (data['gstAmount'] as num?)?.toDouble() ?? gstAmount;
+      data['total'] = st + effectiveRawFee + gst;
+    }
+    checkoutSummary = data;
     notifyListeners();
     return data;
   }

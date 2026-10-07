@@ -69,6 +69,7 @@ class DeliveryOrderModel {
     this.deliveryEarning,
     this.deliveredAt,
     this.deliveryOtp,
+    this.deliveryFee = 0.0,
   });
 
   final String id;
@@ -84,6 +85,7 @@ class DeliveryOrderModel {
   final String? customerPincode;
   final List<DeliveryOrderItem> items;
   final double totalAmount;
+  final double deliveryFee;
   final String paymentType;
   final DeliveryOrderStatus status;
   final DateTime createdAt;
@@ -179,6 +181,7 @@ class DeliveryOrderModel {
       codAmount: (json['codAmount'] as num?)?.toDouble(),
       deliveryEarning: (json['deliveryEarning'] as num?)?.toDouble(),
       deliveryOtp: json['deliveryOtp'] as String?,
+      deliveryFee: (json['deliveryFee'] as num? ?? json['delivery_fee'] as num? ?? 0).toDouble(),
     );
   }
 }

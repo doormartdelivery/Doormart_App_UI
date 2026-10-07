@@ -34,6 +34,7 @@ class OrderModel {
     this.acceptedAt,
     this.deliveredAt,
     this.deliveryOtp,
+    this.deliveryFee = 0.0,
   });
 
   final String id;
@@ -41,6 +42,7 @@ class OrderModel {
   final List<int> quantities;
   final String paymentMethod;
   final double total;
+  final double deliveryFee;
   final OrderStatus status;
   final DateTime createdAt;
   final String vendorId;
@@ -157,6 +159,7 @@ class OrderModel {
       acceptedAt: _parseDateTime(json['acceptedAt']),
       deliveredAt: _parseDateTime(json['deliveredAt']),
       deliveryOtp: json['deliveryOtp']?.toString(),
+      deliveryFee: (json['deliveryFee'] as num? ?? json['delivery_fee'] as num? ?? 0).toDouble(),
     );
   }
 }
