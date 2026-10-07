@@ -53,6 +53,7 @@ dependencies:
   socket_io_client: ^2.0.3+1
   speech_to_text: ^7.3.0
   cupertino_icons: ^1.0.8
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:
