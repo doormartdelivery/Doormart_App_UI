@@ -15,6 +15,7 @@ import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
+import '../super_admin/revenue_analytics_screen.dart';
 import '../vendor/vendor_profile_screen.dart';
 
 const _kBg = Color(0xFFF6F6F6);
@@ -55,6 +56,13 @@ class AdminSidebarDrawer extends StatelessWidget {
         AdminOrdersScreen.routeName,
         const Color(0xFF0F766E),
       ),
+      if (isSuperAdmin)
+        (
+          'Order analytics',
+          Icons.analytics_outlined,
+          RevenueAnalyticsScreen.routeName,
+          const Color(0xFF7C3AED),
+        ),
       if (!isSuperAdmin)
         (
           'Profile',

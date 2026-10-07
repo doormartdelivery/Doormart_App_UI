@@ -38,8 +38,6 @@ class _StockScreenState extends State<StockScreen>
       TextEditingController();
   final TextEditingController _deliveryPerKmController =
       TextEditingController();
-  final TextEditingController _deliveryMaxRadiusController =
-      TextEditingController();
   final TextEditingController _gstController = TextEditingController();
   bool _distanceBasedDelivery = false;
   String _filter = 'All';
@@ -64,7 +62,6 @@ class _StockScreenState extends State<StockScreen>
     _deliveryBaseDistanceController.dispose();
     _deliveryBaseChargeController.dispose();
     _deliveryPerKmController.dispose();
-    _deliveryMaxRadiusController.dispose();
     _gstController.dispose();
     super.dispose();
   }
@@ -103,8 +100,6 @@ class _StockScreenState extends State<StockScreen>
       _deliveryPerKmController.text = state.deliveryPerKmCharge.toStringAsFixed(
         0,
       );
-      _deliveryMaxRadiusController.text = state.deliveryMaxRadiusKm
-          .toStringAsFixed(0);
       _gstController.text = state.gstPercent.toStringAsFixed(0);
     }
   }
@@ -121,7 +116,6 @@ class _StockScreenState extends State<StockScreen>
       _deliveryBaseChargeController.text.trim(),
     );
     final perKm = double.tryParse(_deliveryPerKmController.text.trim());
-    final maxRadius = double.tryParse(_deliveryMaxRadiusController.text.trim());
     final gst = double.tryParse(_gstController.text.trim());
     if (deliveryCharge == null ||
         deliveryCharge < 0 ||
@@ -131,8 +125,6 @@ class _StockScreenState extends State<StockScreen>
         baseCharge < 0 ||
         perKm == null ||
         perKm < 0 ||
-        maxRadius == null ||
-        maxRadius <= 0 ||
         gst == null ||
         gst < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +142,6 @@ class _StockScreenState extends State<StockScreen>
         deliveryBaseDistanceKm: baseDistance,
         deliveryBaseCharge: baseCharge,
         deliveryPerKmCharge: perKm,
-        deliveryMaxRadiusKm: maxRadius,
       );
       if (!mounted) return;
       setState(() {});
@@ -274,7 +265,6 @@ class _StockScreenState extends State<StockScreen>
                               baseChargeController:
                                   _deliveryBaseChargeController,
                               perKmController: _deliveryPerKmController,
-                              maxRadiusController: _deliveryMaxRadiusController,
                               currentDeliveryCharge: context
                                   .read<AppState>()
                                   .deliveryChargeAmount,
@@ -502,7 +492,6 @@ class _CheckoutConfigCard extends StatelessWidget {
     required this.baseDistanceController,
     required this.baseChargeController,
     required this.perKmController,
-    required this.maxRadiusController,
     required this.distanceBasedDelivery,
     required this.onDistanceModeChanged,
     required this.onSave,
@@ -515,7 +504,6 @@ class _CheckoutConfigCard extends StatelessWidget {
   final TextEditingController baseDistanceController;
   final TextEditingController baseChargeController;
   final TextEditingController perKmController;
-  final TextEditingController maxRadiusController;
   final bool distanceBasedDelivery;
   final ValueChanged<bool> onDistanceModeChanged;
   final VoidCallback onSave;
@@ -596,7 +584,6 @@ class _CheckoutConfigCard extends StatelessWidget {
                   field(baseDistanceController, 'Base distance', suffix: 'km'),
                   field(baseChargeController, 'Base charge', prefix: 'Rs '),
                   field(perKmController, 'Extra per km', prefix: 'Rs '),
-                  field(maxRadiusController, 'Nearby max radius', suffix: 'km'),
                   field(gstController, 'GST', suffix: '%'),
                 ],
               );

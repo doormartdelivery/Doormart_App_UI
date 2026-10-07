@@ -106,7 +106,8 @@ class AppState extends ChangeNotifier {
   Set<String> reviewedProductKeys = {};
   AddressModel? selectedAddress;
   Map<String, dynamic>? checkoutSummary;
-  static double nearbyRadiusKm = 5.0;
+  static const double fixedDeliveryRadiusKm = 10.0;
+  static double nearbyRadiusKm = fixedDeliveryRadiusKm;
   Set<String> nearbyVendorIds = const {};
   bool nearbyVendorsLoading = false;
   bool nearbyLocationUnavailable = false;
@@ -120,7 +121,6 @@ class AppState extends ChangeNotifier {
   double deliveryBaseDistanceKm = 2;
   double deliveryBaseCharge = 35;
   double deliveryPerKmCharge = 8;
-  double deliveryMaxRadiusKm = 10;
   double gstPercent = 0;
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
@@ -1805,11 +1805,7 @@ class AppState extends ChangeNotifier {
         map['delivery_per_km_charge'],
         fallback: deliveryPerKmCharge,
       );
-      deliveryMaxRadiusKm = _asDouble(
-        map['delivery_max_radius_km'],
-        fallback: deliveryMaxRadiusKm,
-      );
-      nearbyRadiusKm = deliveryMaxRadiusKm;
+      nearbyRadiusKm = fixedDeliveryRadiusKm;
       gstPercent = _asDouble(map['gst_percent'], fallback: gstPercent);
       notifyListeners();
     } catch (e) {
@@ -1824,7 +1820,6 @@ class AppState extends ChangeNotifier {
     required double deliveryBaseDistanceKm,
     required double deliveryBaseCharge,
     required double deliveryPerKmCharge,
-    required double deliveryMaxRadiusKm,
   }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
@@ -1839,7 +1834,6 @@ class AppState extends ChangeNotifier {
         'delivery_base_distance_km': deliveryBaseDistanceKm,
         'delivery_base_charge': deliveryBaseCharge,
         'delivery_per_km_charge': deliveryPerKmCharge,
-        'delivery_max_radius_km': deliveryMaxRadiusKm,
         'gst_percent': gstPercent,
       },
     );
@@ -1848,7 +1842,7 @@ class AppState extends ChangeNotifier {
     this.deliveryBaseDistanceKm = deliveryBaseDistanceKm;
     this.deliveryBaseCharge = deliveryBaseCharge;
     this.deliveryPerKmCharge = deliveryPerKmCharge;
-    this.deliveryMaxRadiusKm = deliveryMaxRadiusKm;
+    nearbyRadiusKm = fixedDeliveryRadiusKm;
     this.gstPercent = gstPercent;
     notifyListeners();
   }
@@ -1863,6 +1857,17 @@ class AppState extends ChangeNotifier {
       throw StateError('Super admin login required');
     }
     return await apiService.get('/super-admin/analytics', token: token)
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> superAdminOrderAnalytics(String period) async {
+    if (token == null || user?.role != UserRoles.superAdmin) {
+      throw StateError('Super admin login required');
+    }
+    return await apiService.get(
+          '/super-admin/orders/analytics?period=$period',
+          token: token,
+        )
         as Map<String, dynamic>;
   }
 

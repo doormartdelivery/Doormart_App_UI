@@ -16,6 +16,7 @@ import 'manage_users_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
+import '../super_admin/revenue_analytics_screen.dart';
 import '../vendor/vendor_profile_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
@@ -145,6 +146,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         accent: const Color(0xFF0F766E),
         builder: (_) => const AdminOrdersScreen(),
       ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Order analytics',
+          subtitle: 'Day, week, month and year reports',
+          icon: Icons.analytics_outlined,
+          accent: const Color(0xFF7C3AED),
+          builder: (_) => const RevenueAnalyticsScreen(),
+        ),
       if (!isSuperAdmin)
         _AdminSection(
           title: 'Profile',

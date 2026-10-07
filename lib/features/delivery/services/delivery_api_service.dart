@@ -297,7 +297,7 @@ class DeliveryApiService {
   }
 
   Future<void> updateLiveLocation({
-    required String orderId,
+    String? orderId,
     required double latitude,
     required double longitude,
     String? address,
@@ -307,7 +307,7 @@ class DeliveryApiService {
       '/delivery/location',
       token: token,
       body: {
-        'orderId': orderId,
+        if (orderId != null && orderId.isNotEmpty) 'orderId': orderId,
         'latitude': latitude,
         'longitude': longitude,
         if (address != null && address.trim().isNotEmpty)

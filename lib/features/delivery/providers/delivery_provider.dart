@@ -39,6 +39,7 @@ class DeliveryProvider extends ChangeNotifier {
   bool online = false;
   Timer? _requestRefreshTimer;
   Timer? _locationPublishTimer;
+  Timer? _availabilityLocationTimer;
   static const _deliveryTokenKey = 'delivery_auth_token';
   static const _deliveryUserKey = 'delivery_auth_user';
 
@@ -414,9 +415,11 @@ class DeliveryProvider extends ChangeNotifier {
       if (online && deliveryPerson != null && !socketService.isConnected) {
         _connectRealtimeChannel();
         _startRequestRefresh();
+        _startAvailabilityLocationUpdates();
       } else if (!online) {
         socketService.disconnect();
         _stopRequestRefresh();
+        _stopAvailabilityLocationUpdates();
       }
       notifyListeners();
     } catch (e) {
@@ -452,6 +455,7 @@ class DeliveryProvider extends ChangeNotifier {
       }
       await loadDashboard();
       _startRequestRefresh();
+      _startAvailabilityLocationUpdates();
     });
   }
 
@@ -464,6 +468,7 @@ class DeliveryProvider extends ChangeNotifier {
       pendingRequests.clear();
       _stopRequestRefresh();
       _stopLiveLocationTracking();
+      _stopAvailabilityLocationUpdates();
       online = false;
       deliveryPerson = DeliveryPersonModel(
         id: deliveryPerson!.id,
@@ -661,6 +666,33 @@ class DeliveryProvider extends ChangeNotifier {
   void _stopRequestRefresh() {
     _requestRefreshTimer?.cancel();
     _requestRefreshTimer = null;
+  }
+
+  void _startAvailabilityLocationUpdates() {
+    _availabilityLocationTimer?.cancel();
+    unawaited(_publishAvailabilityLocation());
+    _availabilityLocationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      unawaited(_publishAvailabilityLocation());
+    });
+  }
+
+  void _stopAvailabilityLocationUpdates() {
+    _availabilityLocationTimer?.cancel();
+    _availabilityLocationTimer = null;
+  }
+
+  Future<void> _publishAvailabilityLocation() async {
+    if (!online || authToken == null) return;
+    try {
+      final location = await LocationService().currentLocation();
+      await apiService.updateLiveLocation(
+        latitude: location.latitude,
+        longitude: location.longitude,
+        token: authToken,
+      );
+    } catch (e) {
+      debugPrint('Delivery availability location update skipped: $e');
+    }
   }
 
   bool get _hasTrackableActiveOrder =>
