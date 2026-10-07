@@ -3081,6 +3081,7 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
               message: state.nearbyLocationMessage.isNotEmpty
                   ? state.nearbyLocationMessage
                   : 'Turn on location and allow permission to see daily essentials near you.',
+              onRetry: () => state.loadNearbyVendorIds(force: true),
             ),
           );
         }
@@ -5041,11 +5042,12 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
       );
     }
     if (_locationUnavailable) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: _LocationActionCard(
           message:
               'Turn on location and allow permission to see shops near you.',
+          onRetry: _loadNearbyShops,
         ),
       );
     }
@@ -5173,9 +5175,10 @@ class _SeeAllNearbyShopsButton extends StatelessWidget {
 }
 
 class _LocationActionCard extends StatelessWidget {
-  const _LocationActionCard({required this.message});
+  const _LocationActionCard({required this.message, this.onRetry});
 
   final String message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -5228,6 +5231,22 @@ class _LocationActionCard extends StatelessWidget {
                     height: 1.35,
                   ),
                 ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Try again'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: _kGreen,
+                        padding: EdgeInsets.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

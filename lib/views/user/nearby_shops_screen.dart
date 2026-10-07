@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -104,7 +105,9 @@ class _NearbyShopsScreenState extends State<NearbyShopsScreen> {
       return 'Turn on phone location/GPS to see nearby shops.';
     }
     if (value.contains('permission')) {
-      return 'Allow location permission to see nearby shops.';
+      return kIsWeb
+          ? 'Click the location icon in the browser address bar, choose Allow, then tap Try again.'
+          : 'Allow location permission to see nearby shops.';
     }
     return 'Turn on location and allow permission to see nearby shops.';
   }

@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,7 +21,11 @@ class AppUpdateInfo {
   final String androidUrl;
   final String iosUrl;
 
-  String get storeUrl => Platform.isIOS ? iosUrl : androidUrl;
+  String get storeUrl {
+    if (kIsWeb) return androidUrl;
+    return defaultTargetPlatform == TargetPlatform.iOS ? iosUrl : androidUrl;
+  }
+
   bool get hasStoreUrl => storeUrl.trim().isNotEmpty;
 }
 

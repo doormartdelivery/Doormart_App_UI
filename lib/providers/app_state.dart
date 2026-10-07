@@ -231,7 +231,9 @@ class AppState extends ChangeNotifier {
       _nearbyLocationFailureMessage = message.contains('services are disabled')
           ? 'Turn on phone location/GPS to see nearby stores.'
           : message.contains('permission')
-          ? 'Allow location permission to see nearby stores.'
+          ? (kIsWeb
+                ? 'Click the location icon in the browser address bar, choose Allow, then tap Try again.'
+                : 'Allow location permission to see nearby stores.')
           : 'Turn on location and allow permission to see nearby stores.';
       debugPrint('Nearby GPS unavailable: $error');
       return null;
