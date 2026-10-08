@@ -221,12 +221,21 @@ class AppState extends ChangeNotifier {
   Future<({double latitude, double longitude})?>
   _resolveNearbyLocation() async {
     try {
-      final gpsLocation = await LocationService().nearbyLocation();
+      final gpsLocation = await LocationService().nearbyLocation().timeout(
+        const Duration(seconds: 12),
+      );
       debugPrint(
         'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
       );
       return (latitude: gpsLocation.latitude, longitude: gpsLocation.longitude);
     } catch (error) {
+      final cachedLocation = await LocationService().cachedNearbyLocation();
+      if (cachedLocation != null) {
+        debugPrint(
+          'Nearby GPS unavailable; using cached location lat=${cachedLocation.latitude} lng=${cachedLocation.longitude}: $error',
+        );
+        return cachedLocation;
+      }
       final message = error.toString();
       _nearbyLocationFailureMessage = message.contains('services are disabled')
           ? 'Turn on phone location/GPS to see nearby stores.'

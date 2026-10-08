@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -60,12 +61,21 @@ Future<({double latitude, double longitude})?> _resolveSharedNearbyLocation(
   AppState state,
 ) async {
   try {
-    final gpsLocation = await LocationService().nearbyLocation();
+    final gpsLocation = await LocationService().nearbyLocation().timeout(
+      const Duration(seconds: 12),
+    );
     debugPrint(
       'Nearby location source=gps lat=${gpsLocation.latitude} lng=${gpsLocation.longitude}',
     );
     return gpsLocation;
   } catch (error) {
+    final cachedLocation = await LocationService().cachedNearbyLocation();
+    if (cachedLocation != null) {
+      debugPrint(
+        'Nearby GPS unavailable; using cached location lat=${cachedLocation.latitude} lng=${cachedLocation.longitude}: $error',
+      );
+      return cachedLocation;
+    }
     debugPrint('Nearby GPS unavailable: $error');
     return null;
   }
@@ -5045,8 +5055,9 @@ class _NearbyShopsListState extends State<_NearbyShopsList> {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: _LocationActionCard(
-          message:
-              'Turn on location and allow permission to see shops near you.',
+          message: kIsWeb
+              ? 'Click the location icon in the browser address bar, choose Allow, then tap Try again.'
+              : 'Turn on location and allow permission to see shops near you.',
           onRetry: _loadNearbyShops,
         ),
       );

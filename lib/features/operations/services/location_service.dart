@@ -2,9 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class LocationService {
+  static const _cachedLatitudeKey = 'cached_nearby_latitude';
+  static const _cachedLongitudeKey = 'cached_nearby_longitude';
+  static const _cachedAtKey = 'cached_nearby_location_at';
+  static const _cacheDuration = Duration(minutes: 30);
   static ({double latitude, double longitude})? _lastNearbyLocation;
 
   static ({double latitude, double longitude})? get lastNearbyLocation =>
@@ -34,7 +39,7 @@ class LocationService {
       latitude: position.latitude,
       longitude: position.longitude,
     );
-    _lastNearbyLocation = location;
+    await _cacheLocation(location);
     return location;
   }
 
@@ -62,8 +67,45 @@ class LocationService {
       latitude: position.latitude,
       longitude: position.longitude,
     );
-    _lastNearbyLocation = location;
+    await _cacheLocation(location);
     return location;
+  }
+
+  Future<({double latitude, double longitude})?> cachedNearbyLocation() async {
+    if (_lastNearbyLocation != null) return _lastNearbyLocation;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final latitude = preferences.getDouble(_cachedLatitudeKey);
+      final longitude = preferences.getDouble(_cachedLongitudeKey);
+      final cachedAt = preferences.getInt(_cachedAtKey);
+      if (latitude == null || longitude == null || cachedAt == null)
+        return null;
+      final age = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(cachedAt),
+      );
+      if (age.isNegative || age > _cacheDuration) return null;
+      _lastNearbyLocation = (latitude: latitude, longitude: longitude);
+      return _lastNearbyLocation;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _cacheLocation(
+    ({double latitude, double longitude}) location,
+  ) async {
+    _lastNearbyLocation = location;
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setDouble(_cachedLatitudeKey, location.latitude);
+      await preferences.setDouble(_cachedLongitudeKey, location.longitude);
+      await preferences.setInt(
+        _cachedAtKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (_) {
+      // A cache failure must never prevent a valid GPS result from being used.
+    }
   }
 
   Future<String?> addressFromCoordinates({

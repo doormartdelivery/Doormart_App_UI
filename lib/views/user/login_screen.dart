@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 
 import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
+import '../../widgets/toast_widget.dart';
 import 'forgot_password_screen.dart';
 import 'user_home_screen.dart';
 
@@ -57,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscureConfirm = true;
   bool _agreed = false;
   bool _loading = false;
-  String? _error;
 
   // ── Entry animation ────────────────────────────────────────────────────────
   late final AnimationController _entryCtrl = AnimationController(
@@ -108,6 +108,25 @@ class _LoginScreenState extends State<LoginScreen>
 
   String get _loginIdentifier => _loginEmailCtrl.text.trim();
 
+  String _friendlyError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    final lower = message.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('failed host lookup')) {
+      return 'Unable to connect. Please check your internet connection and try again.';
+    }
+    if (lower.contains('timed out') || lower.contains('timeout')) {
+      return 'The server took too long to respond. Please try again.';
+    }
+    if (message.isEmpty) return 'Something went wrong. Please try again.';
+    return message;
+  }
+
+  void _showError(Object error) {
+    showErrorToast(context, _friendlyError(error));
+  }
+
   String? _loginIdentifierValidation() {
     if (_loginMode == _LoginMode.password) {
       return Validators.emailOrPhone(
@@ -121,13 +140,12 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _sendLoginOtp() async {
     final validation = _loginIdentifierValidation();
     if (validation != null) {
-      setState(() => _error = validation);
+      showErrorToast(context, validation);
       return;
     }
 
     setState(() {
       _loading = true;
-      _error = null;
     });
     try {
       await context.read<AppState>().sendOtp(
@@ -137,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _otpSent = true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      _showError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -145,10 +163,12 @@ class _LoginScreenState extends State<LoginScreen>
 
   // ── Actions ───────────────────────────────────────────────────────────────
   Future<void> _login() async {
-    if (!_loginFormKey.currentState!.validate()) return;
+    if (!_loginFormKey.currentState!.validate()) {
+      showErrorToast(context, 'Please correct the highlighted fields.');
+      return;
+    }
     setState(() {
       _loading = true;
-      _error = null;
     });
     try {
       if (_loginMode == _LoginMode.otp && !_otpSent) {
@@ -181,8 +201,7 @@ class _LoginScreenState extends State<LoginScreen>
       ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
     } catch (e) {
       if (!mounted) return;
-      final message = e.toString().replaceFirst('Exception: ', '');
-      setState(() => _error = message);
+      _showError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -190,7 +209,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _continueAsGuest() async {
     if (_loading) return;
-    setState(() => _error = null);
     HapticFeedback.mediumImpact();
     await context.read<AppState>().logout();
     if (!mounted) return;
@@ -200,12 +218,14 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _signUp() async {
-    setState(() => _error = null);
-    if (!_signupFormKey.currentState!.validate()) return;
+    if (!_signupFormKey.currentState!.validate()) {
+      showErrorToast(context, 'Please correct the highlighted fields.');
+      return;
+    }
     if (!_agreed) {
-      setState(
-        () =>
-            _error = 'Please agree to the Terms of Service and Privacy Policy',
+      showErrorToast(
+        context,
+        'Please agree to the Terms of Service and Privacy Policy.',
       );
       return;
     }
@@ -228,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen>
       ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      _showError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -271,11 +291,9 @@ class _LoginScreenState extends State<LoginScreen>
                           setState(() {
                             _loginMode = mode;
                             _otpSent = false;
-                            _error = null;
                           });
                         },
                         loading: _loading,
-                        error: _error,
                         onLogin: _login,
                         onGuest: _continueAsGuest,
                         onGoRegister: () => _tabCtrl.animateTo(1),
@@ -305,7 +323,6 @@ class _LoginScreenState extends State<LoginScreen>
                         onToggleAgreed: () =>
                             setState(() => _agreed = !_agreed),
                         loading: _loading,
-                        error: _error,
                         strength: _strength(_passCtrl.text),
                         onPasswordChanged: () => setState(() {}),
                         onSignUp: _signUp,
@@ -515,7 +532,6 @@ class _LoginTab extends StatelessWidget {
     required this.onTogglePass,
     required this.onChangeMode,
     required this.loading,
-    required this.error,
     required this.onLogin,
     required this.onGuest,
     required this.onGoRegister,
@@ -533,7 +549,6 @@ class _LoginTab extends StatelessWidget {
   final VoidCallback onTogglePass;
   final ValueChanged<_LoginMode> onChangeMode;
   final bool loading;
-  final String? error;
   final VoidCallback onLogin;
   final VoidCallback onGuest;
   final VoidCallback onGoRegister;
@@ -680,11 +695,6 @@ class _LoginTab extends StatelessWidget {
               ),
             ],
 
-            if (error != null) ...[
-              const SizedBox(height: 4),
-              _ErrorBanner(message: error!),
-            ],
-
             const SizedBox(height: 20),
 
             _PrimaryBtn(
@@ -735,7 +745,6 @@ class _SignupTab extends StatelessWidget {
     required this.agreed,
     required this.onToggleAgreed,
     required this.loading,
-    required this.error,
     required this.strength,
     required this.onPasswordChanged,
     required this.onSignUp,
@@ -755,7 +764,6 @@ class _SignupTab extends StatelessWidget {
   final bool agreed;
   final VoidCallback onToggleAgreed;
   final bool loading;
-  final String? error;
   final int strength;
   final VoidCallback onPasswordChanged;
   final VoidCallback onSignUp;
@@ -896,11 +904,6 @@ class _SignupTab extends StatelessWidget {
 
             // ── Terms ─────────────────────────────────────────────────
             _TermsRow(agreed: agreed, onToggle: onToggleAgreed),
-
-            if (error != null) ...[
-              const SizedBox(height: 12),
-              _ErrorBanner(message: error!),
-            ],
 
             const SizedBox(height: 20),
 
@@ -1387,43 +1390,6 @@ class _PolicyBlock extends StatelessWidget {
               height: 1.6,
               color: Colors.black.withValues(alpha: 0.70),
               fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Error banner ─────────────────────────────────────────────────────────────
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kRed.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_rounded, color: _kRed, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: _kRed,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
             ),
           ),
         ],

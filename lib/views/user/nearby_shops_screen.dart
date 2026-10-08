@@ -51,10 +51,12 @@ class _NearbyShopsScreenState extends State<NearbyShopsScreen> {
     Object? locationError;
     ({double latitude, double longitude})? location;
     try {
-      location = await LocationService().nearbyLocation();
+      location = await LocationService().nearbyLocation().timeout(
+        const Duration(seconds: 12),
+      );
     } catch (error) {
       locationError = error;
-      location = LocationService.lastNearbyLocation;
+      location = await LocationService().cachedNearbyLocation();
       if (location != null) {
         debugPrint(
           'Nearby shops page using cached live location after GPS retry failed: $error',

@@ -871,19 +871,11 @@ class _BottomBar extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Total Amount :',
+                    'Delivery calculated at checkout',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: _kTextDark,
-                    ),
-                  ),
-                  Text(
-                    'Rs ${state.total.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      color: _kTextDark,
+                      fontSize: 12,
+                      color: _kTextMid,
                     ),
                   ),
                 ],

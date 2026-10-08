@@ -671,7 +671,9 @@ class DeliveryProvider extends ChangeNotifier {
   void _startAvailabilityLocationUpdates() {
     _availabilityLocationTimer?.cancel();
     unawaited(_publishAvailabilityLocation());
-    _availabilityLocationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _availabilityLocationTimer = Timer.periodic(const Duration(seconds: 30), (
+      _,
+    ) {
       unawaited(_publishAvailabilityLocation());
     });
   }

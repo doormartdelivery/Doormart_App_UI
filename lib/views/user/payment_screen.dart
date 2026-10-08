@@ -94,16 +94,23 @@ class _PaymentScreenState extends State<PaymentScreen>
     });
 
     try {
+      final summary = await state.loadCheckoutSummary(address: address);
+      final checkoutTotal =
+          (summary['total'] as num?)?.toDouble() ?? state.total;
+      final checkoutDeliveryFee =
+          (summary['deliveryFee'] as num?)?.toDouble() ?? state.deliveryFee;
+      final checkoutGstPercent =
+          (summary['gstPercent'] as num?)?.toDouble() ?? state.gstPercent;
       final data = await _paymentService.createCashfreeOrder(
-        amountInPaise: (state.total * 100).round(),
+        amountInPaise: (checkoutTotal * 100).round(),
         token: state.token!,
         receipt: 'dm_${DateTime.now().millisecondsSinceEpoch}',
         email: state.user?.email,
         contact: state.user?.phone,
         address: addressText,
         products: state.cart.map((line) => line.toOrderJson()).toList(),
-        deliveryFee: state.deliveryFee,
-        gstPercent: state.gstPercent,
+        deliveryFee: checkoutDeliveryFee,
+        gstPercent: checkoutGstPercent,
         deliveryAddress: address == null
             ? null
             : {
@@ -143,6 +150,19 @@ class _PaymentScreenState extends State<PaymentScreen>
       if (_paymentSessionId == null || _paymentSessionId!.isEmpty) {
         throw StateError('Cashfree payment session was not created');
       }
+
+      state.checkoutSummary = {
+        ...summary,
+        for (final key in [
+          'subtotal',
+          'discount',
+          'deliveryFee',
+          'gstPercent',
+          'gstAmount',
+          'total',
+        ])
+          if (data[key] != null) key: data[key],
+      };
 
       if (mounted) {
         setState(() {
@@ -354,12 +374,22 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
               const SizedBox(height: 24),
               Consumer<AppState>(
-                builder: (context, state, _) => _SummaryCard(
-                  subtotal: state.subtotal,
-                  deliveryFee: state.deliveryFee,
-                  gstAmount: state.gstAmount,
-                  total: state.total,
-                ),
+                builder: (context, state, _) {
+                  final summary = state.checkoutSummary;
+                  return _SummaryCard(
+                    subtotal:
+                        (summary?['subtotal'] as num?)?.toDouble() ??
+                        state.subtotal,
+                    deliveryFee:
+                        (summary?['deliveryFee'] as num?)?.toDouble() ??
+                        state.deliveryFee,
+                    gstAmount:
+                        (summary?['gstAmount'] as num?)?.toDouble() ??
+                        state.gstAmount,
+                    total:
+                        (summary?['total'] as num?)?.toDouble() ?? state.total,
+                  );
+                },
               ),
               const SizedBox(height: 20),
               _StatusCard(
