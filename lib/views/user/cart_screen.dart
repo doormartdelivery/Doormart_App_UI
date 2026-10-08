@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/utils/network_image_url.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/toast_widget.dart';
+import '../../widgets/product_price_breakdown.dart';
 import 'checkout_screen.dart';
 import 'search_screen.dart';
 import 'user_home_screen.dart';
@@ -445,16 +446,10 @@ class _CartItemCard extends StatelessWidget {
                       children: [
                         // Price
                         Expanded(
-                          child: Text(
-                            'Rs ${line.unitPrice.toStringAsFixed(2)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: _kTextDark,
-                            ),
+                          child: ProductPriceBreakdown(
+                            product: line.product,
+                            basePrice: line.unitPrice,
+                            compact: true,
                           ),
                         ),
                         const SizedBox(width: 8),

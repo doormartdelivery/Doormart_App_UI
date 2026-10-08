@@ -125,7 +125,14 @@ class AppState extends ChangeNotifier {
 
   double get subtotal => cart.fold(0, (sum, line) => sum + line.total);
   double get deliveryFee => cart.isEmpty ? 0 : deliveryChargeAmount;
-  double get gstAmount => cart.isEmpty ? 0 : subtotal * (gstPercent / 100);
+  bool get usesProductTax => cart.isNotEmpty;
+  double get productGstAmount =>
+      cart.fold(0, (sum, line) => sum + line.total * (line.product.tax / 100));
+  double get gstAmount => cart.isEmpty
+      ? 0
+      : usesProductTax
+      ? productGstAmount
+      : subtotal * (gstPercent / 100);
   double get total => subtotal + deliveryFee + gstAmount;
   int get cartCount => cart.fold(0, (sum, line) => sum + line.quantity);
   int get favoritesCount => favorites.length;
@@ -1320,6 +1327,8 @@ class AppState extends ChangeNotifier {
     String description = '',
     String dashboardSection = 'daily_essentials',
     String imageUrl = '',
+    double tax = 0,
+    String? vendorId,
     List<Map<String, dynamic>>? unitVariants,
   }) async {
     if (token == null ||
@@ -1345,6 +1354,9 @@ class AppState extends ChangeNotifier {
                 'description': description,
                 'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
+                'tax': tax,
+                if (vendorId != null && vendorId.trim().isNotEmpty)
+                  'vendorId': vendorId.trim(),
                 if (unitVariants != null && unitVariants.isNotEmpty)
                   'unitVariants': unitVariants,
               },
@@ -1371,6 +1383,8 @@ class AppState extends ChangeNotifier {
     String description = '',
     String dashboardSection = 'daily_essentials',
     String imageUrl = '',
+    double tax = 0,
+    String? vendorId,
     List<Map<String, dynamic>>? unitVariants,
   }) async {
     if (token == null ||
@@ -1396,6 +1410,9 @@ class AppState extends ChangeNotifier {
                 'description': description,
                 'dashboardSection': dashboardSection,
                 'imageUrl': imageUrl,
+                'tax': tax,
+                if (vendorId != null && vendorId.trim().isNotEmpty)
+                  'vendorId': vendorId.trim(),
                 if (unitVariants != null && unitVariants.isNotEmpty)
                   'unitVariants': unitVariants,
               },
@@ -1689,6 +1706,7 @@ class AppState extends ChangeNotifier {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
                 'gstPercent': gstPercent,
+                'useProductTax': usesProductTax,
                 'address': {
                   'line1': address.line1,
                   'area': address.area,
@@ -1759,6 +1777,7 @@ class AppState extends ChangeNotifier {
                 'products': cart.map((line) => line.toOrderJson()).toList(),
                 'deliveryFee': deliveryFee,
                 'gstPercent': gstPercent,
+                'useProductTax': usesProductTax,
                 if (address != null)
                   'address': {
                     'line1': address.line1,

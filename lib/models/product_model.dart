@@ -90,6 +90,7 @@ class ProductModel {
     this.vendorIsOpen,
     this.vendorTodayOpenTime,
     this.vendorTodayCloseTime,
+    this.tax = 0,
   });
 
   final String id;
@@ -113,6 +114,7 @@ class ProductModel {
   final bool? vendorIsOpen;
   final String? vendorTodayOpenTime;
   final String? vendorTodayCloseTime;
+  final double tax;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     final stockQuantity = (json['stockQuantity'] as num?)?.toInt();
@@ -145,6 +147,7 @@ class ProductModel {
           : null,
       vendorTodayOpenTime: json['vendorTodayOpenTime']?.toString(),
       vendorTodayCloseTime: json['vendorTodayCloseTime']?.toString(),
+      tax: (json['tax'] as num? ?? 0).toDouble(),
     );
   }
 
@@ -171,6 +174,7 @@ class ProductModel {
     'vendorIsOpen': vendorIsOpen,
     'vendorTodayOpenTime': vendorTodayOpenTime,
     'vendorTodayCloseTime': vendorTodayCloseTime,
+    'tax': tax,
   };
 
   static List<ProductUnitVariant> _parseUnitVariants(

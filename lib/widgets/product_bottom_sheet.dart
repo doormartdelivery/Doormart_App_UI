@@ -6,6 +6,7 @@ import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
 import '../providers/app_state.dart';
 import '../widgets/toast_widget.dart';
+import 'product_price_breakdown.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -273,14 +274,9 @@ class _ProductSheetState extends State<_ProductSheet>
                           spacing: 8,
                           runSpacing: 6,
                           children: [
-                            Text(
-                              'Rs ${selectedPrice.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                color: _kOrange,
-                                letterSpacing: -0.5,
-                              ),
+                            ProductPriceBreakdown(
+                              product: product,
+                              basePrice: selectedPrice,
                             ),
                             Text(
                               'Rs ${selectedMrp.toStringAsFixed(0)}',

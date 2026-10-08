@@ -9,6 +9,7 @@ import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_bottom_sheet.dart';
+import '../../widgets/product_price_breakdown.dart';
 import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 
@@ -1034,14 +1035,10 @@ class _ProductFeedCard extends StatelessWidget {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'Rs ${product.price.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF0F172A),
-                                        letterSpacing: -0.3,
-                                      ),
+                                    ProductPriceBreakdown(
+                                      product: product,
+                                      compact: true,
+                                      showBreakdown: false,
                                     ),
                                     const SizedBox(height: 2),
                                     Text(

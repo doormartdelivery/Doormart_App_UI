@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
+import 'product_price_breakdown.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -142,16 +143,10 @@ class ProductCard extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              'Rs ${product.price.toStringAsFixed(0)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: const Color(0xFF101010),
-                                    fontSize: 14,
-                                  ),
+                            child: ProductPriceBreakdown(
+                              product: product,
+                              compact: true,
+                              showBreakdown: false,
                             ),
                           ),
                           const Icon(

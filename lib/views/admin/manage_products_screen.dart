@@ -1591,9 +1591,12 @@ class _ProductDialogState extends State<_ProductDialog> {
   final _nameCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final _taxCtrl = TextEditingController(text: '0');
   final List<_UnitVariantDraft> _unitVariants = [];
+  Future<List<VendorModel>>? _vendorsFuture;
 
   String? _selectedCategory;
+  String? _selectedVendorId;
   String _dashboardSection = 'daily_essentials';
   bool _saving = false;
   bool _uploading = false;
@@ -1601,11 +1604,16 @@ class _ProductDialogState extends State<_ProductDialog> {
   String? _saveError;
 
   bool get _isEdit => widget.product != null;
+  bool get _isSuperAdmin =>
+      context.read<AppState>().user?.role == UserRoles.superAdmin;
 
   @override
   void initState() {
     super.initState();
     final p = widget.product;
+    if (_isSuperAdmin) {
+      _vendorsFuture = context.read<AppState>().adminVendors();
+    }
     if (p == null) {
       _addUnitVariant();
       return;
@@ -1613,7 +1621,11 @@ class _ProductDialogState extends State<_ProductDialog> {
     _nameCtrl.text = p.name;
     _imageCtrl.text = p.imageUrl;
     _descriptionCtrl.text = p.description;
-    _dashboardSection = p.dashboardSection;
+    _taxCtrl.text = p.tax.toStringAsFixed(2).replaceFirst(RegExp(r'\.00$'), '');
+    _selectedVendorId = p.vendorId;
+    _dashboardSection = p.dashboardSection == 'popular_products'
+        ? 'daily_essentials'
+        : p.dashboardSection;
     _selectedCategory = p.category;
     if (p.unitVariants.isNotEmpty) {
       for (final variant in p.unitVariants) {
@@ -1641,6 +1653,7 @@ class _ProductDialogState extends State<_ProductDialog> {
     _nameCtrl.dispose();
     _imageCtrl.dispose();
     _descriptionCtrl.dispose();
+    _taxCtrl.dispose();
     for (final variant in _unitVariants) {
       variant.dispose();
     }
@@ -1746,6 +1759,12 @@ class _ProductDialogState extends State<_ProductDialog> {
           .toList();
       final primaryVariant = unitVariants.first;
       final existingRating = widget.product?.rating ?? 0;
+      final tax = double.parse(_taxCtrl.text.trim());
+      final vendorId = _selectedVendorId;
+      if (_isSuperAdmin && (vendorId == null || vendorId.trim().isEmpty)) {
+        setState(() => _saveError = 'Please select a vendor.');
+        return;
+      }
 
       if (_isEdit) {
         await state.updateProduct(
@@ -1761,6 +1780,8 @@ class _ProductDialogState extends State<_ProductDialog> {
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
+          tax: tax,
+          vendorId: vendorId,
           unitVariants: unitVariants,
         );
       } else {
@@ -1776,6 +1797,8 @@ class _ProductDialogState extends State<_ProductDialog> {
           description: _descriptionCtrl.text.trim(),
           dashboardSection: _dashboardSection,
           imageUrl: finalImageUrl,
+          tax: tax,
+          vendorId: vendorId,
           unitVariants: unitVariants,
         );
       }
@@ -1912,6 +1935,60 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                     ),
 
+                    if (_isSuperAdmin)
+                      FutureBuilder<List<VendorModel>>(
+                        future: _vendorsFuture,
+                        builder: (context, snapshot) {
+                          final vendors =
+                              snapshot.data ?? const <VendorModel>[];
+                          final selected =
+                              vendors.any(
+                                (vendor) =>
+                                    vendor.vendorId == _selectedVendorId,
+                              )
+                              ? _selectedVendorId
+                              : null;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<String>(
+                              value: selected,
+                              decoration: InputDecoration(
+                                labelText: 'Vendor *',
+                                prefixIcon: const Icon(
+                                  Icons.storefront_rounded,
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8F8F8),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              items: vendors
+                                  .map(
+                                    (vendor) => DropdownMenuItem<String>(
+                                      value: vendor.vendorId,
+                                      child: Text(
+                                        '${vendor.name} (${vendor.vendorId})',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged:
+                                  snapshot.connectionState ==
+                                      ConnectionState.waiting
+                                  ? null
+                                  : (value) => setState(
+                                      () => _selectedVendorId = value,
+                                    ),
+                              validator: (value) => value == null
+                                  ? 'Please select a vendor'
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
+
                     // ── Unit variants ─────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.only(top: 4, bottom: 12),
@@ -1956,6 +2033,22 @@ class _ProductDialogState extends State<_ProductDialog> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    _Field(
+                      controller: _taxCtrl,
+                      label: 'GST rate (%)',
+                      icon: Icons.percent_rounded,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) {
+                        final value = double.tryParse(v?.trim() ?? '');
+                        if (value == null || value < 0 || value > 100) {
+                          return 'Enter a rate from 0 to 100';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 4),
                     ..._unitVariants.asMap().entries.map((entry) {
                       final index = entry.key;
                       final variant = entry.value;
@@ -2022,10 +2115,6 @@ class _ProductDialogState extends State<_ProductDialog> {
                           DropdownMenuItem(
                             value: 'daily_essentials',
                             child: Text('Daily essentials'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'popular_products',
-                            child: Text('Popular products'),
                           ),
                         ],
                         onChanged: (v) {
