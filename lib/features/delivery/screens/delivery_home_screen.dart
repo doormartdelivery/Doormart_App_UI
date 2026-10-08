@@ -264,7 +264,7 @@ class _DeliveryHomeScreenState extends State<DeliveryHomeScreen> {
               )
             else
               SizedBox(
-                height: 430,
+                height: 520,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: provider.pendingRequests.length,
@@ -417,7 +417,7 @@ class _ProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'ID: ${deliveryId == '—' ? '—' : '#$deliveryId'}',
+            'ID: $deliveryId',
             style: const TextStyle(
               fontSize: 13,
               color: _kTextMid,
@@ -482,10 +482,11 @@ class _ProfileCard extends StatelessWidget {
 
 String _shortId(String? id) {
   final value = (id ?? '').trim();
-  if (value.isEmpty) return '—';
-  final cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-  if (cleaned.length <= 8) return cleaned.toUpperCase();
-  return cleaned.substring(0, 8).toUpperCase();
+  if (value.isEmpty) return 'DMD-00000000';
+  var cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+  if (cleaned.startsWith('DMD')) cleaned = cleaned.substring(3);
+  if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
+  return 'DMD-${cleaned.padRight(8, '0')}';
 }
 
 class _AvatarFallback extends StatelessWidget {
@@ -737,6 +738,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFE1D6)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.07),
@@ -771,6 +773,8 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   children: [
                     Text(
                       _text(widget.order.customerName, fallback: 'Customer'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -780,6 +784,8 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     const SizedBox(height: 3),
                     Text(
                       _text(widget.order.customerPhone, fallback: '—'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -788,6 +794,8 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     ),
                     Text(
                       '${_requestItems(widget.order).length} items • ${_text(widget.order.customerArea, fallback: 'Unknown area')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 12, color: _kTextMid),
                     ),
                   ],
@@ -836,44 +844,48 @@ class _NewRequestCardState extends State<_NewRequestCard> {
           // ── Pickup ────────────────────────────────────────────────────
           const SizedBox(height: 14),
 
-          Row(
-            children: [
-              const Spacer(),
-              // Accept button
-              _SpringButton(
-                onTap: widget.onAccept,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+          // ── Primary action ────────────────────────────────────────────
+          _SpringButton(
+            onTap: widget.onAccept,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF7A1A), Color(0xFFE9471C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kOrange.withValues(alpha: 0.28),
+                    blurRadius: 14,
+                    offset: const Offset(0, 7),
                   ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF26522), Color(0xFFE8401A)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kOrange.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                ],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: Colors.white,
+                    size: 20,
                   ),
-                  child: const Text(
-                    'ACCEPT REQUEST',
+                  SizedBox(width: 9),
+                  Text(
+                    'Accept delivery request',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 0.3,
+                      fontSize: 14,
+                      letterSpacing: 0.1,
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -888,15 +900,16 @@ class _NewRequestCardState extends State<_NewRequestCard> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.72,
-          minChildSize: 0.45,
-          maxChildSize: 0.92,
+          initialChildSize: 0.82,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
           builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            return Material(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
               ),
+              clipBehavior: Clip.antiAlias,
               child: ListView(
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
@@ -913,7 +926,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Order Details',
+                    'Order details',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: _kTextDark,
@@ -921,7 +934,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Vendor Details',
+                    'Pickup from vendor',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
@@ -933,10 +946,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     'Store',
                     _text(widget.order.vendorStoreName, fallback: '—'),
                   ),
-                  _detailLine(
-                    'Pickup address',
-                    _fullVendorAddress(widget.order),
-                  ),
+                  _detailLine('Address', _fullVendorAddress(widget.order)),
                   if (widget.order.vendorLatitude != null &&
                       widget.order.vendorLongitude != null)
                     _detailLine(
@@ -951,7 +961,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                   const Divider(height: 24),
                   const SizedBox(height: 2),
                   const Text(
-                    'Customer Details',
+                    'Deliver to customer',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
@@ -968,22 +978,6 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     _text(widget.order.customerPhone, fallback: '—'),
                   ),
                   _detailLine('Address', _fullCustomerAddress(widget.order)),
-                  _detailLine(
-                    'Street',
-                    _text(widget.order.customerLine1, fallback: '—'),
-                  ),
-                  _detailLine(
-                    'City',
-                    _text(widget.order.customerCity, fallback: '—'),
-                  ),
-                  _detailLine(
-                    'Pincode',
-                    _text(widget.order.customerPincode, fallback: '—'),
-                  ),
-                  _detailLine(
-                    'Area',
-                    _text(widget.order.customerArea, fallback: '—'),
-                  ),
                   if (widget.order.customerLatitude != null &&
                       widget.order.customerLongitude != null)
                     _detailLine(
@@ -995,7 +989,7 @@ class _NewRequestCardState extends State<_NewRequestCard> {
                     _formatDate(_orderCreatedAt(widget.order)),
                   ),
                   _detailLine(
-                    'Order Amount',
+                    'Amount',
                     '₹${_amount(widget.order).toStringAsFixed(2)}',
                   ),
                   _detailLine(
@@ -1089,6 +1083,8 @@ Widget _detailLine(String label, String value) {
           flex: 6,
           child: Text(
             value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: const TextStyle(
               fontSize: 12,
@@ -1386,8 +1382,20 @@ class _ActiveOrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
+            const Text(
+              'Deliver to customer',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: _kTextMid,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
-              _text(order.customerName, fallback: 'Customer Name'),
+              _text(order.customerName, fallback: 'Customer'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -1396,26 +1404,37 @@ class _ActiveOrderCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            _detailRow('Phone', _text(order.customerPhone, fallback: '—')),
+            _detailRow('Address', _fullCustomerAddress(order)),
+            _detailRow('Payment', _text(order.paymentType, fallback: '—')),
             _detailRow(
-              'Customer phone',
-              _text(order.customerPhone, fallback: '—'),
-            ),
-            _detailRow(
-              'Customer address',
-              _text(order.customerAddress, fallback: '—'),
-            ),
-            _detailRow(
-              'Customer area',
-              _text(order.customerArea, fallback: '—'),
-            ),
-            _detailRow(
-              'Payment method',
-              _text(order.paymentType, fallback: '—'),
-            ),
-            _detailRow(
-              'Total amount',
+              'Order total',
               '₹${_amount(order).toStringAsFixed(2)}',
               valueColor: _kOrange,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              decoration: BoxDecoration(
+                color: _kOrangeLight,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Open active order',
+                    style: TextStyle(
+                      color: _kOrange,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward_rounded, color: _kOrange, size: 18),
+                ],
+              ),
             ),
           ],
         ),

@@ -98,13 +98,25 @@ class OrderModel {
         : null;
     final rawId = json['_id'] ?? json['id'] ?? '';
     final rawAddress = json['address'];
+    final addressMap = rawAddress is Map
+        ? Map<String, dynamic>.from(rawAddress)
+        : null;
+    final structuredAddress = _cleanAddressParts([
+      addressMap?['line1'],
+      addressMap?['area'],
+      addressMap?['landmark'],
+      addressMap?['city'],
+      addressMap?['state'],
+      addressMap?['pincode'],
+    ]);
     final addressText = rawAddress is String
         ? rawAddress
-        : rawAddress is Map<String, dynamic>
-        ? [rawAddress['line1'], rawAddress['city'], rawAddress['pincode']]
-              .whereType<String>()
-              .where((value) => value.trim().isNotEmpty)
-              .join(', ')
+        : addressMap != null
+        ? _cleanAddressParts([
+            addressMap['line1'],
+            addressMap['city'],
+            addressMap['pincode'],
+          ])
         : '';
 
     return OrderModel(
@@ -143,7 +155,9 @@ class OrderModel {
       scheduledFor: _parseDateTime(json['scheduledFor']),
       address: addressText,
       customerName: json['customerName']?.toString() ?? '',
-      customerAddress: json['customerAddress']?.toString() ?? '',
+      customerAddress: structuredAddress.isNotEmpty
+          ? structuredAddress
+          : json['customerAddress']?.toString() ?? '',
       customerPhone: json['customerPhone']?.toString() ?? '',
       deliveryPersonId: deliveryPersonMap == null
           ? rawDeliveryPerson?.toString()
@@ -159,6 +173,30 @@ class OrderModel {
       deliveryOtp: json['deliveryOtp']?.toString(),
     );
   }
+}
+
+String _cleanAddressParts(List<dynamic> values) {
+  final result = <String>[];
+  for (final value in values) {
+    final parts =
+        value
+            ?.toString()
+            .split(',')
+            .map((part) => part.trim())
+            .where((part) => part.isNotEmpty) ??
+        const <String>[];
+    for (final part in parts) {
+      final normalized = part.toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      if (!result.any(
+        (existing) =>
+            existing.toLowerCase().replaceAll(RegExp(r'\s+'), ' ') ==
+            normalized,
+      )) {
+        result.add(part);
+      }
+    }
+  }
+  return result.join(', ');
 }
 
 DateTime? _parseDateTime(dynamic value) {

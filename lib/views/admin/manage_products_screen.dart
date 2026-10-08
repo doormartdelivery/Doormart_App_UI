@@ -18,6 +18,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_users_screen.dart';
 import 'admin_sidebar_drawer.dart';
 import 'stock_screen.dart';
+import '../../widgets/pagination_controls.dart';
 
 class ManageProductsScreen extends StatefulWidget {
   const ManageProductsScreen({super.key});
@@ -257,16 +258,19 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                   if (products.isEmpty)
                     const _NothingFound()
                   else
-                    _ProductsTable(
-                      products: products,
-                      sortColumnIndex: _sortColumnIndex,
-                      sortAscending: _sortAscending,
-                      onSort: _sortBy,
-                      onEdit: _openEditProductForm,
-                      onDelete: _deleteProduct,
-                      onView: (product) => _openViewProductDetails(product),
-                      showVendorColumn: false,
-                      resolveVendorName: _resolveVendorName,
+                    PaginatedCollection<ProductModel>(
+                      items: products,
+                      builder: (visibleProducts) => _ProductsTable(
+                        products: visibleProducts,
+                        sortColumnIndex: _sortColumnIndex,
+                        sortAscending: _sortAscending,
+                        onSort: _sortBy,
+                        onEdit: _openEditProductForm,
+                        onDelete: _deleteProduct,
+                        onView: (product) => _openViewProductDetails(product),
+                        showVendorColumn: false,
+                        resolveVendorName: _resolveVendorName,
+                      ),
                     ),
                 ],
               );
@@ -310,19 +314,22 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                     else if (products.isEmpty)
                       const _NothingFound()
                     else
-                      _ProductsTable(
-                        products: products,
-                        sortColumnIndex: _sortColumnIndex,
-                        sortAscending: _sortAscending,
-                        onSort: _sortBy,
-                        onEdit: _openEditProductForm,
-                        onDelete: _deleteProduct,
-                        onView: (product) => _openViewProductDetails(
-                          product,
-                          vendorName: resolveVendorName(product.vendorId),
+                      PaginatedCollection<ProductModel>(
+                        items: products,
+                        builder: (visibleProducts) => _ProductsTable(
+                          products: visibleProducts,
+                          sortColumnIndex: _sortColumnIndex,
+                          sortAscending: _sortAscending,
+                          onSort: _sortBy,
+                          onEdit: _openEditProductForm,
+                          onDelete: _deleteProduct,
+                          onView: (product) => _openViewProductDetails(
+                            product,
+                            vendorName: resolveVendorName(product.vendorId),
+                          ),
+                          showVendorColumn: true,
+                          resolveVendorName: resolveVendorName,
                         ),
-                        showVendorColumn: true,
-                        resolveVendorName: resolveVendorName,
                       ),
                   ],
                 );

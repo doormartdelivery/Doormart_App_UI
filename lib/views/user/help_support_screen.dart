@@ -610,23 +610,31 @@ class _ContactCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE3E8DF)),
       ),
-      child: ListTile(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF0EB),
-            borderRadius: BorderRadius.circular(14),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0EB),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: const Color(0xFFE8541A)),
           ),
-          child: Icon(icon, color: const Color(0xFFE8541A)),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.chevron_right_rounded),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/animated_chart.dart';
 import '../app_page.dart';
+import '../admin/admin_logout_confirm.dart';
+import '../admin/admin_sidebar_drawer.dart';
 
 const _analyticsPrimary = Color(0xFFE8541A);
 const _analyticsOrange = Color(0xFFE8541A);
@@ -18,6 +20,7 @@ class RevenueAnalyticsScreen extends StatefulWidget {
 }
 
 class _RevenueAnalyticsScreenState extends State<RevenueAnalyticsScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String _period = 'month';
   late Future<Map<String, dynamic>> _future;
 
@@ -44,6 +47,35 @@ class _RevenueAnalyticsScreenState extends State<RevenueAnalyticsScreen> {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Order analytics',
+      scaffoldKey: _scaffoldKey,
+      drawer: AdminSidebarDrawer(
+        currentRoute: RevenueAnalyticsScreen.routeName,
+        onLogout: () async {
+          final appState = context.read<AppState>();
+          final navigator = Navigator.of(context);
+          if (!await confirmAdminLogout(context)) return;
+          if (!mounted) return;
+          navigator.pop();
+          final logoutRoute = appState.logoutRouteName;
+          await appState.logout();
+          if (!mounted) return;
+          navigator.pushNamedAndRemoveUntil(logoutRoute, (_) => false);
+        },
+      ),
+      leading: Builder(
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: IconButton.filledTonal(
+            tooltip: 'Menu',
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFFFF0EB),
+              foregroundColor: _analyticsPrimary,
+            ),
+            icon: const Icon(Icons.menu),
+          ),
+        ),
+      ),
       actions: [
         IconButton(
           tooltip: 'Refresh analytics',

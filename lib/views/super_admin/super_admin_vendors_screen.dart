@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/vendor_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import '../../widgets/pagination_controls.dart';
 import '../../features/operations/services/location_service.dart';
 import '../admin/admin_sidebar_drawer.dart';
 
@@ -377,17 +378,20 @@ class _SuperAdminVendorsScreenState extends State<SuperAdminVendorsScreen>
                             setState(() => _selectedFilter = filter),
                       ),
                       const SizedBox(height: 16),
-                      _VendorsTable(
-                        vendors: filteredVendors,
-                        totalVendors: vendors.length,
-                        updatingVendorIds: _updatingVendors,
-                        onView: _viewVendor,
-                        onEdit: _editVendor,
-                        onApprove: _approveVendor,
-                        onSuspend: _suspendVendor,
-                        onReject: _rejectVendor,
-                        onToggleStatus: _toggleStatus,
-                        onDelete: _deleteVendor,
+                      PaginatedCollection<VendorModel>(
+                        items: filteredVendors,
+                        builder: (visibleVendors) => _VendorsTable(
+                          vendors: visibleVendors,
+                          totalVendors: vendors.length,
+                          updatingVendorIds: _updatingVendors,
+                          onView: _viewVendor,
+                          onEdit: _editVendor,
+                          onApprove: _approveVendor,
+                          onSuspend: _suspendVendor,
+                          onReject: _rejectVendor,
+                          onToggleStatus: _toggleStatus,
+                          onDelete: _deleteVendor,
+                        ),
                       ),
                     ],
                   ),

@@ -28,6 +28,15 @@ const _kBorder = Color(0xFFF1D4C8);
 const _kTextDark = Color(0xFF1A1A1A);
 const _kTextMid = Color(0xFF6B7280);
 
+String _formatDeliveryId(String? id) {
+  final value = (id ?? '').trim();
+  if (value.isEmpty) return 'DMD-00000000';
+  var cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+  if (cleaned.startsWith('DMD')) cleaned = cleaned.substring(3);
+  if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
+  return 'DMD-${cleaned.padRight(8, '0')}';
+}
+
 class ManageDeliveryScreen extends StatefulWidget {
   const ManageDeliveryScreen({super.key});
   static const routeName = '/admin/delivery';
@@ -714,7 +723,7 @@ class _PartnerCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '#${user.id.substring(0, 8).toUpperCase()}',
+                            _formatDeliveryId(user.id),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

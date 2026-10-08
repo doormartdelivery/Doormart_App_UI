@@ -15,6 +15,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 import 'admin_sidebar_drawer.dart';
+import '../../widgets/pagination_controls.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -33,6 +34,7 @@ class AdminOrdersScreen extends StatefulWidget {
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   late final AnimationController _animationController;
   int _sortColumnIndex = 6;
@@ -203,7 +205,27 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: _kBg,
+      appBar: AppBar(
+        toolbarHeight: 56,
+        backgroundColor: _kBg,
+        surfaceTintColor: _kBg,
+        elevation: 0,
+        title: const Text('Orders'),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: IconButton.filledTonal(
+            tooltip: 'Menu',
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            style: IconButton.styleFrom(
+              backgroundColor: _kOrangeLight,
+              foregroundColor: _kOrange,
+            ),
+            icon: const Icon(Icons.menu),
+          ),
+        ),
+      ),
       drawer: AdminSidebarDrawer(
         currentRoute: AdminOrdersScreen.routeName,
         onLogout: () async {
@@ -219,13 +241,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
           );
         },
       ),
-      // appBar: AppBar(
-      //   backgroundColor: _kBg,
-      //   foregroundColor: _kTextDark,
-      //   elevation: 0,
-      //   centerTitle: false,
-      //   title: const Text('Admin Orders'),
-      // ),
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, state, _) {
@@ -299,14 +314,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                         )
                       : orders.isEmpty
                       ? const _OrdersEmptyState()
-                      : _OrdersTable(
-                          orders: orders,
-                          showVendor: isSuperAdmin,
-                          vendorLookup: _vendorLookup,
-                          sortColumnIndex: _sortColumnIndex,
-                          sortAscending: _sortAscending,
-                          onSort: _sortBy,
-                          onMove: _moveOrder,
+                      : PaginatedCollection<OrderModel>(
+                          items: orders,
+                          builder: (visibleOrders) => _OrdersTable(
+                            orders: visibleOrders,
+                            showVendor: isSuperAdmin,
+                            vendorLookup: _vendorLookup,
+                            sortColumnIndex: _sortColumnIndex,
+                            sortAscending: _sortAscending,
+                            onSort: _sortBy,
+                            onMove: _moveOrder,
+                          ),
                         ),
                 ),
               ],
@@ -1004,7 +1022,7 @@ class _OrdersTable extends StatelessWidget {
                           const DataColumn(label: Text('Vendor Location')),
                         const DataColumn(label: Text('Customer')),
                         const DataColumn(label: Text('Phone')),
-                        const DataColumn(label: Text('Customer Address')),
+                        const DataColumn(label: Text('Delivery Address')),
                         DataColumn(
                           label: const Text('Placed Time'),
                           onSort: (_, __) => onSort(0),
@@ -1133,12 +1151,16 @@ class _OrdersTable extends StatelessWidget {
                               _TableCellIn(
                                 animationKey: '${order.id}-address',
                                 index: index,
-                                child: Text(
-                                  order.customerAddress.isNotEmpty
-                                      ? order.customerAddress
-                                      : order.address,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Tooltip(
+                                  message: _orderDeliveryAddress(order),
+                                  child: SizedBox(
+                                    width: 240,
+                                    child: Text(
+                                      _orderDeliveryAddress(order),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1720,27 +1742,36 @@ class _VendorLocationBadge extends StatelessWidget {
         ? const Color(0xFFEAF7EF)
         : const Color(0xFFF1F5F9);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.location_on_outlined, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(
-            hasLocation ? location : '-',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
+    return Tooltip(
+      message: hasLocation ? location : 'Vendor location unavailable',
+      child: SizedBox(
+        width: 190,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: 0.18)),
           ),
-        ],
+          child: Row(
+            children: [
+              Icon(Icons.location_on_outlined, size: 13, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  hasLocation ? location : '-',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2212,6 +2243,26 @@ String _statusLabel(OrderStatus status) {
 String _shortId(String id) {
   if (id.length <= 8) return id;
   return id.substring(id.length - 8).toUpperCase();
+}
+
+String _orderDeliveryAddress(OrderModel order) {
+  final raw = order.customerAddress.trim().isNotEmpty
+      ? order.customerAddress
+      : order.address;
+  final parts = raw
+      .split(',')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList();
+  final unique = <String>[];
+  for (final part in parts) {
+    if (!unique.any(
+      (existing) => existing.toLowerCase() == part.toLowerCase(),
+    )) {
+      unique.add(part);
+    }
+  }
+  return unique.isEmpty ? '—' : unique.join(', ');
 }
 
 String _vendorLabel(String vendorId) {

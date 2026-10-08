@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import '../../widgets/pagination_controls.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_sidebar_drawer.dart';
 
@@ -460,120 +461,127 @@ class _HelpSupportManagementScreenState
                         child: Center(child: Text('No support tickets found.')),
                       )
                     else
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          headingRowColor: const MaterialStatePropertyAll(
-                            Color(0xFFF6F7FA),
-                          ),
-                          columns: const [
-                            DataColumn(label: Text('Ticket ID')),
-                            DataColumn(label: Text('User Name')),
-                            DataColumn(label: Text('User Phone')),
-                            DataColumn(label: Text('Order ID')),
-                            DataColumn(label: Text('Issue Type')),
-                            DataColumn(label: Text('Subject')),
-                            DataColumn(label: Text('Priority')),
-                            DataColumn(label: Text('Status')),
-                            DataColumn(label: Text('Created Date')),
-                            DataColumn(label: Text('Assigned To')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                          rows: _filteredTickets.map((ticket) {
-                            final user = ticket['user'] is Map
-                                ? Map<String, dynamic>.from(
-                                    ticket['user'] as Map,
-                                  )
-                                : null;
-                            return DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    ticket['ticketNumber'] ??
-                                        ticket['id'] ??
-                                        '',
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    user?['name']?.toString() ??
-                                        ticket['userName']?.toString() ??
-                                        '',
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    user?['phone']?.toString() ??
-                                        ticket['phone']?.toString() ??
-                                        '',
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _formatSupportOrderId(
-                                      ticket['orderId']?.toString(),
+                      PaginatedCollection<Map<String, dynamic>>(
+                        items: _filteredTickets,
+                        builder: (visibleTickets) => SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowColor: const MaterialStatePropertyAll(
+                              Color(0xFFF6F7FA),
+                            ),
+                            columns: const [
+                              DataColumn(label: Text('Ticket ID')),
+                              DataColumn(label: Text('User Name')),
+                              DataColumn(label: Text('User Phone')),
+                              DataColumn(label: Text('Order ID')),
+                              DataColumn(label: Text('Issue Type')),
+                              DataColumn(label: Text('Subject')),
+                              DataColumn(label: Text('Priority')),
+                              DataColumn(label: Text('Status')),
+                              DataColumn(label: Text('Created Date')),
+                              DataColumn(label: Text('Assigned To')),
+                              DataColumn(label: Text('Actions')),
+                            ],
+                            rows: visibleTickets.map((ticket) {
+                              final user = ticket['user'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      ticket['user'] as Map,
+                                    )
+                                  : null;
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      ticket['ticketNumber'] ??
+                                          ticket['id'] ??
+                                          '',
                                     ),
                                   ),
-                                ),
-                                DataCell(
-                                  Text(ticket['issueType']?.toString() ?? ''),
-                                ),
-                                DataCell(
-                                  Text(ticket['subject']?.toString() ?? ''),
-                                ),
-                                DataCell(
-                                  _LabelBadge(
-                                    text:
+                                  DataCell(
+                                    Text(
+                                      user?['name']?.toString() ??
+                                          ticket['userName']?.toString() ??
+                                          '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      user?['phone']?.toString() ??
+                                          ticket['phone']?.toString() ??
+                                          '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      _formatSupportOrderId(
+                                        ticket['orderId']?.toString(),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(ticket['issueType']?.toString() ?? ''),
+                                  ),
+                                  DataCell(
+                                    Text(ticket['subject']?.toString() ?? ''),
+                                  ),
+                                  DataCell(
+                                    _LabelBadge(
+                                      text:
+                                          ticket['priority']?.toString() ??
+                                          'low',
+                                      color: _priorityColor(
                                         ticket['priority']?.toString() ?? 'low',
-                                    color: _priorityColor(
-                                      ticket['priority']?.toString() ?? 'low',
+                                      ),
                                     ),
                                   ),
-                                ),
-                                DataCell(
-                                  _LabelBadge(
-                                    text:
+                                  DataCell(
+                                    _LabelBadge(
+                                      text:
+                                          ticket['status']?.toString() ??
+                                          'open',
+                                      color: _statusColor(
                                         ticket['status']?.toString() ?? 'open',
-                                    color: _statusColor(
-                                      ticket['status']?.toString() ?? 'open',
+                                      ),
                                     ),
                                   ),
-                                ),
-                                DataCell(
-                                  Text(
-                                    _fmtDate(
-                                      DateTime.tryParse(
-                                            ticket['createdAt']?.toString() ??
-                                                '',
-                                          ) ??
-                                          DateTime.now(),
+                                  DataCell(
+                                    Text(
+                                      _fmtDate(
+                                        DateTime.tryParse(
+                                              ticket['createdAt']?.toString() ??
+                                                  '',
+                                            ) ??
+                                            DateTime.now(),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                DataCell(
-                                  Text(ticket['assignedTo']?.toString() ?? ''),
-                                ),
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'View',
-                                        onPressed: () => _openTicket(ticket),
-                                        icon: const Icon(
-                                          Icons.visibility_rounded,
+                                  DataCell(
+                                    Text(
+                                      ticket['assignedTo']?.toString() ?? '',
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'View',
+                                          onPressed: () => _openTicket(ticket),
+                                          icon: const Icon(
+                                            Icons.visibility_rounded,
+                                          ),
                                         ),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Reply',
-                                        onPressed: () => _openTicket(ticket),
-                                        icon: const Icon(Icons.reply_rounded),
-                                      ),
-                                    ],
+                                        IconButton(
+                                          tooltip: 'Reply',
+                                          onPressed: () => _openTicket(ticket),
+                                          icon: const Icon(Icons.reply_rounded),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
+                                ],
+                              );
+                            }).toList(),
+                          ),
                         ),
                       ),
                   ],

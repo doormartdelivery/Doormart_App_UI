@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/address_model.dart';
 import '../../providers/app_state.dart';
 import 'add_edit_address_screen.dart';
+import 'login_screen.dart';
 
 const _accent = Color(0xFFFF6A13);
 const _bg = Color(0xFFF7F8FC);
@@ -28,7 +29,27 @@ class _AddressScreenState extends State<AddressScreen> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<AppState>().loadAddresses();
+    final state = context.read<AppState>();
+    _future = state.user == null
+        ? Future<List<AddressModel>>.value(const <AddressModel>[])
+        : state.loadAddresses();
+  }
+
+  Future<void> _openAddressEditor({AddressModel? address}) async {
+    final state = context.read<AppState>();
+    if (state.user == null) {
+      await Navigator.pushNamed(context, LoginScreen.routeName);
+      if (mounted && context.read<AppState>().user != null) {
+        await _refresh();
+      }
+      return;
+    }
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => AddEditAddressScreen(address: address)),
+    );
+    if (result == true && mounted) await _refresh();
   }
 
   @override
@@ -104,13 +125,7 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AddEditAddressScreen()),
-                      );
-                      if (result == true) await _refresh();
-                    },
+                    onTap: () => _openAddressEditor(),
                     child: Container(
                       width: 42,
                       height: 42,
@@ -125,7 +140,11 @@ class _AddressScreenState extends State<AddressScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.add_rounded, size: 24, color: _textDark),
+                      child: const Icon(
+                        Icons.add_rounded,
+                        size: 24,
+                        color: _textDark,
+                      ),
                     ),
                   ),
                 ],
@@ -148,65 +167,51 @@ class _AddressScreenState extends State<AddressScreen> {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 28),
                           child: Center(
-                              child: CircularProgressIndicator(color: _accent)),
+                            child: CircularProgressIndicator(color: _accent),
+                          ),
                         );
                       }
-                      final addresses = _filter(snapshot.data ?? const <AddressModel>[]);
+                      final addresses = _filter(
+                        snapshot.data ?? const <AddressModel>[],
+                      );
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _SearchRow(
                             controller: _searchController,
-                            onChanged: (value) => setState(() => _query = value),
+                            onChanged: (value) =>
+                                setState(() => _query = value),
                           ),
                           const SizedBox(height: 16),
                           if (addresses.isEmpty)
-                            _EmptyAddressState(onAdd: () async {
-                              final result = await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const AddEditAddressScreen()),
-                              );
-                              if (result == true) await _refresh();
-                            })
+                            _EmptyAddressState(
+                              onAdd: () => _openAddressEditor(),
+                            )
                           else
                             ...addresses.map(
                               (item) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: _AddressTile(
                                   address: item,
-                                  onEdit: () async {
-                                    final result = await Navigator.push<bool>(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            AddEditAddressScreen(address: item),
-                                      ),
-                                    );
-                                    if (result == true) await _refresh();
-                                  },
+                                  onEdit: () =>
+                                      _openAddressEditor(address: item),
                                   onDelete: () async {
-                                    await context.read<AppState>().deleteAddress(item.id);
+                                    await context
+                                        .read<AppState>()
+                                        .deleteAddress(item.id);
                                     await _refresh();
                                   },
                                   onSetDefault: () async {
-                                    await context.read<AppState>().setDefaultAddress(item.id);
+                                    await context
+                                        .read<AppState>()
+                                        .setDefaultAddress(item.id);
                                     await _refresh();
                                   },
                                 ),
                               ),
                             ),
                           const SizedBox(height: 12),
-                          _AddAddressCard(
-                            onTap: () async {
-                              final result = await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const AddEditAddressScreen()),
-                              );
-                              if (result == true) await _refresh();
-                            },
-                          ),
+                          _AddAddressCard(onTap: () => _openAddressEditor()),
                         ],
                       );
                     },
@@ -240,7 +245,10 @@ class _SearchRow extends StatelessWidget {
               prefixIcon: const Icon(Icons.search_rounded, color: _textMid),
               filled: true,
               fillColor: _card,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: _border),
@@ -411,7 +419,10 @@ class _AddAddressCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: _card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _accent.withValues(alpha: 0.25), style: BorderStyle.solid),
+          border: Border.all(
+            color: _accent.withValues(alpha: 0.25),
+            style: BorderStyle.solid,
+          ),
         ),
         child: Column(
           children: const [

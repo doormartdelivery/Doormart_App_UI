@@ -6,6 +6,7 @@ import '../../core/constants.dart';
 import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
+import '../../widgets/pagination_controls.dart';
 import '../app_page.dart';
 import 'admin_logout_confirm.dart';
 import 'admin_dashboard_screen.dart';
@@ -330,15 +331,18 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                             setState(() => _selectedFilter = filter),
                       ),
                       const SizedBox(height: 16),
-                      _UsersTable(
-                        users: filteredUsers,
-                        totalUsers: users.length,
-                        updatingUserIds: _updatingUsers,
-                        canAssignSuperAdmin: canAssignSuperAdmin,
-                        onRoleChanged: _assignRole,
-                        onEdit: _editUser,
-                        onToggleBlock: _toggleBlock,
-                        onDelete: _deleteUser,
+                      PaginatedCollection<UserModel>(
+                        items: filteredUsers,
+                        builder: (visibleUsers) => _UsersTable(
+                          users: visibleUsers,
+                          totalUsers: users.length,
+                          updatingUserIds: _updatingUsers,
+                          canAssignSuperAdmin: canAssignSuperAdmin,
+                          onRoleChanged: _assignRole,
+                          onEdit: _editUser,
+                          onToggleBlock: _toggleBlock,
+                          onDelete: _deleteUser,
+                        ),
                       ),
                     ],
                   ),

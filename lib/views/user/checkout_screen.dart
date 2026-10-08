@@ -926,7 +926,7 @@ class _CashfreeButtonState extends State<_CashfreeButton>
               ),
               const SizedBox(width: 8),
               Text(
-                'Pay with Cashfree',
+                'Pay Online',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,

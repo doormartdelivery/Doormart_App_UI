@@ -1250,10 +1250,11 @@ class _LogoutButtonState extends State<_LogoutButton>
 
 String _shortId(String? id) {
   final value = (id ?? '').trim();
-  if (value.isEmpty) return 'DEL-0000';
-  final cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-  if (cleaned.length <= 8) return cleaned.toUpperCase();
-  return cleaned.substring(0, 8).toUpperCase();
+  if (value.isEmpty) return 'DMD-00000000';
+  var cleaned = value.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
+  if (cleaned.startsWith('DMD')) cleaned = cleaned.substring(3);
+  if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
+  return 'DMD-${cleaned.padRight(8, '0')}';
 }
 
 class _Footer extends StatelessWidget {

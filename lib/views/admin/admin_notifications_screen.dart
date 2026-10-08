@@ -9,6 +9,7 @@ import '../../core/constants.dart';
 import '../../providers/app_state.dart';
 import 'admin_logout_confirm.dart';
 import '../../services/api_service.dart';
+import '../../widgets/pagination_controls.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_orders_screen.dart';
 import 'manage_banners_screen.dart';
@@ -876,63 +877,66 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 child: Center(child: Text('No notifications found')),
               )
             else
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor: MaterialStateProperty.all(
-                    const Color(0xFFF7F9FF),
-                  ),
-                  columns: const [
-                    DataColumn(label: Text('Title')),
-                    DataColumn(label: Text('Audience')),
-                    DataColumn(label: Text('Type')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Repeat')),
-                    DataColumn(label: Text('Timestamp')),
-                    DataColumn(label: Text('Results')),
-                  ],
-                  rows: filtered.map((item) {
-                    final status = _statusLabel(item);
-                    return DataRow(
-                      cells: [
-                        DataCell(Text((item['title'] ?? '').toString())),
-                        DataCell(
-                          Text(
-                            _labelForAudience(
-                              (item['targetAudience'] ?? '').toString(),
-                            ),
-                          ),
-                        ),
-                        DataCell(Text((item['type'] ?? '').toString())),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _statusColor(status).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              status,
-                              style: TextStyle(
-                                color: _statusColor(status),
-                                fontWeight: FontWeight.w700,
+              PaginatedCollection<Map<String, dynamic>>(
+                items: filtered,
+                builder: (visibleNotifications) => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowColor: MaterialStateProperty.all(
+                      const Color(0xFFF7F9FF),
+                    ),
+                    columns: const [
+                      DataColumn(label: Text('Title')),
+                      DataColumn(label: Text('Audience')),
+                      DataColumn(label: Text('Type')),
+                      DataColumn(label: Text('Status')),
+                      DataColumn(label: Text('Repeat')),
+                      DataColumn(label: Text('Timestamp')),
+                      DataColumn(label: Text('Results')),
+                    ],
+                    rows: visibleNotifications.map((item) {
+                      final status = _statusLabel(item);
+                      return DataRow(
+                        cells: [
+                          DataCell(Text((item['title'] ?? '').toString())),
+                          DataCell(
+                            Text(
+                              _labelForAudience(
+                                (item['targetAudience'] ?? '').toString(),
                               ),
                             ),
                           ),
-                        ),
-                        DataCell(_RepeatBadge(text: _repeatLabel(item))),
-                        DataCell(Text(_formatNotificationTimestamp(item))),
-                        DataCell(
-                          Text(
-                            '${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed',
+                          DataCell(Text((item['type'] ?? '').toString())),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _statusColor(status).withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                status,
+                                style: TextStyle(
+                                  color: _statusColor(status),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                          DataCell(_RepeatBadge(text: _repeatLabel(item))),
+                          DataCell(Text(_formatNotificationTimestamp(item))),
+                          DataCell(
+                            Text(
+                              '${item['successCount'] ?? 0} delivered, ${item['failureCount'] ?? 0} failed',
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             const SizedBox(height: 14),

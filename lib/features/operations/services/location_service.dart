@@ -29,8 +29,8 @@ class LocationService {
       throw StateError('Location permission is required');
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: LocationSettings(
+    final position = await _getCurrentPositionWithRetry(
+      LocationSettings(
         accuracy: kIsWeb ? LocationAccuracy.medium : LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15),
       ),
@@ -78,8 +78,9 @@ class LocationService {
       final latitude = preferences.getDouble(_cachedLatitudeKey);
       final longitude = preferences.getDouble(_cachedLongitudeKey);
       final cachedAt = preferences.getInt(_cachedAtKey);
-      if (latitude == null || longitude == null || cachedAt == null)
+      if (latitude == null || longitude == null || cachedAt == null) {
         return null;
+      }
       final age = DateTime.now().difference(
         DateTime.fromMillisecondsSinceEpoch(cachedAt),
       );
@@ -105,6 +106,28 @@ class LocationService {
       );
     } catch (_) {
       // A cache failure must never prevent a valid GPS result from being used.
+    }
+  }
+
+  Future<Position> _getCurrentPositionWithRetry(
+    LocationSettings settings,
+  ) async {
+    try {
+      return await Geolocator.getCurrentPosition(locationSettings: settings);
+    } catch (error) {
+      final message = error.toString().toLowerCase();
+      final locationStillUnknown =
+          message.contains('kclerrorlocationunknown') ||
+          message.contains('locationunknown') ||
+          message.contains('location unknown') ||
+          message.contains('position update is unavailable') ||
+          message.contains('positionupdateexception');
+      if (!locationStillUnknown) rethrow;
+
+      // CoreLocation and browser GPS can report this briefly while acquiring
+      // a fix. Give the provider one more chance before showing an error.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      return Geolocator.getCurrentPosition(locationSettings: settings);
     }
   }
 
@@ -135,8 +158,22 @@ class LocationService {
           ? Map<String, dynamic>.from(raw)
           : const <String, dynamic>{};
       if (address == null || address.isEmpty) return null;
+      final areaParts =
+          [
+                parts['house_number'],
+                parts['road'],
+                parts['neighbourhood'],
+                parts['suburb'],
+                parts['quarter'],
+                parts['residential'],
+              ]
+              .whereType<String>()
+              .map((part) => part.trim())
+              .where((part) => part.isNotEmpty)
+              .toSet()
+              .toList();
       return (
-        address: address,
+        address: areaParts.join(', '),
         city: (parts['city'] ?? parts['town'] ?? parts['village'] ?? '')
             .toString(),
         state: (parts['state'] ?? '').toString(),
@@ -150,20 +187,12 @@ class LocationService {
     );
     if (placemarks.isEmpty) return null;
     final place = placemarks.first;
-    final addressParts =
-        [
-              place.name,
-              place.street,
-              place.subLocality,
-              place.locality,
-              place.administrativeArea,
-              place.postalCode,
-            ]
-            .whereType<String>()
-            .map((part) => part.trim())
-            .where((part) => part.isNotEmpty)
-            .toSet()
-            .toList();
+    final addressParts = [place.name, place.street, place.subLocality]
+        .whereType<String>()
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toSet()
+        .toList();
     if (addressParts.isEmpty) return null;
     return (
       address: addressParts.join(', '),

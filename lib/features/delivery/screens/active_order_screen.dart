@@ -282,51 +282,21 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                     ),
                     const SizedBox(height: 14),
                     _DashboardCard(
-                      title: 'Order Summary',
+                      title: 'Deliver to customer',
                       child: Column(
                         children: [
                           _infoRow('Customer name', order.customerName),
                           _infoRow('Customer phone', order.customerPhone),
                           _infoRow(
-                            'Customer address',
+                            'Delivery address',
                             _fullCustomerAddress(order),
                           ),
-                          _infoRow(
-                            'Customer street',
-                            order.customerLine1?.trim().isNotEmpty == true
-                                ? order.customerLine1!.trim()
-                                : '—',
-                          ),
-                          _infoRow(
-                            'Customer city',
-                            order.customerCity?.trim().isNotEmpty == true
-                                ? order.customerCity!.trim()
-                                : '—',
-                          ),
-                          _infoRow(
-                            'Customer pincode',
-                            order.customerPincode?.trim().isNotEmpty == true
-                                ? order.customerPincode!.trim()
-                                : '—',
-                          ),
-                          _infoRow('Customer area', order.customerArea),
                           if (order.customerLatitude != null &&
                               order.customerLongitude != null)
                             _infoRow(
-                              'Coordinates',
+                              'Map pin',
                               '${order.customerLatitude!.toStringAsFixed(6)}, ${order.customerLongitude!.toStringAsFixed(6)}',
                             ),
-                          _infoRow('Payment method', order.paymentType),
-                          if (isCod)
-                            _infoRow(
-                              'COD amount',
-                              '₹${order.codAmount?.toStringAsFixed(2) ?? order.totalAmount.toStringAsFixed(2)}',
-                            ),
-                          _infoRow(
-                            'Total amount',
-                            '₹${order.totalAmount.toStringAsFixed(2)}',
-                          ),
-                          _infoRow('Created at', _formatDate(order.createdAt)),
                           const SizedBox(height: 4),
                           _MapActionButton(
                             label: 'Get Customer Directions',
@@ -345,6 +315,25 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                   )
                                 : null,
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _DashboardCard(
+                      title: 'Payment summary',
+                      child: Column(
+                        children: [
+                          _infoRow('Payment method', order.paymentType),
+                          if (isCod)
+                            _infoRow(
+                              'Collect from customer',
+                              '₹${order.codAmount?.toStringAsFixed(2) ?? order.totalAmount.toStringAsFixed(2)}',
+                            ),
+                          _infoRow(
+                            'Order total',
+                            '₹${order.totalAmount.toStringAsFixed(2)}',
+                          ),
+                          _infoRow('Placed at', _formatDate(order.createdAt)),
                         ],
                       ),
                     ),
@@ -371,27 +360,23 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                     ),
                     const SizedBox(height: 14),
                     _DashboardCard(
-                      title: 'Delivery Actions',
+                      title: 'Delivery steps',
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
+                          gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              const Color(0xFF171923),
-                              const Color(0xFF1F2937),
-                              const Color(0xFF0F172A),
-                            ],
+                            colors: [Color(0xFFF8FAFC), Color(0xFFFFFFFF)],
                           ),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0x33FFFFFF)),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.14),
-                              blurRadius: 24,
-                              offset: const Offset(0, 14),
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
@@ -400,50 +385,40 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                           children: [
                             _FlowIntro(
                               subtitle:
-                                  'Follow these steps from top to bottom. The arrows show exactly what comes next.',
+                                  'Complete the delivery in this order: pick up from the vendor, then deliver to the customer.',
                               highlight: pickupFlowColor,
                             ),
                             const SizedBox(height: 14),
                             _FlowActionTile(
                               step: '1',
-                              icon: Icons.map_outlined,
-                              title: 'Get Customer Directions',
-                              subtitle: 'Open turn-by-turn delivery navigation',
+                              icon: Icons.store_mall_directory_rounded,
+                              title: 'Go to vendor',
+                              subtitle: 'Open directions to collect the order',
                               accent: const Color(0xFFFF8A3D),
                               onTap:
-                                  order.customerLatitude != null &&
-                                          order.customerLongitude != null ||
-                                      _hasAddress(_fullCustomerAddress(order))
+                                  order.vendorLatitude != null &&
+                                          order.vendorLongitude != null ||
+                                      _hasAddress(_fullVendorAddress(order))
                                   ? () => _openDirections(
-                                      address: _fullCustomerAddress(order),
-                                      latitude: order.customerLatitude,
-                                      longitude: order.customerLongitude,
-                                      conflictLatitude: order.vendorLatitude,
-                                      conflictLongitude: order.vendorLongitude,
+                                      address: _fullVendorAddress(order),
+                                      latitude: order.vendorLatitude,
+                                      longitude: order.vendorLongitude,
+                                      conflictLatitude: order.customerLatitude,
+                                      conflictLongitude:
+                                          order.customerLongitude,
                                     )
                                   : null,
-                              disabledLabel: 'Customer address not available',
+                              disabledLabel: 'Vendor address not available',
                             ),
                             const SizedBox(height: 10),
                             _FlowArrow(color: pickupFlowColor),
                             const SizedBox(height: 10),
                             _FlowActionTile(
                               step: '2',
-                              icon: Icons.call_outlined,
-                              title: 'Call customer',
-                              subtitle:
-                                  'Speak with the customer before proceeding',
-                              accent: const Color(0xFFFFA142),
-                              onTap: () => _call(order.customerPhone),
-                            ),
-                            const SizedBox(height: 10),
-                            _FlowArrow(color: pickupFlowColor),
-                            const SizedBox(height: 10),
-                            _FlowActionTile(
-                              step: '3',
                               icon: Icons.inventory_2_outlined,
-                              title: 'Mark Picked Up',
-                              subtitle: 'Moves the order to In transit',
+                              title: 'Confirm pickup',
+                              subtitle:
+                                  'Tap after collecting the order from the vendor',
                               accent: const Color(0xFFFFB366),
                               onTap: () async {
                                 if (_markingPickedUp) return;
@@ -463,6 +438,30 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
                                 }
                               },
                               loading: _markingPickedUp,
+                            ),
+                            const SizedBox(height: 10),
+                            _FlowArrow(color: pickupFlowColor),
+                            const SizedBox(height: 10),
+                            _FlowActionTile(
+                              step: '3',
+                              icon: Icons.map_outlined,
+                              title: 'Go to customer',
+                              subtitle:
+                                  'Open directions to the delivery address',
+                              accent: const Color(0xFFFFA142),
+                              onTap:
+                                  order.customerLatitude != null &&
+                                          order.customerLongitude != null ||
+                                      _hasAddress(_fullCustomerAddress(order))
+                                  ? () => _openDirections(
+                                      address: _fullCustomerAddress(order),
+                                      latitude: order.customerLatitude,
+                                      longitude: order.customerLongitude,
+                                      conflictLatitude: order.vendorLatitude,
+                                      conflictLongitude: order.vendorLongitude,
+                                    )
+                                  : null,
+                              disabledLabel: 'Customer address not available',
                             ),
                             const SizedBox(height: 10),
                             _FlowArrow(color: pickupFlowColor),
@@ -690,11 +689,6 @@ class _ActiveOrderScreenState extends State<ActiveOrderScreen> {
     await launchUrl(webUri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _call(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    await launchUrl(uri);
-  }
-
   bool _hasAddress(String? address) {
     final trimmed = (address ?? '').trim();
     return trimmed.isNotEmpty && trimmed != '—';
@@ -766,9 +760,9 @@ class _FlowIntro extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: const Color(0xFFFFF7F2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: const Color(0xFFFFDFC8)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,7 +798,7 @@ class _FlowIntro extends StatelessWidget {
                 const Text(
                   'Delivery flow',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF1F2937),
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -813,7 +807,7 @@ class _FlowIntro extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
+                    color: Color(0xFF6B7280),
                     fontSize: 12,
                     height: 1.35,
                     fontWeight: FontWeight.w500,
@@ -826,14 +820,14 @@ class _FlowIntro extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: const Color(0xFFFFEBDD),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+              border: Border.all(color: const Color(0xFFFFD2B5)),
             ),
             child: Text(
               '1 → 5',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.88),
+                color: const Color(0xFFE8541A),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -874,7 +868,7 @@ class _FlowArrow extends StatelessWidget {
             ),
             child: Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: color,
+              color: const Color(0xFFE8541A),
               size: 20,
             ),
           ),
@@ -929,14 +923,12 @@ class _FlowActionTile extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isPrimary
-              ? accent.withValues(alpha: 0.16)
-              : Colors.white.withValues(alpha: 0.06),
+          color: isPrimary ? const Color(0xFFFFF0E8) : Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: isPrimary
-                ? accent.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.10),
+                ? const Color(0xFFFFB98F)
+                : const Color(0xFFE5E7EB),
           ),
         ),
         child: Row(
@@ -1001,7 +993,7 @@ class _FlowActionTile extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1F2937),
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1010,7 +1002,7 @@ class _FlowActionTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.70),
+                      color: Color(0xFF6B7280),
                       fontSize: 12,
                       height: 1.35,
                       fontWeight: FontWeight.w500,
@@ -1022,8 +1014,8 @@ class _FlowActionTile extends StatelessWidget {
                       disabledLabel!,
                       style: TextStyle(
                         color: enabled
-                            ? Colors.white.withValues(alpha: 0.50)
-                            : const Color(0xFFFFC07A),
+                            ? const Color(0xFF6B7280)
+                            : const Color(0xFFE8541A),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1043,10 +1035,10 @@ class _FlowActionTile extends StatelessWidget {
                       ? Icons.lock_outline_rounded
                       : Icons.arrow_forward_rounded,
                   color: loading
-                      ? Colors.white
+                      ? const Color(0xFFE8541A)
                       : disabled
-                      ? Colors.white.withValues(alpha: 0.50)
-                      : Colors.white,
+                      ? const Color(0xFF9CA3AF)
+                      : const Color(0xFFE8541A),
                   size: 20,
                 ),
                 if (isPrimary) ...[
@@ -1057,13 +1049,13 @@ class _FlowActionTile extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
+                      color: const Color(0xFFFFDCC8),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
                       'Final',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFFE8541A),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1106,9 +1098,9 @@ class _OtpFlowCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: const Color(0xFFFFF7F2),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: const Color(0xFFFFDCC8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1130,7 +1122,7 @@ class _OtpFlowCard extends StatelessWidget {
                   child: Text(
                     step,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFFE8541A),
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                     ),
@@ -1145,7 +1137,7 @@ class _OtpFlowCard extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1F2937),
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1154,7 +1146,7 @@ class _OtpFlowCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
+                        color: Color(0xFF6B7280),
                         fontSize: 12,
                         height: 1.35,
                       ),
@@ -1170,27 +1162,23 @@ class _OtpFlowCard extends StatelessWidget {
             enabled: canEnterOtp,
             keyboardType: TextInputType.number,
             maxLength: 6,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Color(0xFF1F2937)),
             decoration: InputDecoration(
               counterText: '',
               hintText: canEnterOtp
                   ? 'Enter OTP to verify'
                   : 'OTP unlocks after the order is updated',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+              hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.08),
+              fillColor: Colors.white,
               errorText: errorText,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
+                borderSide: BorderSide(color: Color(0xFFE5E7EB)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
+                borderSide: BorderSide(color: Color(0xFFE5E7EB)),
               ),
               focusedBorder: const OutlineInputBorder(
                 borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -1205,7 +1193,7 @@ class _OtpFlowCard extends StatelessWidget {
             child: OutlinedButton(
               onPressed: canEnterOtp ? onVerify : null,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
+                foregroundColor: const Color(0xFFE8541A),
                 side: const BorderSide(color: Color(0xFFFFA142)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
