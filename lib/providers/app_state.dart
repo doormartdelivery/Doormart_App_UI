@@ -1941,7 +1941,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<OrderModel> updateOrderStatus(String orderId, String status) async {
+  Future<OrderModel> updateOrderStatus(
+    String orderId,
+    String status, {
+    String? completionReason,
+  }) async {
     if (token == null ||
         (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
       throw StateError('Admin login required');
@@ -1951,7 +1955,12 @@ class AppState extends ChangeNotifier {
         await apiService.patch(
               '/orders/$orderId/status',
               token: token,
-              body: {'status': status},
+              body: {
+                'status': status,
+                if (completionReason != null &&
+                    completionReason.trim().isNotEmpty)
+                  'completionReason': completionReason.trim(),
+              },
             )
             as Map<String, dynamic>;
 

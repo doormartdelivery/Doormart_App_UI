@@ -34,6 +34,7 @@ class OrderModel {
     this.acceptedAt,
     this.deliveredAt,
     this.deliveryOtp,
+    this.completionReason = '',
   });
 
   final String id;
@@ -56,6 +57,7 @@ class OrderModel {
   final DateTime? acceptedAt;
   final DateTime? deliveredAt;
   final String? deliveryOtp;
+  final String completionReason;
 
   String get displayOrderId {
     final source = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
@@ -171,6 +173,7 @@ class OrderModel {
       acceptedAt: _parseDateTime(json['acceptedAt']),
       deliveredAt: _parseDateTime(json['deliveredAt']),
       deliveryOtp: json['deliveryOtp']?.toString(),
+      completionReason: json['completionReason']?.toString() ?? '',
     );
   }
 }

@@ -126,6 +126,62 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     await context.read<AppState>().loadAdminOrders();
   }
 
+  Future<void> _completeOrderWithReason(OrderModel order) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Complete order'),
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            hintText: 'Why is this order being completed manually?',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.isEmpty) return;
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Complete order'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (!mounted || reason == null || reason.trim().isEmpty) return;
+
+    try {
+      await context.read<AppState>().updateOrderStatus(
+        order.id,
+        'delivered',
+        completionReason: reason,
+      );
+      await context.read<AppState>().loadAdminOrders();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order completed successfully')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to complete order: $error')),
+      );
+    }
+  }
+
   Future<void> _refreshOrders() async {
     final state = context.read<AppState>();
     await state.loadAdminOrders();
@@ -324,6 +380,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                             sortAscending: _sortAscending,
                             onSort: _sortBy,
                             onMove: _moveOrder,
+                            onComplete: isSuperAdmin
+                                ? _completeOrderWithReason
+                                : null,
                           ),
                         ),
                 ),
@@ -939,6 +998,7 @@ class _OrdersTable extends StatelessWidget {
     required this.sortAscending,
     required this.onSort,
     required this.onMove,
+    this.onComplete,
   });
 
   final List<OrderModel> orders;
@@ -948,6 +1008,7 @@ class _OrdersTable extends StatelessWidget {
   final bool sortAscending;
   final ValueChanged<int> onSort;
   final Future<void> Function(OrderModel order, String status) onMove;
+  final Future<void> Function(OrderModel order)? onComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -1266,9 +1327,11 @@ class _OrdersTable extends StatelessWidget {
                                 animationKey:
                                     '${order.id}-action-${action?.status ?? 'done'}',
                                 index: index,
-                                child: _OrderActionBadge(
-                                  label: action?.label ?? 'Done',
-                                  isDone: action == null,
+                                child: _OrderActionCell(
+                                  action: action,
+                                  onComplete: onComplete == null
+                                      ? null
+                                      : () => onComplete!(order),
                                 ),
                               ),
                             ),
@@ -1826,6 +1889,45 @@ class _DonePill extends StatelessWidget {
           style: TextStyle(color: _kOrange, fontWeight: FontWeight.w900),
         ),
       ),
+    );
+  }
+}
+
+class _OrderActionCell extends StatelessWidget {
+  const _OrderActionCell({required this.action, this.onComplete});
+
+  final _OrderAction? action;
+  final VoidCallback? onComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _OrderActionBadge(
+          label: action?.label ?? 'Done',
+          isDone: action == null,
+        ),
+        if (onComplete != null && action != null) ...[
+          const SizedBox(height: 5),
+          TextButton.icon(
+            onPressed: onComplete,
+            icon: const Icon(Icons.task_alt_rounded, size: 15),
+            label: const Text('Complete with reason'),
+            style: TextButton.styleFrom(
+              foregroundColor: _kOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
