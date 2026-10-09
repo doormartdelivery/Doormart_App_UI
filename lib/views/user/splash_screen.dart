@@ -20,9 +20,14 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late final VideoPlayerController _controller;
   late final Future<void> _videoInitFuture;
+  late final AnimationController _motionController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
   bool _navigated = false;
 
   @override
@@ -38,6 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _motionController.dispose();
     super.dispose();
   }
 
@@ -103,45 +109,139 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: ColoredBox(
-          color: Colors.white,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFFFFBF8), Color(0xFFFFF1EA)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: FutureBuilder<void>(
-                  future: _videoInitFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState != ConnectionState.done ||
-                        !_controller.value.isInitialized) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFE8541A),
+                child: AnimatedBuilder(
+                  animation: _motionController,
+                  builder: (context, child) {
+                    final value = Curves.easeInOut.transform(
+                      _motionController.value,
+                    );
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          top: 70 + (value * 16),
+                          right: -45,
+                          child: _GlowOrb(
+                            size: 180,
+                            color: const Color(0xFFFFB08D).withValues(
+                              alpha: 0.24,
+                            ),
+                          ),
                         ),
-                      );
-                    }
-
-                    if (_controller.value.hasError) {
-                      return Center(
-                        child: Image.asset(
-                          'assets/images/banners/grocery_bag.png',
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.contain,
+                        Positioned(
+                          bottom: 70 - (value * 12),
+                          left: -55,
+                          child: _GlowOrb(
+                            size: 210,
+                            color: const Color(0xFFFFD6C5).withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
                         ),
-                      );
-                    }
-
-                    return Center(
-                      child: SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: VideoPlayer(_controller),
+                        Transform.translate(
+                          offset: Offset(0, -5 + (value * 10)),
+                          child: child,
                         ),
-                      ),
+                      ],
                     );
                   },
+                  child: FutureBuilder<void>(
+                    future: _videoInitFuture,
+                    builder: (context, snapshot) {
+                      final ready =
+                          snapshot.connectionState == ConnectionState.done &&
+                          _controller.value.isInitialized &&
+                          !_controller.value.hasError;
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 158,
+                            height: 158,
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.90),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFFFD8C8),
+                                width: 2,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x22E8541A),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: ready
+                                  ? VideoPlayer(_controller)
+                                  : Image.asset(
+                                      'assets/images/doormartLogo.jpeg',
+                                      fit: BoxFit.cover,
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'DoorMart',
+                            style: TextStyle(
+                              color: Color(0xFF1F2937),
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'DELIVERY',
+                            style: TextStyle(
+                              color: Color(0xFFE8541A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 4.2,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Color(0xFFE8541A),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Preparing your delivery',
+                                style: TextStyle(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
               Padding(
@@ -169,6 +269,30 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
+          boxShadow: [
+            BoxShadow(color: color, blurRadius: 40, spreadRadius: 12),
+          ],
         ),
       ),
     );
