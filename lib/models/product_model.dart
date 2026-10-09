@@ -80,6 +80,8 @@ class ProductModel {
     this.supplierName = '',
     this.supplierCity = '',
     this.supplierLogo = '',
+    this.supplierLatitude,
+    this.supplierLongitude,
     this.description = '',
     this.dashboardSection = 'daily_essentials',
     this.rating = 0,
@@ -104,6 +106,8 @@ class ProductModel {
   final String supplierName;
   final String supplierCity;
   final String supplierLogo;
+  final double? supplierLatitude;
+  final double? supplierLongitude;
   final String description;
   final String dashboardSection;
   final double rating;
@@ -134,6 +138,8 @@ class ProductModel {
       supplierName: json['supplierName'] as String? ?? '',
       supplierCity: json['supplierCity'] as String? ?? '',
       supplierLogo: NetworkImageUrl.normalize(json['supplierLogo'] as String?),
+      supplierLatitude: _asDouble(json['supplierLatitude']),
+      supplierLongitude: _asDouble(json['supplierLongitude']),
       description: json['description'] as String? ?? '',
       dashboardSection:
           json['dashboardSection'] as String? ?? 'daily_essentials',
@@ -164,6 +170,8 @@ class ProductModel {
     'supplierName': supplierName,
     'supplierCity': supplierCity,
     'supplierLogo': supplierLogo,
+    'supplierLatitude': supplierLatitude,
+    'supplierLongitude': supplierLongitude,
     'description': description,
     'dashboardSection': dashboardSection,
     'rating': rating,
@@ -225,5 +233,11 @@ DateTime? _parseDateTime(dynamic value) {
   if (value is String && value.trim().isNotEmpty) {
     return DateTime.tryParse(value);
   }
+  return null;
+}
+
+double? _asDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim());
   return null;
 }

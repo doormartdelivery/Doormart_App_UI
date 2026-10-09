@@ -30,19 +30,8 @@ class _StockScreenState extends State<StockScreen>
   late Future<Map<String, dynamic>> _dashboardFuture;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _deliveryChargeController =
-      TextEditingController();
-  final TextEditingController _deliveryBaseDistanceController =
-      TextEditingController();
-  final TextEditingController _deliveryBaseChargeController =
-      TextEditingController();
-  final TextEditingController _deliveryPerKmController =
-      TextEditingController();
-  final TextEditingController _gstController = TextEditingController();
-  bool _distanceBasedDelivery = false;
   String _filter = 'All';
   int _lastRefreshTick = 0;
-  bool _settingsLoaded = false;
 
   @override
   void initState() {
@@ -58,11 +47,6 @@ class _StockScreenState extends State<StockScreen>
   void dispose() {
     _controller.dispose();
     _searchController.dispose();
-    _deliveryChargeController.dispose();
-    _deliveryBaseDistanceController.dispose();
-    _deliveryBaseChargeController.dispose();
-    _deliveryPerKmController.dispose();
-    _gstController.dispose();
     super.dispose();
   }
 
@@ -87,80 +71,10 @@ class _StockScreenState extends State<StockScreen>
         ..reset()
         ..forward();
     }
-    if (!_settingsLoaded) {
-      _settingsLoaded = true;
-      final state = context.read<AppState>();
-      _deliveryChargeController.text = state.deliveryChargeAmount
-          .toStringAsFixed(0);
-      _distanceBasedDelivery = state.distanceBasedDelivery;
-      _deliveryBaseDistanceController.text = state.deliveryBaseDistanceKm
-          .toStringAsFixed(0);
-      _deliveryBaseChargeController.text = state.deliveryBaseCharge
-          .toStringAsFixed(0);
-      _deliveryPerKmController.text = state.deliveryPerKmCharge.toStringAsFixed(
-        0,
-      );
-      _gstController.text = state.gstPercent.toStringAsFixed(0);
-    }
-  }
-
-  Future<void> _saveCheckoutSettings() async {
-    final state = context.read<AppState>();
-    final deliveryCharge = double.tryParse(
-      _deliveryChargeController.text.trim(),
-    );
-    final baseDistance = double.tryParse(
-      _deliveryBaseDistanceController.text.trim(),
-    );
-    final baseCharge = double.tryParse(
-      _deliveryBaseChargeController.text.trim(),
-    );
-    final perKm = double.tryParse(_deliveryPerKmController.text.trim());
-    final gst = double.tryParse(_gstController.text.trim());
-    if (deliveryCharge == null ||
-        deliveryCharge < 0 ||
-        baseDistance == null ||
-        baseDistance < 0 ||
-        baseCharge == null ||
-        baseCharge < 0 ||
-        perKm == null ||
-        perKm < 0 ||
-        gst == null ||
-        gst < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter valid delivery pricing and GST values'),
-        ),
-      );
-      return;
-    }
-    try {
-      await state.saveCheckoutSettings(
-        deliveryChargeAmount: deliveryCharge,
-        gstPercent: gst,
-        distanceBasedDelivery: _distanceBasedDelivery,
-        deliveryBaseDistanceKm: baseDistance,
-        deliveryBaseCharge: baseCharge,
-        deliveryPerKmCharge: perKm,
-      );
-      if (!mounted) return;
-      setState(() {});
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Checkout settings saved')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin =
-        context.read<AppState>().user?.role == UserRoles.admin ||
-        context.read<AppState>().user?.role == UserRoles.superAdmin;
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: const Color(0xFFF6F6F6),
@@ -255,34 +169,6 @@ class _StockScreenState extends State<StockScreen>
                     _AnimatedIn(
                       animation: _controller,
                       index: 2,
-                      child: isAdmin
-                          ? _CheckoutConfigCard(
-                              deliveryChargeController:
-                                  _deliveryChargeController,
-                              gstController: _gstController,
-                              baseDistanceController:
-                                  _deliveryBaseDistanceController,
-                              baseChargeController:
-                                  _deliveryBaseChargeController,
-                              perKmController: _deliveryPerKmController,
-                              currentDeliveryCharge: context
-                                  .read<AppState>()
-                                  .deliveryChargeAmount,
-                              currentGstPercent: context
-                                  .read<AppState>()
-                                  .gstPercent,
-                              distanceBasedDelivery: _distanceBasedDelivery,
-                              onDistanceModeChanged: (value) => setState(
-                                () => _distanceBasedDelivery = value,
-                              ),
-                              onSave: _saveCheckoutSettings,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    const SizedBox(height: 16),
-                    _AnimatedIn(
-                      animation: _controller,
-                      index: 3,
                       child: _CriticalAlertsPanel(items: lowStockItems),
                     ),
                     const SizedBox(height: 16),
@@ -479,147 +365,6 @@ class _StockMetrics extends StatelessWidget {
           itemBuilder: (context, index) => cards[index],
         );
       },
-    );
-  }
-}
-
-class _CheckoutConfigCard extends StatelessWidget {
-  const _CheckoutConfigCard({
-    required this.deliveryChargeController,
-    required this.gstController,
-    required this.currentDeliveryCharge,
-    required this.currentGstPercent,
-    required this.baseDistanceController,
-    required this.baseChargeController,
-    required this.perKmController,
-    required this.distanceBasedDelivery,
-    required this.onDistanceModeChanged,
-    required this.onSave,
-  });
-
-  final TextEditingController deliveryChargeController;
-  final TextEditingController gstController;
-  final double currentDeliveryCharge;
-  final double currentGstPercent;
-  final TextEditingController baseDistanceController;
-  final TextEditingController baseChargeController;
-  final TextEditingController perKmController;
-  final bool distanceBasedDelivery;
-  final ValueChanged<bool> onDistanceModeChanged;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF1E3D8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Checkout charges',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Choose a fixed delivery fee or calculate it from pickup-to-customer distance. Checkout uses these values automatically.',
-            style: TextStyle(color: const Color(0xFF64748B)),
-          ),
-          const SizedBox(height: 14),
-          SwitchListTile.adaptive(
-            value: distanceBasedDelivery,
-            onChanged: onDistanceModeChanged,
-            contentPadding: EdgeInsets.zero,
-            activeColor: const Color(0xFFE8541A),
-            title: const Text(
-              'Calculate delivery fee by distance',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            subtitle: const Text(
-              'Example: base charge for first few km, then extra per km.',
-            ),
-          ),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = constraints.maxWidth > 720
-                  ? (constraints.maxWidth - 36) / 4
-                  : constraints.maxWidth > 460
-                  ? (constraints.maxWidth - 12) / 2
-                  : constraints.maxWidth;
-              Widget field(
-                TextEditingController controller,
-                String label, {
-                String? prefix,
-                String? suffix,
-              }) {
-                return SizedBox(
-                  width: itemWidth,
-                  child: TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: label,
-                      prefixText: prefix,
-                      suffixText: suffix,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                );
-              }
-
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  field(
-                    deliveryChargeController,
-                    'Fixed fallback fee',
-                    prefix: 'Rs ',
-                  ),
-                  field(baseDistanceController, 'Base distance', suffix: 'km'),
-                  field(baseChargeController, 'Base charge', prefix: 'Rs '),
-                  field(perKmController, 'Extra per km', prefix: 'Rs '),
-                  field(gstController, 'GST', suffix: '%'),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              Text(
-                'Current delivery fee: Rs ${currentDeliveryCharge.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              Text(
-                'Current GST: ${currentGstPercent.toStringAsFixed(0)}%',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              Text(
-                distanceBasedDelivery
-                    ? 'Mode: Distance based'
-                    : 'Mode: Fixed fee',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: onSave,
-              child: const Text('Save charges'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

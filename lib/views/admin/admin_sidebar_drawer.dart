@@ -14,6 +14,7 @@ import 'manage_delivery_screen.dart';
 import 'manage_products_screen.dart';
 import 'manage_users_screen.dart';
 import 'stock_screen.dart';
+import '../super_admin/delivery_charges_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
 import '../super_admin/revenue_analytics_screen.dart';
 import '../vendor/vendor_profile_screen.dart';
@@ -37,8 +38,11 @@ class AdminSidebarDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Watch the role so the menu rebuilds after the session/user profile has
+    // finished loading. Using read here could leave Super Admin-only items
+    // hidden until the drawer was opened again.
     final isSuperAdmin =
-        context.read<AppState>().user?.role == UserRoles.superAdmin;
+        context.watch<AppState>().user?.role == UserRoles.superAdmin;
     final menuTitle = isSuperAdmin ? 'Super Admin menu' : 'Vendor menu';
     final menuSubtitle = isSuperAdmin
         ? 'Navigate the super admin control center'
@@ -124,6 +128,13 @@ class AdminSidebarDrawer extends StatelessWidget {
           Icons.delivery_dining,
           ManageDeliveryScreen.routeName,
           const Color(0xFFDB2777),
+        ),
+      if (isSuperAdmin)
+        (
+          'Delivery charges',
+          Icons.local_shipping_outlined,
+          DeliveryChargesScreen.routeName,
+          const Color(0xFFE8541A),
         ),
       (
         'Stock alerts',

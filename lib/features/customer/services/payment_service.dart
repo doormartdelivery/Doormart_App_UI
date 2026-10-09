@@ -17,6 +17,8 @@ class PaymentService {
     List<Map<String, dynamic>>? products,
     double? deliveryFee,
     double? gstPercent,
+    bool? useProductTax,
+    double? distanceKm,
     Map<String, dynamic>? deliveryAddress,
   }) async {
     final body = <String, dynamic>{
@@ -31,6 +33,8 @@ class PaymentService {
     if (products != null) body['products'] = products;
     if (deliveryFee != null) body['deliveryFee'] = deliveryFee;
     if (gstPercent != null) body['gstPercent'] = gstPercent;
+    if (useProductTax != null) body['useProductTax'] = useProductTax;
+    if (distanceKm != null) body['distanceKm'] = distanceKm;
     if (deliveryAddress != null) body['address'] = deliveryAddress;
 
     return await api.post(

@@ -38,9 +38,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _initialLoadDone = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await context.read<AppState>().loadAddresses();
-      if (!mounted) return;
       final state = context.read<AppState>();
+      await state.loadCheckoutSettings();
+      if (!mounted) return;
+      await state.loadAddresses();
+      if (!mounted) return;
       _selectedAddressId = state.selectedAddress?.id;
       _summaryFuture = state.loadCheckoutSummary(
         address: state.selectedAddress,
@@ -259,21 +261,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             final subtotal =
                                 (summary?['subtotal'] as num?)?.toDouble() ??
                                 state.subtotal;
-                            final deliveryFee =
+                            final calculatedDeliveryFee =
+                                (summary?['calculatedDeliveryFee'] as num?)?.toDouble() ??
                                 (summary?['deliveryFee'] as num?)?.toDouble() ??
-                                state.deliveryFee;
+                                state.calculatedDeliveryFee;
                             final gstAmount =
                                 (summary?['gstAmount'] as num?)?.toDouble() ??
                                 state.gstAmount;
+                            final freeDeliveryUnlocked =
+                                (summary?['isFreeDelivery'] as bool?) == true ||
+                                state.isFreeDelivery ||
+                                calculatedDeliveryFee <= 0 ||
+                                (state.freeDeliveryEnabled &&
+                                    (state.freeDeliveryThreshold <= 0 ||
+                                        subtotal >= state.freeDeliveryThreshold));
+
+                            final effectiveDeliveryFee =
+                                freeDeliveryUnlocked ? 0.0 : calculatedDeliveryFee;
                             final total =
-                                (summary?['total'] as num?)?.toDouble() ??
-                                state.total;
+                                subtotal + effectiveDeliveryFee + gstAmount;
                             return _SummaryCard(
                               items: state.cart,
                               subtotal: subtotal,
-                              deliveryFee: deliveryFee,
+                              deliveryFee: effectiveDeliveryFee,
                               gstAmount: gstAmount,
                               total: total,
+                              freeDeliveryUnlocked: freeDeliveryUnlocked,
                               loading:
                                   snapshot.connectionState ==
                                       ConnectionState.waiting &&
@@ -603,6 +616,7 @@ class _SummaryCard extends StatelessWidget {
     required this.deliveryFee,
     required this.gstAmount,
     required this.total,
+    this.freeDeliveryUnlocked,
     this.loading = false,
   });
 
@@ -611,10 +625,21 @@ class _SummaryCard extends StatelessWidget {
   final double deliveryFee;
   final double gstAmount;
   final double total;
+  final bool? freeDeliveryUnlocked;
   final bool loading;
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final isFree = freeDeliveryUnlocked ??
+        (deliveryFee <= 0 ||
+            appState.isFreeDelivery ||
+            (appState.freeDeliveryEnabled &&
+                (appState.freeDeliveryThreshold <= 0 ||
+                    subtotal >= appState.freeDeliveryThreshold)));
+    final effectiveDeliveryFee = isFree ? 0.0 : deliveryFee;
+    final effectiveTotal = subtotal + effectiveDeliveryFee + gstAmount;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -687,14 +712,68 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           _SummaryRow(label: 'Subtotal', value: subtotal),
           const SizedBox(height: 10),
-          _SummaryRow(label: 'Delivery fee', value: deliveryFee),
+          _SummaryRow(
+            label: 'Delivery fee',
+            value: effectiveDeliveryFee,
+            valueText: effectiveDeliveryFee <= 0 ? 'Rs 0.00' : null,
+            valueColor: effectiveDeliveryFee <= 0 ? const Color(0xFF16A34A) : null,
+          ),
           const SizedBox(height: 10),
           _SummaryRow(label: 'GST', value: gstAmount),
+          if (appState.freeDeliveryEnabled)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isFree
+                      ? const Color(0xFFF0FDF4)
+                      : const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isFree
+                        ? const Color(0xFFBBF7D0)
+                        : const Color(0xFFFED7AA),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isFree
+                          ? Icons.check_circle_rounded
+                          : Icons.local_shipping_outlined,
+                      size: 15,
+                      color: isFree
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFEA580C),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        isFree
+                            ? 'FREE delivery applied!'
+                            : ((appState.freeDeliveryThreshold - subtotal) > 0
+                                ? 'Add Rs ${(appState.freeDeliveryThreshold - subtotal).toStringAsFixed(0)} more to get FREE delivery'
+                                : 'FREE delivery applied!'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isFree
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFF9A3412),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1, color: Colors.grey.shade100),
           ),
-          _SummaryRow(label: 'Total', value: total, bold: true),
+          _SummaryRow(label: 'Total', value: effectiveTotal, bold: true),
         ],
       ),
     );
@@ -706,14 +785,20 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.bold = false,
+    this.valueText,
+    this.valueColor,
   });
 
   final String label;
   final double value;
   final bool bold;
+  final String? valueText;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
+    final displayText = valueText ?? 'Rs ${value.toStringAsFixed(2)}';
+    final textColor = valueColor ?? (bold ? _kOrange : _kTextDark);
     return Row(
       children: [
         Text(
@@ -726,10 +811,10 @@ class _SummaryRow extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          'Rs ${value.toStringAsFixed(2)}',
+          displayText,
           style: TextStyle(
             fontSize: bold ? 17 : 13,
-            color: bold ? _kOrange : _kTextDark,
+            color: textColor,
             fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
           ),
         ),

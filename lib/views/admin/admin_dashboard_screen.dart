@@ -17,6 +17,7 @@ import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 import '../super_admin/super_admin_vendors_screen.dart';
 import '../super_admin/revenue_analytics_screen.dart';
+import '../super_admin/delivery_charges_screen.dart';
 import '../vendor/vendor_profile_screen.dart';
 
 const _kOrange = Color(0xFFE8541A);
@@ -129,7 +130,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   List<_AdminSection> _destinations(BuildContext context) {
     final isSuperAdmin =
-        context.read<AppState>().user?.role == UserRoles.superAdmin;
+        context.watch<AppState>().user?.role == UserRoles.superAdmin;
 
     return [
       _AdminSection(
@@ -225,6 +226,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           accent: const Color(0xFFDB2777),
           builder: (_) => const ManageDeliveryScreen(),
         ),
+      if (isSuperAdmin)
+        _AdminSection(
+          title: 'Delivery charges',
+          subtitle: 'Fixed, distance and shift pricing',
+          icon: Icons.local_shipping_outlined,
+          accent: const Color(0xFFE8541A),
+          builder: (_) => const DeliveryChargesScreen(),
+        ),
       _AdminSection(
         title: 'Stock alerts',
         subtitle: 'Low inventory',
@@ -277,7 +286,10 @@ class _AdminDrawer extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Vendor menu',
+                            context.watch<AppState>().user?.role ==
+                                    UserRoles.superAdmin
+                                ? 'Super Admin menu'
+                                : 'Vendor menu',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w900,

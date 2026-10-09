@@ -879,6 +879,7 @@ class _ProductsTable extends StatelessWidget {
                     numeric: true,
                     onSort: (_, __) => onSort(showVendorColumn ? 5 : 4),
                   ),
+                  const DataColumn(label: Text('GST / Total')),
                   const DataColumn(label: Text('Unit')),
                   const DataColumn(label: Text('Actions')),
                 ],
@@ -913,6 +914,15 @@ class _ProductsTable extends StatelessWidget {
                           style: const TextStyle(
                             color: Color(0xFF0F766E),
                             fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          '${p.tax.toStringAsFixed(0)}% / Rs ${(p.price * (1 + p.tax / 100)).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFFE8541A),
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
