@@ -14,6 +14,7 @@ import '../../providers/app_state.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/product_price_breakdown.dart';
 import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../features/operations/services/location_service.dart';
@@ -2180,15 +2181,10 @@ class _BuyAgainProductCard extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                '₹${product.price.toStringAsFixed(0)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: _kTextDark,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
+                              child: ProductPriceBreakdown(
+                                product: product,
+                                compact: true,
+                                showBreakdown: false,
                               ),
                             ),
                             _BuyAgainAddButton(product: product),
@@ -2695,13 +2691,10 @@ class _HomeFeedCard extends StatelessWidget {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Text(
-                              '₹ ${product.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                color: _kTextDark,
-                              ),
+                            ProductPriceBreakdown(
+                              product: product,
+                              compact: true,
+                              showBreakdown: false,
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -3888,13 +3881,10 @@ class _PopularStyleProductCard extends StatelessWidget {
                             child: FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
-                              child: Text(
-                                '₹ ${product.price.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontSize: compact ? 14 : 15,
-                                  fontWeight: FontWeight.w900,
-                                  color: _kTextDark,
-                                ),
+                              child: ProductPriceBreakdown(
+                                product: product,
+                                compact: true,
+                                showBreakdown: false,
                               ),
                             ),
                           ),

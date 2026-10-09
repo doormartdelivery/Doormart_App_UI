@@ -183,6 +183,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ProductPriceBreakdown(
                   product: product,
                   basePrice: selectedPrice,
+                  showBreakdown: false,
                 ),
                 const SizedBox(width: 8),
                 Text(

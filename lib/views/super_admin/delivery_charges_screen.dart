@@ -32,7 +32,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
   late final TextEditingController _baseDistanceController;
   late final TextEditingController _baseChargeController;
   late final TextEditingController _perKmController;
-  late final TextEditingController _gstController;
   bool _distanceBasedDelivery = false;
 
   // Free Delivery
@@ -57,7 +56,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     _baseDistanceController = TextEditingController();
     _baseChargeController = TextEditingController();
     _perKmController = TextEditingController();
-    _gstController = TextEditingController();
 
     _freeDeliveryThresholdController = TextEditingController();
 
@@ -75,7 +73,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     _baseDistanceController.dispose();
     _baseChargeController.dispose();
     _perKmController.dispose();
-    _gstController.dispose();
     _freeDeliveryThresholdController.dispose();
     _dayChargeController.dispose();
     _nightChargeController.dispose();
@@ -104,7 +101,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
         state.deliveryBaseDistanceKm.toStringAsFixed(0);
     _baseChargeController.text = state.deliveryBaseCharge.toStringAsFixed(0);
     _perKmController.text = state.deliveryPerKmCharge.toStringAsFixed(0);
-    _gstController.text = state.gstPercent.toStringAsFixed(0);
 
     _freeDeliveryEnabled = state.freeDeliveryEnabled;
     _freeDeliveryThresholdController.text =
@@ -128,7 +124,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     final baseDist = _cleanDouble(_baseDistanceController.text, fallback: -1);
     final baseCharge = _cleanDouble(_baseChargeController.text, fallback: -1);
     final perKm = _cleanDouble(_perKmController.text, fallback: -1);
-    final gst = _cleanDouble(_gstController.text, fallback: -1);
     final freeThreshold = _cleanDouble(_freeDeliveryThresholdController.text, fallback: 0);
     final dayCharge = _cleanDouble(_dayChargeController.text, fallback: -1);
     final nightCharge = _cleanDouble(_nightChargeController.text, fallback: -1);
@@ -151,10 +146,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     }
     if (perKm < 0) {
       _showToast('Enter a valid non-negative per-km charge');
-      return;
-    }
-    if (gst < 0 || gst > 100) {
-      _showToast('Enter a valid GST percentage (0 - 100)');
       return;
     }
     if (freeThreshold < 0) {
@@ -183,7 +174,8 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
       final state = context.read<AppState>();
       await state.saveCheckoutSettings(
         deliveryChargeAmount: fallbackFee,
-        gstPercent: gst,
+        // GST is configured per product, not in delivery-charge settings.
+        gstPercent: state.gstPercent,
         distanceBasedDelivery: _distanceBasedDelivery,
         deliveryBaseDistanceKm: baseDist,
         deliveryBaseCharge: baseCharge,
@@ -361,7 +353,7 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     return _SectionCard(
       title: '2. Distance-based Charges',
       subtitle:
-          'Configure base rates, per-kilometer pricing, delivery radius, and GST percentage.',
+          'Configure base rates and per-kilometer pricing for delivery.',
       icon: Icons.social_distance_rounded,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -420,7 +412,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
               field(_baseDistanceController, 'Base distance', suffix: 'km'),
               field(_baseChargeController, 'Base charge', prefix: 'Rs '),
               field(_perKmController, 'Extra per km', prefix: 'Rs '),
-              field(_gstController, 'GST', suffix: '%'),
             ],
           );
         },
@@ -650,7 +641,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
     final liveBaseDist = _cleanDouble(_baseDistanceController.text, fallback: state.deliveryBaseDistanceKm);
     final liveBaseCharge = _cleanDouble(_baseChargeController.text, fallback: state.deliveryBaseCharge);
     final livePerKm = _cleanDouble(_perKmController.text, fallback: state.deliveryPerKmCharge);
-    final liveGst = _cleanDouble(_gstController.text, fallback: state.gstPercent);
     final liveStart = _dayShiftStartController.text.trim().isEmpty ? state.dayShiftStart : _dayShiftStartController.text.trim();
     final liveEnd = _dayShiftEndController.text.trim().isEmpty ? state.dayShiftEnd : _dayShiftEndController.text.trim();
 
@@ -695,10 +685,6 @@ class _DeliveryChargesScreenState extends State<DeliveryChargesScreen> {
           _ConfigRow(
             label: 'Extra Per Km',
             value: 'Rs ${livePerKm.toStringAsFixed(0)} / km',
-          ),
-          _ConfigRow(
-            label: 'Current GST',
-            value: '${liveGst.toStringAsFixed(0)}%',
           ),
         ],
       ),

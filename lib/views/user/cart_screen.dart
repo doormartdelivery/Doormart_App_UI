@@ -452,6 +452,7 @@ class _CartItemCard extends StatelessWidget {
                             product: line.product,
                             basePrice: line.unitPrice,
                             compact: true,
+                            showBreakdown: false,
                           ),
                         ),
                         const SizedBox(width: 8),

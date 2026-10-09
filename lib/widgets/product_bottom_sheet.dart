@@ -277,6 +277,7 @@ class _ProductSheetState extends State<_ProductSheet>
                             ProductPriceBreakdown(
                               product: product,
                               basePrice: selectedPrice,
+                              showBreakdown: false,
                             ),
                             Text(
                               'Rs ${selectedMrp.toStringAsFixed(0)}',

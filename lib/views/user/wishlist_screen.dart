@@ -7,6 +7,7 @@ import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../providers/app_state.dart';
 import '../../widgets/product_bottom_sheet.dart';
+import '../../widgets/product_price_breakdown.dart';
 import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -545,13 +546,9 @@ class _FavoriteCard extends StatelessWidget {
                         const SizedBox(height: 14),
                         Row(
                           children: [
-                            Text(
-                              'Rs ${product.price.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF111827),
-                              ),
+                            ProductPriceBreakdown(
+                              product: product,
+                              showBreakdown: false,
                             ),
                             const Spacer(),
                             DecoratedBox(
