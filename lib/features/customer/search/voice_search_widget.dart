@@ -32,7 +32,8 @@ class VoiceSearchWidget extends StatefulWidget {
   State<VoiceSearchWidget> createState() => _VoiceSearchWidgetState();
 }
 
-class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
+class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _controller =
       widget.controller ?? TextEditingController();
   Timer? _debounce;
@@ -40,6 +41,10 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
   bool _disposed = false;
   bool _isListening = false;
   bool _hasText = false;
+  late final AnimationController _listeningController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
 
   @override
   void initState() {
@@ -52,11 +57,23 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
   void dispose() {
     _disposed = true;
     _debounce?.cancel();
+    _listeningController.dispose();
     _controller.removeListener(_syncTextState);
     if (widget.controller == null) {
       _controller.dispose();
     }
     super.dispose();
+  }
+
+  void _setListening(bool value) {
+    if (!mounted) return;
+    setState(() => _isListening = value);
+    if (value) {
+      _listeningController.repeat();
+    } else {
+      _listeningController.stop();
+      _listeningController.reset();
+    }
   }
 
   void _syncTextState() {
@@ -76,7 +93,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
   Future<void> _toggleVoiceSearch() async {
     if (_isListening) {
       await _speech.stop();
-      if (mounted) setState(() => _isListening = false);
+      _setListening(false);
       return;
     }
 
@@ -94,12 +111,12 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
     final available = await _speech.initialize(
       onStatus: (status) {
         if (mounted && (status == 'done' || status == 'notListening')) {
-          setState(() => _isListening = false);
+          _setListening(false);
         }
       },
       onError: (error) {
         if (mounted) {
-          setState(() => _isListening = false);
+          _setListening(false);
           showToast(context, 'Voice search could not start: ${error.errorMsg}');
         }
       },
@@ -111,7 +128,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
       return;
     }
 
-    setState(() => _isListening = true);
+    _setListening(true);
     if (mounted) {
       showToast(context, 'Listening… say a product name');
     }
@@ -170,13 +187,45 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget> {
               ),
             ),
           ),
-          IconButton(
-            tooltip: _isListening ? 'Stop voice search' : 'Search by voice',
-            onPressed: _toggleVoiceSearch,
-            icon: Icon(
-              _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-              color: const Color(0xFFE8541A),
-            ),
+          AnimatedBuilder(
+            animation: _listeningController,
+            builder: (context, child) {
+              final pulse = _isListening
+                  ? 0.5 + (_listeningController.value * 0.5)
+                  : 0.0;
+              return SizedBox(
+                width: 48,
+                height: 48,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (_isListening)
+                      Container(
+                        width: 34 + pulse * 10,
+                        height: 34 + pulse * 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFE8541A).withValues(
+                            alpha: 0.10 + (0.10 * (1 - pulse)),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      tooltip: _isListening
+                          ? 'Stop voice search'
+                          : 'Search by voice',
+                      onPressed: _toggleVoiceSearch,
+                      icon: Icon(
+                        _isListening
+                            ? Icons.mic_rounded
+                            : Icons.mic_none_rounded,
+                        color: const Color(0xFFE8541A),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           if (_hasText)
             IconButton(

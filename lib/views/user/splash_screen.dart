@@ -102,40 +102,73 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: ColoredBox(
-        color: Colors.white,
-        child: FutureBuilder<void>(
-          future: _videoInitFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done ||
-                !_controller.value.isInitialized) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFFE8541A)),
-              );
-            }
+      body: SafeArea(
+        child: ColoredBox(
+          color: Colors.white,
+          child: Column(
+            children: [
+              Expanded(
+                child: FutureBuilder<void>(
+                  future: _videoInitFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done ||
+                        !_controller.value.isInitialized) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFE8541A),
+                        ),
+                      );
+                    }
 
-            if (_controller.value.hasError) {
-              return Center(
-                child: Image.asset(
-                  'assets/images/banners/grocery_bag.png',
-                  width: 96,
-                  height: 96,
-                  fit: BoxFit.contain,
-                ),
-              );
-            }
+                    if (_controller.value.hasError) {
+                      return Center(
+                        child: Image.asset(
+                          'assets/images/banners/grocery_bag.png',
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.contain,
+                        ),
+                      );
+                    }
 
-            return Center(
-              child: SizedBox(
-                width: 120,
-                height: 120,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: VideoPlayer(_controller),
+                    return Center(
+                      child: SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: VideoPlayer(_controller),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            );
-          },
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Powered by',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Image.asset(
+                      'assets/images/least_action_company.png',
+                      height: 58,
+                      fit: BoxFit.contain,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
