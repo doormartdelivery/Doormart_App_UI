@@ -1942,16 +1942,19 @@ class _ProductDialogState extends State<_ProductDialog> {
                           final vendors =
                               snapshot.data ?? const <VendorModel>[];
                           final selected =
-                              vendors.any(
-                                (vendor) =>
-                                    vendor.vendorId == _selectedVendorId,
-                              )
+                              _selectedVendorId == 'main' ||
+                                  vendors.any(
+                                    (vendor) =>
+                                        vendor.vendorId == _selectedVendorId,
+                                  )
                               ? _selectedVendorId
                               : null;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: DropdownButtonFormField<String>(
                               value: selected,
+                              isExpanded: true,
+                              menuMaxHeight: 320,
                               decoration: InputDecoration(
                                 labelText: 'Vendor *',
                                 prefixIcon: const Icon(
@@ -1963,17 +1966,26 @@ class _ProductDialogState extends State<_ProductDialog> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
-                              items: vendors
-                                  .map(
-                                    (vendor) => DropdownMenuItem<String>(
-                                      value: vendor.vendorId,
-                                      child: Text(
-                                        '${vendor.name} (${vendor.vendorId})',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                              items: [
+                                const DropdownMenuItem<String>(
+                                  value: 'main',
+                                  child: Text(
+                                    'DoorMart (Global)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                ...vendors.map(
+                                  (vendor) => DropdownMenuItem<String>(
+                                    value: vendor.vendorId,
+                                    child: Text(
+                                      '${vendor.name} (${vendor.vendorId})',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  )
-                                  .toList(),
+                                  ),
+                                ),
+                              ],
                               onChanged:
                                   snapshot.connectionState ==
                                       ConnectionState.waiting

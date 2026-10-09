@@ -165,6 +165,7 @@ class AppState extends ChangeNotifier {
   bool isProductNearUser(ProductModel product) {
     final vendorId = product.vendorId.trim();
     if (vendorId.isEmpty) return false;
+    if (vendorId == 'main') return true;
     return nearbyVendorIds.contains(vendorId);
   }
 
