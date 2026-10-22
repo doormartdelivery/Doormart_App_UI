@@ -103,12 +103,18 @@ class _DeliveryInitialPaymentScreenState
   }
 
   static CFEnvironment _parseEnvironment(String? env) {
-    if (env == null || env.isEmpty) return CFEnvironment.SANDBOX;
+    if (env == null || env.isEmpty) {
+      throw StateError(
+        'Cashfree production environment was not returned by the server.',
+      );
+    }
     final clean = env.trim().toUpperCase();
     if (clean == 'PROD' || clean == 'PRODUCTION') {
       return CFEnvironment.PRODUCTION;
     }
-    return CFEnvironment.SANDBOX;
+    throw StateError(
+      'Delivery partner payments are available only in Cashfree production mode.',
+    );
   }
 
   Future<void> _handleProceedToPay() async {
@@ -138,7 +144,7 @@ class _DeliveryInitialPaymentScreenState
         if (paymentSessionId.isNotEmpty) {
           final webResult = await launchCashfreeWebCheckout(
             paymentSessionId: paymentSessionId,
-            environment: envString ?? 'sandbox',
+            environment: envString ?? 'production',
           );
           if (mounted) {
             setState(() {
