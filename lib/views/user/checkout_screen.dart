@@ -69,6 +69,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  void _selectAddress(AppState state, AddressModel address) {
+    state.selectedAddress = address;
+    state.checkoutSummary = null;
+    final summaryFuture = state.loadCheckoutSummary(address: address);
+    setState(() {
+      _selectedAddressId = address.id;
+      _summaryFuture = summaryFuture;
+    });
+  }
+
   // ── COD order ─────────────────────────────────────────────────────────────
   Future<void> _placeCodOrder(
     AppState state,
@@ -179,11 +189,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               if (result == true && mounted) {
                                 await appState.loadAddresses();
                                 if (!mounted) return;
-                                setState(() {
-                                  _selectedAddressId =
-                                      state.selectedAddress?.id;
-                                });
-                                state.checkoutSummary = null;
+                                final address = state.selectedAddress;
+                                if (address != null) {
+                                  _selectAddress(state, address);
+                                }
                               }
                             },
                             icon: const Icon(Icons.add_rounded),
@@ -239,14 +248,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 return _AddressCard(
                                   data: addr,
                                   selected: sel,
-                                  onTap: () => setState(() {
-                                    _selectedAddressId = addr.id;
-                                    state.selectedAddress = addr;
-                                    state.checkoutSummary = null;
-                                    _summaryFuture = state.loadCheckoutSummary(
-                                      address: addr,
-                                    );
-                                  }),
+                                  onTap: () => _selectAddress(state, addr),
                                 );
                               },
                             ),
@@ -264,8 +266,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 address: selectedAddress,
                               ),
                           builder: (context, snapshot) {
-                            final summary =
-                                snapshot.data ?? state.checkoutSummary;
+                            // Do not fall back to AppState's last response:
+                            // it may belong to the previous address while the
+                            // newly selected address is still loading.
+                            final summary = snapshot.data;
                             final subtotal =
                                 (summary?['subtotal'] as num?)?.toDouble() ??
                                 state.subtotal;
@@ -295,7 +299,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     final feeValue = serverEntry.value is Map
                                         ? (serverEntry.value['fee'] as num?)
                                               ?.toDouble()
-                                        : (serverEntry.value as num?)?.toDouble();
+                                        : (serverEntry.value as num?)
+                                              ?.toDouble();
                                     final distanceValue =
                                         (serverVendorDistances?[serverEntry.key]
                                                 as num?)
@@ -353,8 +358,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               total: total,
                               distanceKm: deliveryDistance,
                               chargePerKm:
-                                  serverRatePerKm != null &&
-                                      serverRatePerKm > 0
+                                  serverRatePerKm != null && serverRatePerKm > 0
                                   ? serverRatePerKm
                                   : state.deliveryBaseCharge,
                               deliveryBreakdown: effectiveDeliveryBreakdown,

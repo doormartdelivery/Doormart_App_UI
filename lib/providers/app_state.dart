@@ -155,9 +155,8 @@ class AppState extends ChangeNotifier {
   /// Distance from the selected customer address to the farthest store in the
   /// cart. Kept for compatibility with older checkout/API payloads.
   double? cartDistanceKm(AddressModel? address) {
-    final latitude = address?.latitude;
-    final longitude = address?.longitude;
-    if (latitude == null || longitude == null) return null;
+    final location = _checkoutLocation(address);
+    if (location == null) return null;
 
     final distances = cart
         .map((line) {
@@ -167,8 +166,8 @@ class AppState extends ChangeNotifier {
           return Geolocator.distanceBetween(
                 storeLatitude,
                 storeLongitude,
-                latitude,
-                longitude,
+                location.latitude,
+                location.longitude,
               ) /
               1000;
         })
@@ -193,9 +192,8 @@ class AppState extends ChangeNotifier {
   /// A multi-store cart creates separate deliveries, so each store's distance
   /// and any active night surcharge must be charged separately.
   List<DeliveryChargeBreakdown> deliveryChargeBreakdown(AddressModel? address) {
-    if (!distanceBasedDelivery ||
-        address?.latitude == null ||
-        address?.longitude == null) {
+    final location = _checkoutLocation(address);
+    if (!distanceBasedDelivery || location == null) {
       return const [];
     }
 
@@ -212,8 +210,8 @@ class AppState extends ChangeNotifier {
           Geolocator.distanceBetween(
             storeLatitude,
             storeLongitude,
-            address!.latitude!,
-            address.longitude!,
+            location.latitude,
+            location.longitude,
           ) /
           1000;
       final previous = distancesByVendor[vendorId];
@@ -237,6 +235,40 @@ class AppState extends ChangeNotifier {
         fee: double.parse(fee.toStringAsFixed(2)),
       );
     }).toList();
+  }
+
+  ({double latitude, double longitude})? _checkoutLocation(
+    AddressModel? address,
+  ) {
+    final latitude = address?.latitude;
+    final longitude = address?.longitude;
+    if (latitude != null && longitude != null) {
+      return (latitude: latitude, longitude: longitude);
+    }
+    // Checkout must use the selected address only. Never use the phone's
+    // current GPS position for an address that has no saved coordinates,
+    // because the phone may be somewhere else. The backend will apply the
+    // configured fallback delivery fee when coordinates are unavailable.
+    return null;
+  }
+
+  Map<String, dynamic> _checkoutAddressPayload(AddressModel address) {
+    final location = _checkoutLocation(address);
+    return {
+      'line1': address.line1,
+      'area': address.area,
+      'landmark': address.landmark,
+      'city': address.city,
+      'state': address.state,
+      'pincode': address.pincode,
+      'label': address.label,
+      'fullAddress': address.fullAddress,
+      if (location != null)
+        'location': {
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+        },
+    };
   }
 
   bool _isNightShiftNow() {
@@ -1941,17 +1973,7 @@ class AppState extends ChangeNotifier {
                 'useProductTax': usesProductTax,
                 if (cartDistanceKm(address) != null)
                   'distanceKm': cartDistanceKm(address),
-                'address': {
-                  'line1': address.line1,
-                  'area': address.area,
-                  'landmark': address.landmark,
-                  'city': address.city,
-                  'state': address.state,
-                  'pincode': address.pincode,
-                  'label': address.label,
-                  'fullAddress': address.fullAddress,
-                  ...address.toLocationJson(),
-                },
+                'address': _checkoutAddressPayload(address),
                 'paymentMethod': paymentMethod,
                 if (paymentId != null) 'paymentId': paymentId,
                 if (scheduledFor != null)
@@ -2016,17 +2038,7 @@ class AppState extends ChangeNotifier {
                 if (cartDistanceKm(address) != null)
                   'distanceKm': cartDistanceKm(address),
                 if (address != null)
-                  'address': {
-                    'line1': address.line1,
-                    'area': address.area,
-                    'landmark': address.landmark,
-                    'city': address.city,
-                    'state': address.state,
-                    'pincode': address.pincode,
-                    'label': address.label,
-                    'fullAddress': address.fullAddress,
-                    ...address.toLocationJson(),
-                  },
+                  'address': _checkoutAddressPayload(address),
               },
             )
             as Map<String, dynamic>;
@@ -2505,6 +2517,24 @@ class AppState extends ChangeNotifier {
             )
             as Map<String, dynamic>;
 
+    return OrderModel.fromJson(data);
+  }
+
+  Future<OrderModel> cancelAdminOrder(
+    String orderId, {
+    required String reason,
+  }) async {
+    if (token == null ||
+        (user?.role != UserRoles.admin && user?.role != UserRoles.superAdmin)) {
+      throw StateError('Admin login required');
+    }
+    final data =
+        await apiService.patch(
+              '/orders/$orderId/cancel',
+              token: token,
+              body: {'reason': reason.trim()},
+            )
+            as Map<String, dynamic>;
     return OrderModel.fromJson(data);
   }
 

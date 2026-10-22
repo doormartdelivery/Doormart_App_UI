@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -110,9 +109,9 @@ class FirebaseMessagingService {
         'fcmToken': token,
         'deviceType': kIsWeb
             ? 'web'
-            : Platform.isAndroid
+            : defaultTargetPlatform == TargetPlatform.android
             ? 'android'
-            : Platform.isIOS
+            : defaultTargetPlatform == TargetPlatform.iOS
             ? 'ios'
             : 'web',
       },
@@ -152,8 +151,9 @@ class FirebaseMessagingService {
     final type = data['type']?.toString() ?? 'ADMIN_NOTIFICATION';
     final entityId = data['entityId']?.toString();
 
-    if ((orderId == null || orderId.isEmpty) && title.isEmpty && body.isEmpty)
+    if ((orderId == null || orderId.isEmpty) && title.isEmpty && body.isEmpty) {
       return null;
+    }
 
     return NotificationPayload(
       orderId: orderId ?? '',

@@ -182,6 +182,59 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     }
   }
 
+  Future<void> _cancelOrderWithReason(OrderModel order) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancel order'),
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Cancellation reason',
+            hintText: 'Tell the customer why this order was cancelled',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Keep order'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.length < 3) return;
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Cancel order'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (!mounted || reason == null || reason.trim().isEmpty) return;
+
+    try {
+      await context.read<AppState>().cancelAdminOrder(order.id, reason: reason);
+      await context.read<AppState>().loadAdminOrders();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order cancelled and customer notified')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to cancel order: $error')));
+    }
+  }
+
   Future<void> _refreshOrders() async {
     final state = context.read<AppState>();
     await state.loadAdminOrders();
@@ -382,6 +435,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                             onMove: _moveOrder,
                             onComplete: isSuperAdmin
                                 ? _completeOrderWithReason
+                                : null,
+                            onCancel: isSuperAdmin
+                                ? _cancelOrderWithReason
                                 : null,
                           ),
                         ),
@@ -999,6 +1055,7 @@ class _OrdersTable extends StatelessWidget {
     required this.onSort,
     required this.onMove,
     this.onComplete,
+    this.onCancel,
   });
 
   final List<OrderModel> orders;
@@ -1009,6 +1066,7 @@ class _OrdersTable extends StatelessWidget {
   final ValueChanged<int> onSort;
   final Future<void> Function(OrderModel order, String status) onMove;
   final Future<void> Function(OrderModel order)? onComplete;
+  final Future<void> Function(OrderModel order)? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -1332,6 +1390,13 @@ class _OrdersTable extends StatelessWidget {
                                   onComplete: onComplete == null
                                       ? null
                                       : () => onComplete!(order),
+                                  onCancel:
+                                      onCancel == null ||
+                                          order.status ==
+                                              OrderStatus.delivered ||
+                                          order.status == OrderStatus.cancelled
+                                      ? null
+                                      : () => onCancel!(order),
                                 ),
                               ),
                             ),
@@ -1894,10 +1959,15 @@ class _DonePill extends StatelessWidget {
 }
 
 class _OrderActionCell extends StatelessWidget {
-  const _OrderActionCell({required this.action, this.onComplete});
+  const _OrderActionCell({
+    required this.action,
+    this.onComplete,
+    this.onCancel,
+  });
 
   final _OrderAction? action;
   final VoidCallback? onComplete;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -1917,6 +1987,24 @@ class _OrderActionCell extends StatelessWidget {
             label: const Text('Complete with reason'),
             style: TextButton.styleFrom(
               foregroundColor: _kOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+        if (onCancel != null) ...[
+          const SizedBox(height: 3),
+          TextButton.icon(
+            onPressed: onCancel,
+            icon: const Icon(Icons.cancel_outlined, size: 15),
+            label: const Text('Cancel order'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFB91C1C),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,

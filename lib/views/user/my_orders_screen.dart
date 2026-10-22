@@ -87,7 +87,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
             final currentOrders = _currentOrdersFrom(orders);
             final previousOrders = orders
-                .where((order) => order.status == OrderStatus.delivered)
+                .where(
+                  (order) =>
+                      order.status == OrderStatus.delivered ||
+                      order.status == OrderStatus.cancelled,
+                )
                 .toList();
             final totalOrders = orders.length;
             final activeOrders = orders
@@ -521,6 +525,9 @@ class _PreviousOrderCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _info('Address', order.address.isEmpty ? '—' : order.address),
+            if (order.status == OrderStatus.cancelled &&
+                order.cancellationReason.isNotEmpty)
+              _info('Cancellation reason', order.cancellationReason),
             if (order.deliveryPersonName != null)
               _info('Delivery partner', order.deliveryPersonName!),
             if ((order.deliveryOtp ?? '').isNotEmpty)

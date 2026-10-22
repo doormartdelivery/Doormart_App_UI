@@ -35,6 +35,7 @@ class OrderModel {
     this.deliveredAt,
     this.deliveryOtp,
     this.completionReason = '',
+    this.cancellationReason = '',
     this.deliveryFee = 0.0,
     this.gstAmount = 0.0,
     this.vendorStoreName = '',
@@ -63,6 +64,7 @@ class OrderModel {
   final DateTime? deliveredAt;
   final String? deliveryOtp;
   final String completionReason;
+  final String cancellationReason;
   final String vendorStoreName;
 
   String get displayOrderId {
@@ -180,6 +182,7 @@ class OrderModel {
       deliveredAt: _parseDateTime(json['deliveredAt']),
       deliveryOtp: json['deliveryOtp']?.toString(),
       completionReason: json['completionReason']?.toString() ?? '',
+      cancellationReason: json['cancellationReason']?.toString() ?? '',
       deliveryFee:
           (json['deliveryFee'] as num? ?? json['delivery_fee'] as num? ?? 0)
               .toDouble(),

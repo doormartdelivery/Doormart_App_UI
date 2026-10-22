@@ -81,11 +81,23 @@ class _LiveOrderTrackingScreenState extends State<LiveOrderTrackingScreen> {
       );
       if (!mounted) return;
       if (response is Map<String, dynamic>) {
+        final location = response['location'] is Map
+            ? Map<String, dynamic>.from(response['location'] as Map)
+            : response;
+        final rawLatitude = location['latitude'] ?? location['lat'];
+        final rawLongitude =
+            location['longitude'] ?? location['lng'] ?? location['lon'];
+        final latitude = rawLatitude is num
+            ? rawLatitude.toDouble()
+            : double.tryParse(rawLatitude?.toString() ?? '');
+        final longitude = rawLongitude is num
+            ? rawLongitude.toDouble()
+            : double.tryParse(rawLongitude?.toString() ?? '');
         setState(() {
-          _latitude = (response['latitude'] as num?)?.toDouble();
-          _longitude = (response['longitude'] as num?)?.toDouble();
+          _latitude = latitude;
+          _longitude = longitude;
           _updatedAt = DateTime.tryParse(
-            response['updatedAt']?.toString() ?? '',
+            (location['updatedAt'] ?? response['updatedAt'])?.toString() ?? '',
           )?.toLocal();
           _error = null;
           _loading = false;
