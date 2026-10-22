@@ -142,7 +142,12 @@ class OrderSuccessScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         _SummaryRow(
                           label: 'Delivering to',
-                          value: latest?.address ?? '—',
+                          value: (latest?.customerAddress ?? '').isNotEmpty
+                              ? latest!.customerAddress
+                              : (latest?.address ?? '').isNotEmpty
+                              ? latest!.address
+                              : '—',
+                          maxLines: 8,
                         ),
                         const SizedBox(height: 12),
                         _SummaryRow(
@@ -220,12 +225,7 @@ class OrderSuccessScreen extends StatelessWidget {
   }
 
   String _estimatedDelivery() {
-    final delivery = DateTime.now().add(const Duration(hours: 1));
-    final hour24 = delivery.hour;
-    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
-    final minute = delivery.minute.toString().padLeft(2, '0');
-    final period = hour24 >= 12 ? 'PM' : 'AM';
-    return 'Today, ${hour12.toString().padLeft(2, '0')}:$minute $period';
+    return '30–40 mins';
   }
 
   static int _quantity(OrderModel order) =>
@@ -520,10 +520,15 @@ class _FloatingBadge extends StatelessWidget {
 // ─── Summary Row ─────────────────────────────────────────────────────────────
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.maxLines = 2,
+  });
 
   final String label;
   final String value;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -546,12 +551,13 @@ class _SummaryRow extends StatelessWidget {
           child: Text(
             value,
             textAlign: TextAlign.right,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+            maxLines: maxLines,
             style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF1A1A1A),
               fontWeight: FontWeight.w700,
+              height: 1.4,
             ),
           ),
         ),
