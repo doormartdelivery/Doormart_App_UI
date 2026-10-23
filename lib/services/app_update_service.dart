@@ -41,16 +41,26 @@ class AppUpdateService {
       final response = await _apiService
           .get('/app/version')
           .timeout(const Duration(seconds: 5));
-      if (response is! Map) return null;
+      if (response is! Map) {
+        debugPrint('[AppUpdate] Invalid version response');
+        return null;
+      }
 
       final latestVersion = '${response['latestVersion'] ?? ''}'.trim();
       final minimumVersion = '${response['minimumVersion'] ?? '0.0.0'}'.trim();
-      if (latestVersion.isEmpty) return null;
+      if (latestVersion.isEmpty) {
+        debugPrint('[AppUpdate] Latest version is missing');
+        return null;
+      }
 
       final belowMinimum =
           _compareVersions(packageInfo.version, minimumVersion) < 0;
       final newerAvailable =
           _compareVersions(packageInfo.version, latestVersion) < 0;
+      debugPrint(
+        '[AppUpdate] current=${packageInfo.version}, latest=$latestVersion, '
+        'minimum=$minimumVersion, newer=$newerAvailable, forced=$belowMinimum',
+      );
       if (!belowMinimum && !newerAvailable) return null;
 
       return AppUpdateInfo(
@@ -61,7 +71,8 @@ class AppUpdateService {
         androidUrl: '${response['androidUrl'] ?? ''}',
         iosUrl: '${response['iosUrl'] ?? ''}',
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[AppUpdate] Version check failed: $error');
       return null;
     }
   }
