@@ -7,6 +7,7 @@ import '../../core/utils/network_image_url.dart';
 import '../../models/product_model.dart';
 import '../../models/order_model.dart';
 import '../../providers/app_state.dart';
+import '../../services/invoice_pdf_service.dart';
 import '../../widgets/toast_widget.dart';
 import '../app_page.dart';
 import 'cart_screen.dart';
@@ -605,9 +606,12 @@ class _PreviousOrderCard extends StatelessWidget {
                   );
                 }).toList(),
               ),
-            if (order.products.isNotEmpty) ...[
+            if (order.status == OrderStatus.delivered &&
+                order.products.isNotEmpty) ...[
               const SizedBox(height: 8),
               _ReorderOrderButton(order: order),
+              const SizedBox(height: 8),
+              _DownloadInvoiceButton(order: order),
             ],
           ],
         ),
@@ -655,6 +659,53 @@ class _PreviousOrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DownloadInvoiceButton extends StatefulWidget {
+  const _DownloadInvoiceButton({required this.order});
+
+  final OrderModel order;
+
+  @override
+  State<_DownloadInvoiceButton> createState() => _DownloadInvoiceButtonState();
+}
+
+class _DownloadInvoiceButtonState extends State<_DownloadInvoiceButton> {
+  bool _loading = false;
+
+  Future<void> _download() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await downloadCustomerInvoice(widget.order);
+    } catch (_) {
+      if (mounted) showToast(context, 'Could not create the invoice');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _download,
+        icon: Icon(
+          _loading ? Icons.hourglass_top_rounded : Icons.download_rounded,
+        ),
+        label: Text(_loading ? 'Preparing invoice...' : 'Download invoice'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE8541A),
+          side: const BorderSide(color: Color(0xFFFFB38A)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       ),
     );
   }
