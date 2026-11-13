@@ -10,6 +10,7 @@ import '../../widgets/closed_store_overlay.dart';
 import '../../widgets/gradient_background.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_price_breakdown.dart';
+import '../../widgets/out_of_stock_badge.dart';
 import '../../widgets/toast_widget.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -489,6 +490,12 @@ class _ProductFeedCard extends StatelessWidget {
                             ClosedStoreOverlay(
                               label: closedStoreLabelForProduct(product),
                             ),
+                          if (isProductOutOfStock(product))
+                            const Positioned(
+                              left: 14,
+                              bottom: 14,
+                              child: OutOfStockBadge(),
+                            ),
                         ],
                       ),
                     ),
@@ -575,13 +582,17 @@ class _ProductFeedCard extends StatelessWidget {
                                   ],
                                 ),
                                 child: FilledButton.icon(
-                                  onPressed: onAdd,
+                                  onPressed: isProductOutOfStock(product)
+                                      ? null
+                                      : onAdd,
                                   icon: const Icon(
                                     Icons.shopping_cart_outlined,
                                     size: 16,
                                   ),
-                                  label: const Text(
-                                    'Add',
+                                  label: Text(
+                                    isProductOutOfStock(product)
+                                        ? 'Out of stock'
+                                        : 'Add',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 12,

@@ -16,6 +16,8 @@ import 'manage_banners_screen.dart';
 import 'stock_screen.dart';
 import 'admin_sidebar_drawer.dart';
 import '../../widgets/pagination_controls.dart';
+import '../../services/tamil_order_speech_service.dart';
+import '../../services/invoice_pdf_service.dart';
 
 const _kOrange = Color(0xFFE8541A);
 const _kOrangeLight = Color(0xFFFFF0EB);
@@ -43,6 +45,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   String? _vendorFilter;
   Map<String, VendorModel> _vendorLookup = {};
   bool _bootstrapping = true;
+  final TamilOrderSpeechService _speechService = TamilOrderSpeechService();
+  String? _speakingOrderId;
 
   @override
   void initState() {
@@ -116,9 +120,29 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
 
   @override
   void dispose() {
+    _speechService.stop();
     _animationController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _speakOrder(OrderModel order) async {
+    setState(() => _speakingOrderId = order.id);
+    try {
+      await _speechService.speak(order);
+    } on TamilVoiceUnavailableException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(error.toString()),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _speakingOrderId = null);
+    }
   }
 
   Future<void> _moveOrder(OrderModel order, String status) async {
@@ -439,6 +463,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
                             onCancel: isSuperAdmin
                                 ? _cancelOrderWithReason
                                 : null,
+                            onSpeak: _speakOrder,
+                            speakingOrderId: _speakingOrderId,
                           ),
                         ),
                 ),
@@ -1056,6 +1082,8 @@ class _OrdersTable extends StatelessWidget {
     required this.onMove,
     this.onComplete,
     this.onCancel,
+    required this.onSpeak,
+    this.speakingOrderId,
   });
 
   final List<OrderModel> orders;
@@ -1067,6 +1095,8 @@ class _OrdersTable extends StatelessWidget {
   final Future<void> Function(OrderModel order, String status) onMove;
   final Future<void> Function(OrderModel order)? onComplete;
   final Future<void> Function(OrderModel order)? onCancel;
+  final Future<void> Function(OrderModel order) onSpeak;
+  final String? speakingOrderId;
 
   @override
   Widget build(BuildContext context) {
@@ -1159,6 +1189,7 @@ class _OrdersTable extends StatelessWidget {
                           onSort: (_, __) => onSort(3),
                         ),
                         const DataColumn(label: Text('Order Items')),
+                        const DataColumn(label: Text('Speak')),
                         const DataColumn(label: Text('Payment')),
                         DataColumn(
                           label: const Text('Total'),
@@ -1345,6 +1376,31 @@ class _OrdersTable extends StatelessWidget {
                             ),
                             DataCell(
                               _TableCellIn(
+                                animationKey: '${order.id}-speak',
+                                index: index,
+                                child: IconButton.filledTonal(
+                                  tooltip: 'Speak order in Tamil',
+                                  onPressed: speakingOrderId == order.id
+                                      ? null
+                                      : () => onSpeak(order),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: _kOrangeLight,
+                                    foregroundColor: _kOrange,
+                                  ),
+                                  icon: speakingOrderId == order.id
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.volume_up_rounded),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              _TableCellIn(
                                 animationKey: '${order.id}-payment',
                                 index: index,
                                 child: _PaymentBadge(
@@ -1449,12 +1505,27 @@ void _showOrderItems(BuildContext context, OrderModel order) {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Order ${order.displayOrderId}',
+                  (order.status == OrderStatus.delivered ||
+                      order.deliveredAt != null) &&
+                          (order.invoiceNumber ?? '').isNotEmpty
+                      ? 'Bill ${order.invoiceNumber}'
+                      : 'Order ${order.displayOrderId}',
                   style: const TextStyle(
                     color: _kTextMid,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (order.status != OrderStatus.delivered &&
+                    order.deliveredAt == null) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Invoice and bill number will be available after delivery.',
+                    style: TextStyle(
+                      color: _kOrange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
@@ -1669,44 +1740,43 @@ void _showOrderItems(BuildContext context, OrderModel order) {
                   ),
                 ),
                 const SizedBox(height: 16),
+                _InvoiceSummaryRow(
+                  label: 'Subtotal',
+                  value: 'Rs ${_orderSubtotal(order).toStringAsFixed(2)}',
+                ),
+                _InvoiceSummaryRow(
+                  label: 'Delivery fee',
+                  value: 'Rs ${order.deliveryFee.toStringAsFixed(2)}',
+                ),
+                if (order.gstAmount > 0)
+                  _InvoiceSummaryRow(
+                    label: 'GST',
+                    value: 'Rs ${order.gstAmount.toStringAsFixed(2)}',
+                  ),
+                const Divider(height: 22),
+                _InvoiceSummaryRow(
+                  label: 'Total',
+                  value: 'Rs ${order.total.toStringAsFixed(2)}',
+                  highlighted: true,
+                ),
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(
-                      child: _InvoiceTotalBox(
-                        label: 'Subtotal',
-                        value:
-                            'Rs ${order.products.fold<double>(0, (sum, item) => sum + (item.price * (item.stock > 0 ? item.stock : 1))).toStringAsFixed(0)}',
+                    if (order.status == OrderStatus.delivered ||
+                        order.deliveredAt != null) ...[
+                      Expanded(
+                        child: _AdminInvoiceDownloadButton(order: order),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
-                      child: _InvoiceTotalBox(
-                        label: 'Grand Total',
-                        value: 'Rs ${order.total.toStringAsFixed(0)}',
-                        highlighted: true,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Close'),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _kOrange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    label: const Text(
-                      'Close Invoice',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -1715,6 +1785,103 @@ void _showOrderItems(BuildContext context, OrderModel order) {
       );
     },
   );
+}
+
+double _orderSubtotal(OrderModel order) {
+  return order.products.asMap().entries.fold<double>(0, (sum, entry) {
+    final quantity = entry.key < order.quantities.length
+        ? order.quantities[entry.key]
+        : 1;
+    return sum + entry.value.price * quantity;
+  });
+}
+
+class _InvoiceSummaryRow extends StatelessWidget {
+  const _InvoiceSummaryRow({
+    required this.label,
+    required this.value,
+    this.highlighted = false,
+  });
+
+  final String label;
+  final String value;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: highlighted ? _kTextDark : _kTextMid,
+                fontWeight: highlighted ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: highlighted ? _kOrange : _kTextDark,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminInvoiceDownloadButton extends StatefulWidget {
+  const _AdminInvoiceDownloadButton({required this.order});
+
+  final OrderModel order;
+
+  @override
+  State<_AdminInvoiceDownloadButton> createState() =>
+      _AdminInvoiceDownloadButtonState();
+}
+
+class _AdminInvoiceDownloadButtonState
+    extends State<_AdminInvoiceDownloadButton> {
+  bool _loading = false;
+
+  Future<void> _download() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await downloadCustomerInvoice(widget.order);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invoice ready to download or share')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not create invoice: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: _loading ? null : _download,
+      icon: Icon(_loading ? Icons.hourglass_top_rounded : Icons.download),
+      label: Text(_loading ? 'Preparing...' : 'Download PDF'),
+      style: FilledButton.styleFrom(
+        backgroundColor: _kOrange,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
 }
 
 class _InvoiceMeta extends StatelessWidget {

@@ -16,6 +16,7 @@ import '../../widgets/closed_store_overlay.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_price_breakdown.dart';
+import '../../widgets/out_of_stock_badge.dart';
 import '../../widgets/toast_widget.dart';
 import '../../features/customer/search/voice_search_widget.dart';
 import '../../features/operations/services/location_service.dart';
@@ -3098,10 +3099,7 @@ class _EssentialsGridState extends State<_EssentialsGrid> {
             child: Center(child: CircularProgressIndicator(color: _kGreen)),
           );
         }
-        var products = _sectionProducts(
-          sourceProducts,
-          'daily_essentials',
-        );
+        var products = _sectionProducts(sourceProducts, 'daily_essentials');
         if (widget.selectedCategory != 'All') {
           products = products
               .where(
@@ -3837,6 +3835,12 @@ class _PopularStyleProductCard extends StatelessWidget {
                     ),
                     if (isStoreClosed)
                       ClosedStoreOverlay(label: _closedStoreLabel(product)),
+                    if (isProductOutOfStock(product))
+                      const Positioned(
+                        left: 10,
+                        bottom: 10,
+                        child: OutOfStockBadge(),
+                      ),
                   ],
                 ),
               ),
@@ -3917,6 +3921,24 @@ class _PopularStyleProductCard extends StatelessWidget {
                         _ClosedStoreActionPill(
                           product: product,
                           compact: compact,
+                        )
+                      else if (isProductOutOfStock(product))
+                        Container(
+                          height: compact ? 34 : 38,
+                          width: double.infinity,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Out of stock',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: compact ? 11 : 12,
+                            ),
+                          ),
                         )
                       else
                         Container(

@@ -39,6 +39,7 @@ class OrderModel {
     this.deliveryFee = 0.0,
     this.gstAmount = 0.0,
     this.vendorStoreName = '',
+    this.invoiceNumber,
   });
 
   final String id;
@@ -66,6 +67,7 @@ class OrderModel {
   final String completionReason;
   final String cancellationReason;
   final String vendorStoreName;
+  final String? invoiceNumber;
 
   String get displayOrderId {
     final source = id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
@@ -189,6 +191,9 @@ class OrderModel {
       gstAmount: (json['gstAmount'] as num? ?? json['gst_amount'] as num? ?? 0)
           .toDouble(),
       vendorStoreName: json['vendorStoreName']?.toString() ?? '',
+      invoiceNumber: (json['invoiceNumber']?.toString().trim().isEmpty ?? true)
+          ? null
+          : json['invoiceNumber']?.toString(),
     );
   }
 }

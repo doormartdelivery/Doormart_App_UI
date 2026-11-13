@@ -4,6 +4,7 @@ import '../core/utils/network_image_url.dart';
 import '../models/product_model.dart';
 import 'closed_store_overlay.dart';
 import 'product_price_breakdown.dart';
+import 'out_of_stock_badge.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -134,6 +135,12 @@ class ProductCard extends StatelessWidget {
                       ClosedStoreOverlay(
                         label: closedStoreLabelForProduct(product),
                       ),
+                    if (isProductOutOfStock(product))
+                      const Positioned(
+                        left: 10,
+                        bottom: 10,
+                        child: OutOfStockBadge(),
+                      ),
                   ],
                 ),
               ),
@@ -231,20 +238,26 @@ class ProductCard extends StatelessWidget {
                         child: SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
-                            onPressed: onAdd,
+                            onPressed: isProductOutOfStock(product)
+                                ? null
+                                : onAdd,
                             icon: const Icon(
                               Icons.shopping_cart_outlined,
                               size: 16,
                             ),
-                            label: const Text(
-                              'Add to Cart',
+                            label: Text(
+                              isProductOutOfStock(product)
+                                  ? 'Out of stock'
+                                  : 'Add to Cart',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 11,
                               ),
                             ),
                             style: FilledButton.styleFrom(
-                              backgroundColor: Colors.transparent,
+                              backgroundColor: isProductOutOfStock(product)
+                                  ? Colors.grey.shade400
+                                  : Colors.transparent,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shadowColor: Colors.transparent,

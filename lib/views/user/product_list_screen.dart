@@ -11,6 +11,7 @@ import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/closed_store_overlay.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/product_price_breakdown.dart';
+import '../../widgets/out_of_stock_badge.dart';
 import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 
@@ -1009,6 +1010,12 @@ class _ProductFeedCard extends StatelessWidget {
                               ClosedStoreOverlay(
                                 label: closedStoreLabelForProduct(product),
                               ),
+                            if (isProductOutOfStock(product))
+                              const Positioned(
+                                left: 14,
+                                bottom: 14,
+                                child: OutOfStockBadge(),
+                              ),
                           ],
                         ),
                       ),
@@ -1095,13 +1102,17 @@ class _ProductFeedCard extends StatelessWidget {
                                     ],
                                   ),
                                   child: FilledButton.icon(
-                                    onPressed: onAddToCart,
+                                    onPressed: isProductOutOfStock(product)
+                                        ? null
+                                        : onAddToCart,
                                     icon: const Icon(
                                       Icons.shopping_cart_outlined,
                                       size: 16,
                                     ),
-                                    label: const Text(
-                                      'Add',
+                                    label: Text(
+                                      isProductOutOfStock(product)
+                                          ? 'Out of stock'
+                                          : 'Add',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w900,

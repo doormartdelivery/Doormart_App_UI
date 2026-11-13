@@ -9,6 +9,7 @@ import '../../providers/app_state.dart';
 import '../../widgets/product_bottom_sheet.dart';
 import '../../widgets/closed_store_overlay.dart';
 import '../../widgets/product_price_breakdown.dart';
+import '../../widgets/out_of_stock_badge.dart';
 import '../../widgets/premium_selection_sheet.dart';
 import '../../widgets/toast_widget.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -514,8 +515,13 @@ class _FavoriteCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (isClosed)
-                          ClosedStoreOverlay(label: closedLabel),
+                        if (isClosed) ClosedStoreOverlay(label: closedLabel),
+                        if (isProductOutOfStock(product))
+                          const Positioned(
+                            left: 14,
+                            bottom: 14,
+                            child: OutOfStockBadge(),
+                          ),
                       ],
                     ),
                   ),

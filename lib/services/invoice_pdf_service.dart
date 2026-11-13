@@ -90,7 +90,7 @@ Future<void> downloadCustomerInvoice(OrderModel order) async {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      order.displayOrderId,
+                      order.invoiceNumber ?? order.displayOrderId,
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                     pw.Text(_date(order.createdAt)),

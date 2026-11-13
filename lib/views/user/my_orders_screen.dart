@@ -606,7 +606,8 @@ class _PreviousOrderCard extends StatelessWidget {
                   );
                 }).toList(),
               ),
-            if (order.status == OrderStatus.delivered &&
+            if ((order.status == OrderStatus.delivered ||
+                    order.deliveredAt != null) &&
                 order.products.isNotEmpty) ...[
               const SizedBox(height: 8),
               _ReorderOrderButton(order: order),

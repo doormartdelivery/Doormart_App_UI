@@ -3429,6 +3429,12 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+    final selectedStock = stock ?? product.stock;
+    if (selectedStock <= 0) {
+      error = 'This product is out of stock';
+      notifyListeners();
+      return false;
+    }
     final snapshot = _cloneCart();
     final mutationToken = _nextCartMutationToken();
     final selectedUnit = (unit ?? product.unit).trim();
