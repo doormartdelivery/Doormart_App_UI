@@ -12,10 +12,9 @@ class NotificationService {
 
   static final NotificationService instance = NotificationService._();
 
-  // v2 is intentionally a new channel. Android locks a channel's sound
-  // setting after creation, so this lets updated builds recover from an old
-  // release where the original channel was muted.
-  static const String channelId = 'doormart_alerts_v2';
+  // Permanent channel ID. Do not change it: Android locks channel settings
+  // after creation, and changing it can remove sound for installed users.
+  static const String channelId = 'doormart_alerts_v1';
   static const String channelName = 'Doormart Alerts';
   static const String channelDescription =
       'Sound alerts for orders and account notifications';
