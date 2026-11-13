@@ -208,7 +208,12 @@ class _LoginScreenState extends State<LoginScreen>
           } catch (error) {
             // Preserve access for legacy customer accounts that predate
             // Firebase Authentication.
-            if (error.toString().toLowerCase().contains('user-not-found')) {
+            final firebaseError = error.toString().toLowerCase();
+            if (firebaseError.contains('user-not-found') ||
+                firebaseError.contains('configuration_not_found') ||
+                firebaseError.contains('configuration-not-found') ||
+                firebaseError.contains('operation-not-allowed') ||
+                firebaseError.contains('provider is disabled')) {
               await context.read<AppState>().loginWithPassword(
                 email: identifier.toLowerCase(),
                 password: _loginPassCtrl.text.trim(),
