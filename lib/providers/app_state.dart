@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +21,7 @@ import '../notifications/firebase_messaging_service.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
 import '../services/session_service.dart';
+import '../services/firebase_customer_auth_service.dart';
 
 class ReorderCartResult {
   const ReorderCartResult({
@@ -103,6 +105,9 @@ class AppState extends ChangeNotifier {
   final SocketService socketService;
   final FirebaseMessagingService _messagingService = FirebaseMessagingService();
   final SessionService _sessionService = SessionService();
+  final FirebaseCustomerAuthService _firebaseAuth =
+      FirebaseCustomerAuthService();
+  String? _pendingFirebasePhone;
   bool initialized = false;
   bool loading = false;
   String? error;
@@ -590,6 +595,107 @@ class AppState extends ChangeNotifier {
       if (!silent) loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _finishFirebaseCustomerLogin({String? phone}) async {
+    final firebaseUser = _firebaseAuthUser;
+    final idToken = await _firebaseAuth.idToken();
+    final data =
+        await apiService.post(
+              '/auth/firebase',
+              body: {
+                'idToken': idToken,
+                if ((phone ?? _pendingFirebasePhone)?.trim().isNotEmpty == true)
+                  'phone': (phone ?? _pendingFirebasePhone)!.trim(),
+                if (firebaseUser?.displayName != null)
+                  'name': firebaseUser!.displayName,
+              },
+            )
+            as Map<String, dynamic>;
+    token = data['token'] as String;
+    user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    vendor = null;
+    await _sessionService.saveSession(token: token!, user: user!);
+    await _refreshCurrentProfileSafely();
+    await _loadPostAuthData();
+    _connectSocket();
+    try {
+      await _syncDeliveryToken();
+    } catch (e) {
+      debugPrint('FCM token sync skipped after Firebase login: $e');
+    }
+  }
+
+  User? get _firebaseAuthUser => FirebaseAuth.instance.currentUser;
+
+  Future<void> loginWithFirebaseEmail({
+    required String email,
+    required String password,
+  }) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _firebaseAuth.signInEmail(email, password);
+      await _firebaseAuth.reload();
+      if (!(_firebaseAuthUser?.emailVerified ?? false)) {
+        await _firebaseAuth.signOut();
+        throw StateError('Please verify your email before signing in');
+      }
+      await _finishFirebaseCustomerLogin();
+    } catch (e) {
+      error = e.toString();
+      rethrow;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> registerWithFirebaseEmail({
+    required String name,
+    required String phone,
+    required String email,
+    required String password,
+  }) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      final credential = await _firebaseAuth.registerEmail(email, password);
+      await credential.user?.updateDisplayName(name.trim());
+      await _firebaseAuth.sendVerificationEmail();
+      _pendingFirebasePhone = phone.trim();
+      await _firebaseAuth.signOut();
+      throw StateError('Verification email sent. Verify it, then sign in.');
+    } catch (e) {
+      error = e.toString();
+      rethrow;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loginWithGoogle({String? phone}) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      await _firebaseAuth.signInGoogle();
+      await _finishFirebaseCustomerLogin(phone: phone);
+      _pendingFirebasePhone = null;
+    } catch (e) {
+      error = e.toString();
+      rethrow;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendFirebasePasswordReset(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email);
   }
 
   Future<Map<String, dynamic>> loginVendor({
@@ -1222,6 +1328,11 @@ class AppState extends ChangeNotifier {
     cart.clear();
     favorites = [];
     socketService.disconnect();
+    try {
+      await _firebaseAuth.signOut();
+    } catch (e) {
+      debugPrint('Firebase sign-out skipped: $e');
+    }
     await _sessionService.clearSession();
     notifyListeners();
   }

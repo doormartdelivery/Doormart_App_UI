@@ -32,6 +32,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
+  bool _firebaseResetSent = false;
   String? _error;
   late final AnimationController _motionController = AnimationController(
     vsync: this,
@@ -63,9 +64,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       _error = null;
     });
     try {
-      await context.read<AppState>().sendPasswordResetOtp(
-        identifier: _normalizedIdentifier,
-      );
+      if (_normalizedIdentifier.contains('@')) {
+        await context.read<AppState>().sendFirebasePasswordReset(
+          _normalizedIdentifier,
+        );
+        _firebaseResetSent = true;
+      } else {
+        await context.read<AppState>().sendPasswordResetOtp(
+          identifier: _normalizedIdentifier,
+        );
+      }
       if (!mounted) return;
       setState(() => _otpSent = true);
       HapticFeedback.mediumImpact();
@@ -84,6 +92,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       _error = null;
     });
     try {
+      if (_firebaseResetSent) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Use the password reset link sent to your email.'),
+          ),
+        );
+        Navigator.pop(context);
+        return;
+      }
       await context.read<AppState>().resetPasswordWithOtp(
         identifier: _normalizedIdentifier,
         otp: _otpCtrl.text.trim(),
@@ -230,7 +248,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   validator: (v) => Validators.email(v),
                 ),
                 const SizedBox(height: 16),
-                if (_otpSent) ...[
+                if (_otpSent && !_firebaseResetSent) ...[
                   _FieldLabel('OTP'),
                   const SizedBox(height: 8),
                   _Field(
@@ -303,20 +321,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     },
                   ),
                 ],
+                if (_firebaseResetSent) ...[
+                  const SizedBox(height: 14),
+                  const Text(
+                    'A secure password reset link was sent to your email. Open it to choose a new password.',
+                    style: TextStyle(color: _kTextMid, height: 1.4),
+                  ),
+                ],
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   _ErrorBanner(message: _error!),
                 ],
                 const SizedBox(height: 24),
                 _PrimaryBtn(
-                  label: _otpSent ? 'Reset Password' : 'Send OTP',
-                  icon: _otpSent
-                      ? Icons.lock_reset_rounded
-                      : Icons.send_rounded,
+                  label: _firebaseResetSent
+                      ? 'Back to Login'
+                      : (_otpSent ? 'Reset Password' : 'Send OTP'),
+                  icon: _firebaseResetSent
+                      ? Icons.arrow_back_rounded
+                      : (_otpSent
+                            ? Icons.lock_reset_rounded
+                            : Icons.send_rounded),
                   loading: _loading,
-                  onTap: _otpSent ? _resetPassword : _sendOtp,
+                  onTap: _firebaseResetSent
+                      ? () => Navigator.pop(context)
+                      : (_otpSent ? _resetPassword : _sendOtp),
                 ),
-                if (_otpSent) ...[
+                if (_otpSent && !_firebaseResetSent) ...[
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: _loading
@@ -324,6 +355,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                         : () {
                             setState(() {
                               _otpSent = false;
+                              _firebaseResetSent = false;
                               _otpCtrl.clear();
                               _passCtrl.clear();
                               _confirmCtrl.clear();

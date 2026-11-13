@@ -120,6 +120,22 @@ class _LoginScreenState extends State<LoginScreen>
       return 'The server took too long to respond. Please try again.';
     }
     if (message.isEmpty) return 'Something went wrong. Please try again.';
+    if (lower.contains('user-not-found'))
+      return 'No account was found for this email.';
+    if (lower.contains('wrong-password') ||
+        lower.contains('invalid-credential')) {
+      return 'The email or password is incorrect.';
+    }
+    if (lower.contains('email-already-in-use'))
+      return 'This email is already registered.';
+    if (lower.contains('weak-password'))
+      return 'Use a stronger password with at least 6 characters.';
+    if (lower.contains('api10') ||
+        lower.contains('developer_error') ||
+        lower.contains('not configured for this android build')) {
+      return 'Google Sign-In setup is incomplete for this app. Add the Android SHA-1 in Firebase and download the updated configuration file.';
+    }
+    if (lower.contains('verification email sent')) return message;
     return message;
   }
 
@@ -183,11 +199,30 @@ class _LoginScreenState extends State<LoginScreen>
       final isEmail = identifier.contains('@');
       final normalizedPhone = Validators.normalizePhone(identifier);
       if (_loginMode == _LoginMode.password) {
-        await context.read<AppState>().loginWithPassword(
-          email: isEmail ? identifier.toLowerCase() : null,
-          phone: isEmail ? null : normalizedPhone,
-          password: _loginPassCtrl.text.trim(),
-        );
+        if (isEmail) {
+          try {
+            await context.read<AppState>().loginWithFirebaseEmail(
+              email: identifier.toLowerCase(),
+              password: _loginPassCtrl.text.trim(),
+            );
+          } catch (error) {
+            // Preserve access for legacy customer accounts that predate
+            // Firebase Authentication.
+            if (error.toString().toLowerCase().contains('user-not-found')) {
+              await context.read<AppState>().loginWithPassword(
+                email: identifier.toLowerCase(),
+                password: _loginPassCtrl.text.trim(),
+              );
+            } else {
+              rethrow;
+            }
+          }
+        } else {
+          await context.read<AppState>().loginWithPassword(
+            phone: normalizedPhone,
+            password: _loginPassCtrl.text.trim(),
+          );
+        }
       } else {
         await context.read<AppState>().verifyOtp(
           email: _loginIdentifier.toLowerCase(),
@@ -231,15 +266,11 @@ class _LoginScreenState extends State<LoginScreen>
     }
     setState(() => _loading = true);
     try {
-      await context.read<AppState>().register(
+      await context.read<AppState>().registerWithFirebaseEmail(
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-        addressLabel: 'Home',
-        addressLine1: '',
-        city: '',
-        pincode: '',
       );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -342,6 +373,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ).pushNamed(ForgotPasswordScreen.routeName);
                                 },
                                 onResendOtp: _sendLoginOtp,
+                                onGoogle: _loginWithGoogle,
                               ),
 
                               // ── Sign up tab ───────────────────────────────
@@ -382,6 +414,64 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await context.read<AppState>().loginWithGoogle();
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(UserHomeScreen.routeName, (route) => false);
+    } catch (error) {
+      if (!mounted) return;
+      if (error.toString().contains('Phone number is required')) {
+        final phone = await showDialog<String>(
+          context: context,
+          builder: (context) {
+            final controller = TextEditingController();
+            return AlertDialog(
+              title: const Text('Complete your account'),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone number'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(context, controller.text.trim()),
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+        if (phone != null && phone.isNotEmpty) {
+          try {
+            await context.read<AppState>().loginWithGoogle(phone: phone);
+            if (!mounted) return;
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              UserHomeScreen.routeName,
+              (route) => false,
+            );
+            return;
+          } catch (retryError) {
+            _showError(retryError);
+          }
+        }
+      } else {
+        _showError(error);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }
 
@@ -759,6 +849,7 @@ class _LoginTab extends StatelessWidget {
     required this.onGoRegister,
     required this.onGoForgotPassword,
     required this.onResendOtp,
+    required this.onGoogle,
   });
 
   final GlobalKey<FormState> formKey;
@@ -776,6 +867,7 @@ class _LoginTab extends StatelessWidget {
   final VoidCallback onGoRegister;
   final VoidCallback onGoForgotPassword;
   final Future<void> Function() onResendOtp;
+  final VoidCallback onGoogle;
 
   @override
   Widget build(BuildContext context) {
@@ -934,6 +1026,25 @@ class _LoginTab extends StatelessWidget {
                   : (otpSent ? Icons.verified_rounded : Icons.send_rounded),
               loading: loading,
               onTap: onLogin,
+            ),
+
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: loading ? null : onGoogle,
+                icon: const Icon(Icons.account_circle_outlined),
+                label: const Text('Continue with Google'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kTextDark,
+                  side: const BorderSide(color: _kBorder),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
             ),
 
             const SizedBox(height: 12),
