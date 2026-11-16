@@ -1980,6 +1980,39 @@ class AppState extends ChangeNotifier {
     return _syncDecrement(product, unit: unit);
   }
 
+  Future<bool> removeCartItem(ProductModel product, {String? unit}) async {
+    if (token == null) {
+      error = 'Please login first';
+      notifyListeners();
+      return false;
+    }
+
+    final selectedUnit = (unit ?? product.unit).trim();
+    final current = cart.firstWhere(
+      (line) => line.key == '${product.id}::${selectedUnit.toLowerCase()}',
+      orElse: () => CartLine(product: product, quantity: 0, unit: selectedUnit),
+    );
+    if (current.quantity <= 0) return false;
+
+    final snapshot = _cloneCart();
+    final mutationToken = _nextCartMutationToken();
+    _setCartQuantity(product, 0, unit: selectedUnit);
+    error = null;
+    notifyListeners();
+
+    unawaited(
+      _syncCartMutation(
+        mutationToken: mutationToken,
+        snapshot: snapshot,
+        action: () => apiService.delete(
+          '/cart/remove/${product.id}?unit=${Uri.encodeComponent(selectedUnit)}',
+          token: token,
+        ),
+      ),
+    );
+    return true;
+  }
+
   Future<bool> changeCartUnit(
     ProductModel product, {
     required String fromUnit,

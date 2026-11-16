@@ -80,8 +80,7 @@ class CartScreen extends StatelessWidget {
                       final storeStatusProduct = state.storeStatusProduct(
                         line.product,
                       );
-                      final isClosed =
-                          storeStatusProduct.vendorIsOpen == false;
+                      final isClosed = storeStatusProduct.vendorIsOpen == false;
                       return _CartItemCard(
                         key: ValueKey(line.key),
                         line: line,
@@ -125,6 +124,21 @@ class CartScreen extends StatelessWidget {
                               unit: line.selectedUnit,
                             ),
                           );
+                        },
+                        onRemove: () {
+                          HapticFeedback.mediumImpact();
+                          unawaited(() async {
+                            final shouldRemove = await _showRemoveConfirmation(
+                              context,
+                              productName: line.product.name,
+                            );
+                            if (shouldRemove == true && context.mounted) {
+                              await state.removeCartItem(
+                                line.product,
+                                unit: line.selectedUnit,
+                              );
+                            }
+                          }());
                         },
                         onUnitChanged: (unit) {
                           if (isClosed) {
@@ -346,9 +360,7 @@ class _CartLocationNotice extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            showLocation
-                ? Icons.location_on_rounded
-                : Icons.storefront_rounded,
+            showLocation ? Icons.location_on_rounded : Icons.storefront_rounded,
             color: _kOrange,
           ),
           const SizedBox(width: 10),
@@ -379,6 +391,7 @@ class _CartItemCard extends StatelessWidget {
     required this.closedLabel,
     required this.onIncrement,
     required this.onDecrement,
+    required this.onRemove,
     required this.onUnitChanged,
   });
 
@@ -388,6 +401,7 @@ class _CartItemCard extends StatelessWidget {
   final String closedLabel;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback onRemove;
   final ValueChanged<String> onUnitChanged;
 
   @override
@@ -420,8 +434,7 @@ class _CartItemCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     _ProductImage(imageUrl: line.product.imageUrl ?? ''),
-                    if (isClosed)
-                      ClosedStoreOverlay(label: closedLabel),
+                    if (isClosed) ClosedStoreOverlay(label: closedLabel),
                   ],
                 ),
               ),
@@ -470,12 +483,15 @@ class _CartItemCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        isClosed
-                            ? _UnitChip(label: _unitLabel(line.selectedUnit))
-                            : _UnitSwitcher(
-                                line: line,
-                                onUnitChanged: onUnitChanged,
-                              ),
+                        if (isClosed)
+                          _UnitChip(label: _unitLabel(line.selectedUnit))
+                        else
+                          _UnitSwitcher(
+                            line: line,
+                            onUnitChanged: onUnitChanged,
+                          ),
+                        const SizedBox(width: 6),
+                        _RemoveCartButton(onTap: onRemove),
                       ],
                     ),
                     if (isUnavailable) ...[
@@ -551,6 +567,173 @@ class _CartItemCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RemoveCartButton extends StatelessWidget {
+  const _RemoveCartButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Remove item from cart',
+      child: Tooltip(
+        message: 'Remove item',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Ink(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFF4F0), Color(0xFFFFE3DC)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFC4B2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _kOrange.withValues(alpha: 0.16),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.delete_sweep_rounded,
+                color: _kOrange,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<bool?> _showRemoveConfirmation(
+  BuildContext context, {
+  required String productName,
+}) {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF0EB), Color(0xFFFFDCD2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFC5B4)),
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: _kOrange,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Remove from cart?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kTextDark,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Remove "$productName" from your cart?',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _kTextMid,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kTextDark,
+                        side: const BorderSide(color: Color(0xFFE8E8E8)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Text(
+                        'Keep item',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _kOrange,
+                        foregroundColor: Colors.white,
+                        elevation: 5,
+                        shadowColor: _kOrange.withValues(alpha: 0.3),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Text(
+                        'Remove',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 class _UnitChip extends StatelessWidget {
@@ -1019,7 +1202,7 @@ class _BottomBar extends StatelessWidget {
           // Checkout button
           _CheckoutButton(
             enabled: canCheckout,
-            onTap: () {
+            onTap: () async {
               if (state.cart.isEmpty) {
                 showToast(context, 'Your cart is empty');
                 return;
@@ -1043,7 +1226,7 @@ class _BottomBar extends StatelessWidget {
                 return;
               }
               HapticFeedback.mediumImpact();
-              Navigator.pushNamed(context, CheckoutScreen.routeName);
+              await Navigator.pushNamed(context, CheckoutScreen.routeName);
             },
           ),
         ],
@@ -1055,7 +1238,7 @@ class _BottomBar extends StatelessWidget {
 class _CheckoutButton extends StatefulWidget {
   const _CheckoutButton({required this.enabled, required this.onTap});
   final bool enabled;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap;
 
   @override
   State<_CheckoutButton> createState() => _CheckoutButtonState();
@@ -1073,6 +1256,17 @@ class _CheckoutButtonState extends State<_CheckoutButton>
     begin: 1.0,
     end: 0.96,
   ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut));
+  bool _isLoading = false;
+
+  Future<void> _handleTap() async {
+    if (!widget.enabled || _isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      await widget.onTap();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -1083,11 +1277,11 @@ class _CheckoutButtonState extends State<_CheckoutButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: widget.enabled ? (_) => _c.forward() : null,
-      onTapUp: widget.enabled
-          ? (_) {
+      onTapDown: widget.enabled && !_isLoading ? (_) => _c.forward() : null,
+      onTapUp: widget.enabled && !_isLoading
+          ? (_) async {
               _c.reverse();
-              widget.onTap();
+              await _handleTap();
             }
           : null,
       onTapCancel: () => _c.reverse(),
@@ -1118,14 +1312,44 @@ class _CheckoutButtonState extends State<_CheckoutButton>
                 : [],
           ),
           child: Center(
-            child: Text(
-              'Checkout',
-              style: TextStyle(
-                color: widget.enabled ? Colors.white : Colors.grey,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.3,
-              ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: _isLoading
+                  ? const Row(
+                      key: ValueKey('checkout-loading'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Preparing checkout...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Checkout',
+                      key: const ValueKey('checkout-idle'),
+                      style: TextStyle(
+                        color: widget.enabled ? Colors.white : Colors.grey,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
             ),
           ),
         ),
