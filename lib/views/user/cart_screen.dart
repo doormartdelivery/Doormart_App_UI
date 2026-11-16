@@ -1072,6 +1072,12 @@ class _BottomBar extends StatelessWidget {
         !state.nearbyLocationUnavailable &&
         !state.hasUnavailableCartItems &&
         !state.hasClosedCartItems;
+    final loadingCheckout =
+        state.cart.isNotEmpty &&
+        state.nearbyVendorCheckPending &&
+        !state.nearbyLocationUnavailable &&
+        !state.hasUnavailableCartItems &&
+        !state.hasClosedCartItems;
 
     return Container(
       decoration: BoxDecoration(
@@ -1202,6 +1208,7 @@ class _BottomBar extends StatelessWidget {
           // Checkout button
           _CheckoutButton(
             enabled: canCheckout,
+            loading: loadingCheckout,
             onTap: () async {
               if (state.cart.isEmpty) {
                 showToast(context, 'Your cart is empty');
@@ -1236,8 +1243,13 @@ class _BottomBar extends StatelessWidget {
 }
 
 class _CheckoutButton extends StatefulWidget {
-  const _CheckoutButton({required this.enabled, required this.onTap});
+  const _CheckoutButton({
+    required this.enabled,
+    required this.loading,
+    required this.onTap,
+  });
   final bool enabled;
+  final bool loading;
   final Future<void> Function() onTap;
 
   @override
@@ -1276,9 +1288,11 @@ class _CheckoutButtonState extends State<_CheckoutButton>
 
   @override
   Widget build(BuildContext context) {
+    final busy = widget.loading || _isLoading;
+    final interactive = widget.enabled && !busy;
     return GestureDetector(
-      onTapDown: widget.enabled && !_isLoading ? (_) => _c.forward() : null,
-      onTapUp: widget.enabled && !_isLoading
+      onTapDown: interactive ? (_) => _c.forward() : null,
+      onTapUp: interactive
           ? (_) async {
               _c.reverse();
               await _handleTap();
@@ -1292,14 +1306,16 @@ class _CheckoutButtonState extends State<_CheckoutButton>
           width: double.infinity,
           height: 58,
           decoration: BoxDecoration(
-            gradient: widget.enabled
+            gradient: widget.enabled || widget.loading
                 ? const LinearGradient(
                     colors: [Color(0xFFF26522), Color(0xFFE8401A)],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   )
                 : null,
-            color: widget.enabled ? null : const Color(0xFFE0E0E0),
+            color: widget.enabled || widget.loading
+                ? null
+                : const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(999),
             boxShadow: widget.enabled
                 ? [
@@ -1314,12 +1330,12 @@ class _CheckoutButtonState extends State<_CheckoutButton>
           child: Center(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
-              child: _isLoading
-                  ? const Row(
+              child: busy
+                  ? Row(
                       key: ValueKey('checkout-loading'),
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
+                        const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
@@ -1329,10 +1345,12 @@ class _CheckoutButtonState extends State<_CheckoutButton>
                             ),
                           ),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Text(
-                          'Preparing checkout...',
-                          style: TextStyle(
+                          widget.loading
+                              ? 'Loading cart...'
+                              : 'Preparing checkout...',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w900,

@@ -9,25 +9,36 @@ class ProductPriceBreakdown extends StatelessWidget {
     this.basePrice,
     this.compact = false,
     this.showBreakdown = true,
+    this.priceFontSize,
+    this.trimWholeDecimals = false,
   });
 
   final ProductModel product;
   final double? basePrice;
   final bool compact;
   final bool showBreakdown;
+  final double? priceFontSize;
+  final bool trimWholeDecimals;
 
   @override
   Widget build(BuildContext context) {
     final base = basePrice ?? product.price;
     final gst = base * product.tax / 100;
     final total = base + gst;
-    final currency = (double value) => 'Rs ${value.toStringAsFixed(2)}';
+    final currency = (double value) {
+      final formatted = trimWholeDecimals && value == value.roundToDouble()
+          ? value.toStringAsFixed(0)
+          : value.toStringAsFixed(2);
+      return 'Rs $formatted';
+    };
 
     if (!showBreakdown) {
       return Text(
         currency(total),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: compact ? 14 : 18,
+          fontSize: priceFontSize ?? (compact ? 14 : 18),
           fontWeight: FontWeight.w900,
           color: const Color(0xFF111827),
         ),

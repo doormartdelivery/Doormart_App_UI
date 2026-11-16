@@ -138,6 +138,10 @@ class AppState extends ChangeNotifier {
   String nearbyLocationMessage = '';
   String nearbyStoresErrorMessage = '';
   DateTime? _nearbyVendorLoadedAt;
+
+  bool get nearbyVendorCheckPending =>
+      nearbyVendorsLoading || _nearbyVendorLoadedAt == null;
+
   final List<CartLine> cart = [];
   int _cartMutationToken = 0;
   int dashboardRefreshTick = 0;

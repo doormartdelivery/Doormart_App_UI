@@ -3841,6 +3841,46 @@ class _PopularStyleProductCard extends StatelessWidget {
                         bottom: 10,
                         child: OutOfStockBadge(),
                       ),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: compact ? 12 : 14,
+                              color: _kGreen,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${product.stock > 20 ? 10 : 18} min',
+                              style: TextStyle(
+                                fontSize: compact ? 9 : 10,
+                                fontWeight: FontWeight.w800,
+                                color: _kTextDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -3880,18 +3920,18 @@ class _PopularStyleProductCard extends StatelessWidget {
                       Row(
                         children: [
                           Flexible(
-                            child: FittedBox(
-                              alignment: Alignment.centerLeft,
-                              fit: BoxFit.scaleDown,
-                              child: ProductPriceBreakdown(
-                                product: product,
-                                compact: true,
-                                showBreakdown: false,
-                              ),
+                            flex: 3,
+                            child: ProductPriceBreakdown(
+                              product: product,
+                              compact: true,
+                              showBreakdown: false,
+                              priceFontSize: compact ? 16 : 18,
+                              trimWholeDecimals: true,
                             ),
                           ),
                           const SizedBox(width: 6),
                           Flexible(
+                            flex: 2,
                             child: Text(
                               '₹ ${_mrpValue(product).toStringAsFixed(0)}',
                               maxLines: 1,
@@ -3904,15 +3944,6 @@ class _PopularStyleProductCard extends StatelessWidget {
                                 decorationColor: _kTextMid,
                                 decorationThickness: 1.6,
                               ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${product.stock > 20 ? 10 : 18} min',
-                            style: TextStyle(
-                              fontSize: compact ? 8 : 9,
-                              fontWeight: FontWeight.w700,
-                              color: _kTextMid,
                             ),
                           ),
                         ],

@@ -2,13 +2,18 @@ import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../models/order_model.dart';
+import 'invoice_file_saver.dart';
 
-/// Creates and shares a customer invoice PDF. The share sheet also allows the
-/// customer to save the PDF to the device's Files/Downloads location.
-Future<void> downloadCustomerInvoice(OrderModel order) async {
+/// Creates and saves a customer invoice PDF to a location selected by the user.
+Future<String?> downloadCustomerInvoice(OrderModel order) async {
+  final invoiceNumber = order.invoiceNumber?.trim();
+  if (invoiceNumber == null || invoiceNumber.isEmpty) {
+    throw StateError(
+      'Bill number is not available until delivery is completed',
+    );
+  }
   final document = pw.Document();
   final itemRows = <List<String>>[];
 
@@ -90,7 +95,7 @@ Future<void> downloadCustomerInvoice(OrderModel order) async {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      order.invoiceNumber ?? order.displayOrderId,
+                      invoiceNumber,
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                     pw.Text(_date(order.createdAt)),
@@ -158,10 +163,8 @@ Future<void> downloadCustomerInvoice(OrderModel order) async {
   );
 
   final bytes = await document.save();
-  await Printing.sharePdf(
-    bytes: Uint8List.fromList(bytes),
-    filename: 'doormart-invoice-${order.displayOrderId}.pdf',
-  );
+  final filename = 'doormart-invoice-$invoiceNumber.pdf';
+  return saveInvoiceBytes(Uint8List.fromList(bytes), filename);
 }
 
 pw.Widget _summaryRow(String label, double value, {bool emphasis = false}) {
