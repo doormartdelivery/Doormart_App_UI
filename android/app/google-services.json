@@ -9,10 +9,15 @@
       "client_info": {
         "mobilesdk_app_id": "1:776044253883:android:71e636f24a12238bcbcf9e",
         "android_client_info": {
-          "package_name": "com.leastaction.doormartdelivery"
+          "package_name": "com.doormart.delivery"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "776044253883-q519ofoljdd37fe3sg16itk1p6ssr56q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAVjXcsgz-wdHa__F4sGkvSnuu_Qo5QTFI"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "776044253883-q519ofoljdd37fe3sg16itk1p6ssr56q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     },
@@ -31,7 +41,28 @@
           "package_name": "com.leastaction.doormartdelivery"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "776044253883-5r6sefqgeptlgsfdh9tsr2dvc40ogs2e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leastaction.doormartdelivery",
+            "certificate_hash": "e1c14b5a668ae7d64a88bfb9ab97a8403c0794ad"
+          }
+        },
+        {
+          "client_id": "776044253883-gq7fi9iistqer1lja8bnoa2539qgl3l5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leastaction.doormartdelivery",
+            "certificate_hash": "f1f3767ba5679fb718c103f44b43931052d37207"
+          }
+        },
+        {
+          "client_id": "776044253883-q519ofoljdd37fe3sg16itk1p6ssr56q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAVjXcsgz-wdHa__F4sGkvSnuu_Qo5QTFI"
@@ -39,7 +70,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "776044253883-q519ofoljdd37fe3sg16itk1p6ssr56q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
