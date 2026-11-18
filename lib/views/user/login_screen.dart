@@ -437,12 +437,25 @@ class _LoginScreenState extends State<LoginScreen>
           context: context,
           builder: (context) {
             final controller = TextEditingController();
+            final formKey = GlobalKey<FormState>();
             return AlertDialog(
               title: const Text('Complete your account'),
-              content: TextField(
-                controller: controller,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone number'),
+              content: Form(
+                key: formKey,
+                child: TextFormField(
+                  controller: controller,
+                  keyboardType: TextInputType.phone,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone number',
+                    hintText: 'Enter your delivery contact number',
+                    prefixIcon: Icon(Icons.phone_rounded),
+                  ),
+                  validator: (value) => Validators.phone(
+                    value,
+                    emptyMessage: 'Enter your phone number',
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
@@ -450,8 +463,13 @@ class _LoginScreenState extends State<LoginScreen>
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(context, controller.text.trim()),
+                  onPressed: () {
+                    if (formKey.currentState?.validate() != true) return;
+                    Navigator.pop(
+                      context,
+                      Validators.normalizePhone(controller.text),
+                    );
+                  },
                   child: const Text('Continue'),
                 ),
               ],

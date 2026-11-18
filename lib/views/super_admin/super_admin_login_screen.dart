@@ -7,6 +7,7 @@ import '../../core/utils/validators.dart';
 import '../../providers/app_state.dart';
 import '../../services/api_service.dart';
 import '../user/forgot_password_screen.dart';
+import '../user/login_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _kOrange = Color(0xFFE8541A);
@@ -205,6 +206,41 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen>
 
                           // ── Login button ──────────────────────────────
                           _LoginButton(loading: _loading, onTap: _login),
+
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: OutlinedButton.icon(
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.pushNamed(
+                                      context,
+                                      LoginScreen.routeName,
+                                    ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _kOrangeDeep,
+                                backgroundColor: _kOrangeLight,
+                                side: BorderSide(
+                                  color: _kOrange.withValues(alpha: 0.35),
+                                  width: 1.4,
+                                ),
+                                elevation: 3,
+                                shadowColor: _kOrange.withValues(alpha: 0.16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                              icon: const Icon(Icons.shopping_bag_rounded),
+                              label: const Text(
+                                'Continue shopping as customer',
+                              ),
+                            ),
+                          ),
 
                           const SizedBox(height: 28),
 

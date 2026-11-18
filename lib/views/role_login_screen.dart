@@ -6,6 +6,7 @@ import '../core/utils/validators.dart';
 import '../providers/app_state.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/toast_widget.dart';
+import 'user/login_screen.dart';
 
 class RoleLoginScreen extends StatefulWidget {
   const RoleLoginScreen({
@@ -251,6 +252,38 @@ class _RoleLoginScreenState extends State<RoleLoginScreen> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _loading
+                                ? null
+                                : () => Navigator.pushNamed(
+                                    context,
+                                    LoginScreen.routeName,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0F7A4B),
+                              backgroundColor: const Color(0xFFF1FBF5),
+                              side: const BorderSide(
+                                color: Color(0xFFB7E5C8),
+                                width: 1.4,
+                              ),
+                              elevation: 3,
+                              shadowColor: const Color(0x220F7A4B),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                            icon: const Icon(Icons.shopping_bag_rounded),
+                            label: const Text('Continue shopping as customer'),
+                          ),
+                        ),
                       ],
                     ),
                   ),

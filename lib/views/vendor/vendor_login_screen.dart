@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../user/forgot_password_screen.dart';
 import 'vendor_register_screen.dart';
 import 'vendor_status_screen.dart';
+import '../user/login_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 // A deeper, richer orange with a warmer undertone gives the "premium" feel —
@@ -219,6 +220,40 @@ class _VendorLoginScreenState extends State<VendorLoginScreen>
                           ],
                           const SizedBox(height: 26),
                           _LoginButton(loading: _loading, onTap: _login),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: OutlinedButton.icon(
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.pushNamed(
+                                      context,
+                                      LoginScreen.routeName,
+                                    ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _kOrangeDeep,
+                                backgroundColor: _kOrangeLight,
+                                side: BorderSide(
+                                  color: _kOrange.withValues(alpha: 0.35),
+                                  width: 1.4,
+                                ),
+                                elevation: 3,
+                                shadowColor: _kOrange.withValues(alpha: 0.16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                              icon: const Icon(Icons.shopping_bag_rounded),
+                              label: const Text(
+                                'Continue shopping as customer',
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 22),
                           const _OrDivider(),
                           const SizedBox(height: 18),

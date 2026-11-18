@@ -609,6 +609,7 @@ class AppState extends ChangeNotifier {
               '/auth/firebase',
               body: {
                 'idToken': idToken,
+                'provider': 'google',
                 if ((phone ?? _pendingFirebasePhone)?.trim().isNotEmpty == true)
                   'phone': (phone ?? _pendingFirebasePhone)!.trim(),
                 if (firebaseUser?.displayName != null)
@@ -686,7 +687,9 @@ class AppState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      await _firebaseAuth.signInGoogle();
+      if (_firebaseAuthUser == null) {
+        await _firebaseAuth.signInGoogle();
+      }
       await _finishFirebaseCustomerLogin(phone: phone);
       _pendingFirebasePhone = null;
     } catch (e) {
